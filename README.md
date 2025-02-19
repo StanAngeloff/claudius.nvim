@@ -84,7 +84,13 @@ vim.keymap.set('n', '<Leader>cc', '<cmd>ClaudiusCancel<cr>')
 vim.keymap.set('i', '<C-s>', '<cmd>ClaudiusSendAndInsert<cr>')
 vim.keymap.set('n', '<Leader>cn', '<cmd>ClaudiusNextMessage<cr>')
 vim.keymap.set('n', '<Leader>cp', '<cmd>ClaudiusPrevMessage<cr>')
+vim.keymap.set('n', '<Leader>ci', '<cmd>ClaudiusSelectInMessage<cr>')
+vim.keymap.set('n', '<Leader>ca', '<cmd>ClaudiusSelectMessage<cr>')
 ```
+
+The plugin also provides commands for selecting message content:
+- `ClaudiusSelectInMessage` - Select just the message content (excluding prefix)
+- `ClaudiusSelectMessage` - Select the entire message including prefix
 
 Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
 
