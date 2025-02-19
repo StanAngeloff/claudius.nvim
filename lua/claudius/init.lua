@@ -115,7 +115,13 @@ local function find_prev_message()
     for i = cur_line, 0, -1 do
         local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
         if line:match("^@[%w]+:") then
-            vim.api.nvim_win_set_cursor(0, {i + 1, 0})
+            -- Get the line and find position after the colon and whitespace
+            local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
+            local col = line:find(":%s*") + 1  -- Find position after the colon
+            while line:sub(col, col) == " " do  -- Skip any whitespace
+                col = col + 1
+            end
+            vim.api.nvim_win_set_cursor(0, {i + 1, col - 1})
             return true
         end
     end
