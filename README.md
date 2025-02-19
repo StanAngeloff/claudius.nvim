@@ -2,11 +2,11 @@
 
 A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI assistant. Claudius creates a natural chat-like interface right in your editor, with proper syntax highlighting and message folding.
 
-# Requirements
+## Requirements
 
 Claudius requires an Anthropic API key to function. You'll need to set the ANTHROPIC_API_KEY environment variable with your key before using the plugin.
 
-# Installation
+## Installation
 
 Using your preferred package manager, for example with lazy.nvim:
 
@@ -19,7 +19,7 @@ Using your preferred package manager, for example with lazy.nvim:
 }
 ```
 
-# Configuration
+## Configuration
 
 The plugin works out of the box with sensible defaults, but you can customize various aspects:
 
@@ -39,7 +39,7 @@ require("claudius").setup({
 })
 ```
 
-# Usage
+## Usage
 
 The plugin only works with files having the .chat extension. Create or open a .chat file and the plugin will automatically set up syntax highlighting and keybindings.
 
@@ -57,8 +57,10 @@ Press <kbd>Ctrl-]</kbd> to send the conversation to Claude. Use <kbd>Ctrl-C</kbd
 
 Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
 
-# About
+## About
 
 Claudius aims to provide a simple, native-feeling interface for having conversations with Claude directly in Neovim. The plugin focuses on being lightweight and following Vim/Neovim conventions.
 
-Keywords: claude tui, claude cli, claude terminal, claude vim, claude neovim, anthropic vim, anthropic neovim, ai vim, ai neovim, llm vim, llm neovim, chat vim, chat neovim
+---
+
+_Keywords: claude tui, claude cli, claude terminal, claude vim, claude neovim, anthropic vim, anthropic neovim, ai vim, ai neovim, llm vim, llm neovim, chat vim, chat neovim_
