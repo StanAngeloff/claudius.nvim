@@ -37,7 +37,17 @@ require("claudius").setup({
         char = "─",         -- character used for the separator line
         style = "FoldColumn" -- highlight group for the separator
     },
-    model = "claude-3-sonnet-20240229" -- Claude model to use
+    model = "claude-3-sonnet-20240229", -- Claude model to use
+    keymaps = {
+        normal = {
+            send = "<C-]>",    -- Key to send message in normal mode
+            cancel = "<C-c>"   -- Key to cancel ongoing request
+        },
+        insert = {
+            send = "<C-]>"     -- Key to send message in insert mode
+        },
+        enable = true          -- Set to false to disable all keymaps
+    }
 })
 ```
 
@@ -55,7 +65,16 @@ Then add your first message:
 @You: Hello Claude!
 ```
 
-Press <kbd>Ctrl-]</kbd> to send the conversation to Claude. Use <kbd>Ctrl-C</kbd> to cancel an ongoing request.
+By default, press <kbd>Ctrl-]</kbd> to send the conversation to Claude and <kbd>Ctrl-C</kbd> to cancel an ongoing request.
+
+If you prefer to set up your own keymaps, you can disable the default ones by setting `keymaps.enable = false` and use these commands in your configuration:
+
+```lua
+-- Map to your preferred keys
+vim.keymap.set('n', '<Leader>cs', '<cmd>ClaudiusSend<cr>')
+vim.keymap.set('n', '<Leader>cc', '<cmd>ClaudiusCancel<cr>')
+vim.keymap.set('i', '<C-s>', '<cmd>ClaudiusSendAndInsert<cr>')
+```
 
 Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
 

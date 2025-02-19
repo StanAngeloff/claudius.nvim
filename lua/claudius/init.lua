@@ -104,7 +104,17 @@ local default_config = {
     char = "─",  -- The character to use for the ruler
     style = "FoldColumn"  -- Highlight group for the ruler
   },
-  model = "claude-3-5-sonnet-20241022"  -- Default Claude model to use
+  model = "claude-3-5-sonnet-20241022",  -- Default Claude model to use
+  keymaps = {
+    normal = {
+      send = "<C-]>",
+      cancel = "<C-c>"
+    },
+    insert = {
+      send = "<C-]>"
+    },
+    enable = true -- Set to false to disable all keymaps
+  }
 }
 
 -- Helper function to add rulers
@@ -194,6 +204,24 @@ M.setup = function(opts)
     end
   })
 
+  -- Create user commands
+  vim.api.nvim_create_user_command('ClaudiusSend', function()
+    M.send_to_claude()
+  end, {})
+
+  vim.api.nvim_create_user_command('ClaudiusCancel', function()
+    M.cancel_request()
+  end, {})
+
+  vim.api.nvim_create_user_command('ClaudiusSendAndInsert', function()
+    vim.cmd("stopinsert")
+    M.send_to_claude({
+      on_complete = function()
+        vim.cmd("startinsert!")
+      end
+    })
+  end, {})
+
   -- Set up autocmd for the chat filetype
   vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter"}, {
     pattern = "*.chat",
@@ -212,28 +240,37 @@ M.setup = function(opts)
     end
   })
 
-  -- Set up the mappings for Claude interaction
-  vim.api.nvim_create_autocmd("FileType", {
-    pattern = "chat",
-    callback = function()
-      -- Normal mode mappings
-      vim.keymap.set("n", "<C-]>", function()
-        M.send_to_claude()
-      end, { buffer = true, desc = "Send to Claude" })
-      vim.keymap.set("n", "<C-c>", M.cancel_request, { buffer = true, desc = "Cancel Claude Request" })
-      
-      -- Insert mode mapping - send and return to insert mode
-      vim.keymap.set("i", "<C-]>", function()
-        -- Exit insert mode, send to Claude, and return to insert mode when done
-        vim.cmd("stopinsert")
-        M.send_to_claude({
-          on_complete = function()
-            vim.cmd("startinsert!")
-          end
-        })
-      end, { buffer = true, desc = "Send to Claude and continue editing" })
-    end
-  })
+  -- Set up the mappings for Claude interaction if enabled
+  if config.keymaps.enable then
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = "chat",
+      callback = function()
+        -- Normal mode mappings
+        if config.keymaps.normal.send then
+          vim.keymap.set("n", config.keymaps.normal.send, function()
+            M.send_to_claude()
+          end, { buffer = true, desc = "Send to Claude" })
+        end
+        
+        if config.keymaps.normal.cancel then
+          vim.keymap.set("n", config.keymaps.normal.cancel, M.cancel_request, 
+            { buffer = true, desc = "Cancel Claude Request" })
+        end
+        
+        -- Insert mode mapping - send and return to insert mode
+        if config.keymaps.insert.send then
+          vim.keymap.set("i", config.keymaps.insert.send, function()
+            vim.cmd("stopinsert")
+            M.send_to_claude({
+              on_complete = function()
+                vim.cmd("startinsert!")
+              end
+            })
+          end, { buffer = true, desc = "Send to Claude and continue editing" })
+        end
+      end
+    })
+  end
 end
 
 -- Parse a single message from lines
