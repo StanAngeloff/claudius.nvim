@@ -57,6 +57,8 @@ require("claudius").setup({
 
 The plugin only works with files having the .chat extension. Create or open a .chat file and the plugin will automatically set up syntax highlighting and keybindings.
 
+### Starting a New Chat
+
 Start your conversation with a system message (optional):
 ```
 @System: You are a helpful AI assistant.
@@ -79,6 +81,19 @@ vim.keymap.set('i', '<C-s>', '<cmd>ClaudiusSendAndInsert<cr>')
 ```
 
 Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
+
+### Importing from Claude Workbench
+
+You can import conversations from the Claude Workbench (console.anthropic.com):
+
+1. Open your saved prompt in the Workbench
+2. Click the "Get Code" button
+3. Change the language to TypeScript
+4. Use the "Copy Code" button to copy the code snippet
+5. Paste the code into a new buffer in Neovim
+6. Run `:ClaudiusImport` to convert it to a .chat file
+
+The command will parse the API call and convert it into Claudius's chat format.
 
 ## About
 
