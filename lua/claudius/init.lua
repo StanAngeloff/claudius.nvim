@@ -316,12 +316,14 @@ function M.cancel_request()
   if M.current_request then
     log.info("Cancelling request " .. tostring(M.current_request))
     
-    -- Mark as cancelled and send SIGTERM to curl process
+    -- Get the process group ID before stopping the job
+    local pid = vim.fn.jobpid(M.current_request)
+    
+    -- Mark as cancelled and stop the job
     M.request_cancelled = true
     vim.fn.jobstop(M.current_request)
     
-    -- Get the process group ID and send SIGTERM to ensure curl aborts
-    local pid = vim.fn.jobpid(M.current_request)
+    -- Send SIGTERM to the process group if we got the PID
     if pid then
       -- Send SIGTERM to the process group
       vim.fn.system('kill -TERM -' .. pid)
