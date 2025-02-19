@@ -296,7 +296,7 @@ function M.cancel_request()
     
     -- If we're still showing the thinking message, remove it
     if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
-      cleanup_spinner(bufnr)
+      M.cleanup_spinner(bufnr)
     end
     
     vim.notify("Claude request cancelled", vim.log.levels.INFO)
@@ -304,7 +304,7 @@ function M.cancel_request()
 end
 
 -- Clean up spinner and prepare for response
-local function cleanup_spinner(bufnr)
+M.cleanup_spinner = function(bufnr)
   -- Stop any existing rulers/virtual text
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   
