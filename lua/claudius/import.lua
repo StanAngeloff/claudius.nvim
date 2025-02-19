@@ -2,14 +2,18 @@ local M = {}
 
 -- Helper function to convert JS object notation to valid JSON
 local function prepare_json(content)
-    -- First clean up any line breaks and extra spaces
-    content = content:gsub("\n%s*", " ")
+    local lines = {}
+    -- Process each line individually
+    for line in content:gmatch("[^\r\n]+") do
+        -- Only look for unquoted property names at the start of the line
+        line = line:gsub("^%s*([%w_%.-]+)%s*:", function(prop)
+            return string.format('"%s":', prop)
+        end)
+        lines[#lines + 1] = line
+    end
     
-    -- Replace unquoted property names with quoted versions
-    -- This handles property names that may contain periods or other special chars
-    content = content:gsub("([%w_%.-]+)%s*:", "\"%1\":")
-    
-    return content
+    -- Join lines back together with spaces
+    return table.concat(lines, " ")
 end
 
 -- Extract content between create() call
