@@ -61,7 +61,7 @@ function M.message_textobj(type)
     vim.cmd("normal! v")
   end
 
-  if type == 'i' then -- inner message
+  if type == "i" then -- inner message
     -- Start at first character after prefix
     vim.cmd(string.format("normal! %dG%d|v", bounds.start_line, bounds.prefix_end + 1))
     -- Move to last non-empty line
@@ -81,18 +81,34 @@ function M.setup(opts)
   if opts.text_object == false then
     return
   end
-  
+
   local key = opts.text_object or "m"
 
   -- Create text objects for inner message (i{key}) and around message (a{key})
-  vim.keymap.set('x', 'i' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
-    { silent = true, buffer = true })
-  vim.keymap.set('o', 'i' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
-    { silent = true, buffer = true })
-  vim.keymap.set('x', 'a' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
-    { silent = true, buffer = true })
-  vim.keymap.set('o', 'a' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
-    { silent = true, buffer = true })
+  vim.keymap.set(
+    "x",
+    "i" .. key,
+    ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>',
+    { silent = true, buffer = true }
+  )
+  vim.keymap.set(
+    "o",
+    "i" .. key,
+    ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>',
+    { silent = true, buffer = true }
+  )
+  vim.keymap.set(
+    "x",
+    "a" .. key,
+    ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>',
+    { silent = true, buffer = true }
+  )
+  vim.keymap.set(
+    "o",
+    "a" .. key,
+    ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>',
+    { silent = true, buffer = true }
+  )
 end
 
 return M
