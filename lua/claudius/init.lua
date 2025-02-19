@@ -278,7 +278,7 @@ local function format_messages(messages)
   
   for _, msg in ipairs(messages) do
     if msg.type == MSG_TYPE.SYSTEM then
-      system_message = msg.content
+      system_message = msg.content:gsub("%s+$", "")
     else
       local role = msg.type == MSG_TYPE.USER and "user"
         or msg.type == MSG_TYPE.ASSISTANT and "assistant"
@@ -287,7 +287,7 @@ local function format_messages(messages)
       if role then
         table.insert(formatted, {
           role = role,
-          content = msg.content
+          content = msg.content:gsub("%s+$", "")
         })
       end
     end
