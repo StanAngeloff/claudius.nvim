@@ -149,7 +149,7 @@ local default_config = {
     style = "NonText", -- Highlight group for the ruler
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
-  text_object = "m", -- Default text object key
+  text_object = "m", -- Default text object key, set to false to disable
   keymaps = {
     normal = {
       send = "<C-]>",

@@ -77,6 +77,11 @@ end
 -- Setup function to create the text objects
 function M.setup(opts)
   opts = opts or {}
+  -- Return early if text objects are disabled
+  if opts.text_object == false then
+    return
+  end
+  
   local key = opts.text_object or "m"
 
   -- Create text objects for inner message (i{key}) and around message (a{key})
