@@ -1,6 +1,34 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace('claudius')
 
+-- Setup logging
+local log_path = vim.fn.stdpath('cache') .. '/claudius.log'
+local log = {}
+
+function log.info(msg)
+  local f = io.open(log_path, 'a')
+  if f then
+    f:write(os.date('%Y-%m-%d %H:%M:%S') .. ' [INFO] ' .. msg .. '\n')
+    f:close()
+  end
+end
+
+function log.error(msg)
+  local f = io.open(log_path, 'a')
+  if f then
+    f:write(os.date('%Y-%m-%d %H:%M:%S') .. ' [ERROR] ' .. msg .. '\n')
+    f:close()
+  end
+end
+
+function log.debug(msg)
+  local f = io.open(log_path, 'a')
+  if f then
+    f:write(os.date('%Y-%m-%d %H:%M:%S') .. ' [DEBUG] ' .. msg .. '\n')
+    f:close()
+  end
+end
+
 
 -- Utility functions for JSON encoding/decoding
 local function json_decode(str)
@@ -286,6 +314,8 @@ end
 -- Cancel ongoing request if any
 function M.cancel_request()
   if M.current_request then
+    log.info("Cancelling request " .. tostring(M.current_request))
+    
     -- Mark as cancelled and stop the job
     M.request_cancelled = true
     vim.fn.jobstop(M.current_request)
@@ -298,10 +328,13 @@ function M.cancel_request()
     
     -- If we're still showing the thinking message, remove it
     if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+      log.debug("Cleaning up thinking message")
       M.cleanup_spinner(bufnr)
     end
     
-    vim.notify("Claude request cancelled", vim.log.levels.INFO)
+    vim.notify("Claude request cancelled. See " .. log_path .. " for details.", vim.log.levels.INFO)
+  else
+    log.debug("Cancel request called but no current request found")
   end
 end
 
@@ -354,13 +387,16 @@ end
 
 -- Handle the Claude interaction
 function M.send_to_claude()
+  log.info("Starting new Claude request")
+  
   -- Cancel any ongoing request and reset cancelled state
   M.cancel_request()
   M.request_cancelled = false
 
   local api_key = os.getenv("ANTHROPIC_API_KEY")
   if not api_key then
-    vim.notify("ANTHROPIC_API_KEY environment variable not set", vim.log.levels.ERROR)
+    log.error("ANTHROPIC_API_KEY environment variable not set")
+    vim.notify("ANTHROPIC_API_KEY environment variable not set. See " .. log_path .. " for details.", vim.log.levels.ERROR)
     return
   end
 
@@ -473,13 +509,23 @@ function M.send_to_claude()
       if data then
         for _, line in ipairs(data) do
           if line and #line > 0 then
+            log.debug("Received: " .. line)
             handle_response_line(line)
           end
         end
       end
     end,
-    on_stderr = function(_, data) end,
-    on_exit = function()
+    on_stderr = function(_, data)
+      if data then
+        for _, line in ipairs(data) do
+          if line and #line > 0 then
+            log.error("stderr: " .. line)
+          end
+        end
+      end
+    end,
+    on_exit = function(_, code)
+      log.info("Request completed with exit code: " .. tostring(code))
       vim.schedule(function()
         M.current_request = nil
         vim.fn.timer_stop(spinner_timer)
