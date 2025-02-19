@@ -385,8 +385,6 @@ function M.send_to_claude()
         -- Stop spinner on first content
         if not response_started then
           vim.fn.timer_stop(spinner_timer)
-          response_started = true
-          cleanup_spinner(bufnr)
         end
         
         -- Split content into lines
@@ -395,23 +393,31 @@ function M.send_to_claude()
         if #lines > 0 then
           local last_line = vim.api.nvim_buf_line_count(bufnr)
           
-          -- Handle first response line
           if not response_started then
-            -- Ensure there's a blank line before the response
-            local prev_line = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
-            if prev_line and prev_line:match("%S") then
-              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {""})
-              last_line = last_line + 1
-            end
+            -- Clean up spinner and ensure blank line
+            cleanup_spinner(bufnr)
+            last_line = vim.api.nvim_buf_line_count(bufnr)
             
-            lines[1] = "@Assistant: " .. lines[1]
-            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines)
+            -- Start with @Assistant: prefix
+            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"@Assistant: " .. lines[1]})
+            
+            -- Add remaining lines if any
+            if #lines > 1 then
+              vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, {unpack(lines, 2)})
+            end
           else
-            -- Append to existing response
-            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines)
+            -- Get the last line's content
+            local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
+            
+            -- Append first new line to last existing line
+            vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {last_line_content .. lines[1]})
+            
+            -- Add remaining lines if any
+            if #lines > 1 then
+              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line - 1, false, {unpack(lines, 2)})
+            end
           end
           
-          -- Update response_started after handling first line
           response_started = true
         end
       end)
