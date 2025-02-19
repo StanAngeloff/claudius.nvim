@@ -44,11 +44,13 @@ require("claudius").setup({
     model = "claude-3-sonnet-20240229", -- Claude model to use
     keymaps = {
         normal = {
-            send = "<C-]>",    -- Key to send message in normal mode
-            cancel = "<C-c>"   -- Key to cancel ongoing request
+            send = "<C-]>",       -- Key to send message in normal mode
+            cancel = "<C-c>",     -- Key to cancel ongoing request
+            next_message = "]m",  -- Jump to next message
+            prev_message = "[m",  -- Jump to previous message
         },
         insert = {
-            send = "<C-]>"     -- Key to send message in insert mode
+            send = "<C-]>"        -- Key to send message in insert mode
         },
         enable = true          -- Set to false to disable all keymaps
     }

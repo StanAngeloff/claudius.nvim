@@ -88,6 +88,34 @@ local MSG_TYPE = {
   ASSISTANT = "Assistant",
 }
 
+-- Navigation functions
+local function find_next_message()
+    local cur_line = vim.api.nvim_win_get_cursor(0)[1]
+    local lines = vim.api.nvim_buf_get_lines(0, cur_line, -1, false)
+    
+    for i, line in ipairs(lines) do
+        if line:match("^@[%w]+:") then
+            vim.api.nvim_win_set_cursor(0, {cur_line + i, 0})
+            return true
+        end
+    end
+    return false
+end
+
+local function find_prev_message()
+    local cur_line = vim.api.nvim_win_get_cursor(0)[1] - 2
+    if cur_line < 0 then return false end
+    
+    for i = cur_line, 0, -1 do
+        local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
+        if line:match("^@[%w]+:") then
+            vim.api.nvim_win_set_cursor(0, {i + 1, 0})
+            return true
+        end
+    end
+    return false
+end
+
 -- Module configuration
 local config = {}
 
@@ -263,6 +291,25 @@ M.setup = function(opts)
             config.keymaps.normal.cancel,
             M.cancel_request,
             { buffer = true, desc = "Cancel Claude Request" }
+          )
+        end
+
+        -- Message navigation keymaps
+        if config.keymaps.normal.next_message then
+          vim.keymap.set(
+            "n",
+            config.keymaps.normal.next_message,
+            find_next_message,
+            { buffer = true, desc = "Jump to next message" }
+          )
+        end
+
+        if config.keymaps.normal.prev_message then
+          vim.keymap.set(
+            "n",
+            config.keymaps.normal.prev_message,
+            find_prev_message,
+            { buffer = true, desc = "Jump to previous message" }
           )
         end
 
