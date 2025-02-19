@@ -39,6 +39,13 @@ function M.get_fold_text()
   return string.format("%s %s... (%d lines)", prefix, content:sub(1, 50), lines_count)
 end
 
+-- Message types
+local MSG_TYPE = {
+  SYSTEM = "System",
+  USER = "You",
+  ASSISTANT = "Assistant"
+}
+
 -- Default configuration
 local default_config = {
   highlights = {
@@ -157,6 +164,70 @@ M.setup = function(opts)
       setup_folding()
     end
   })
+
+  -- Set up the mapping for Claude interaction
+  vim.api.nvim_create_autocmd("FileType", {
+    pattern = "chat",
+    callback = function()
+      vim.keymap.set("n", "<C-]>", M.send_to_claude, { buffer = true, desc = "Send to Claude" })
+    end
+  })
+end
+
+-- Parse a single message from lines
+local function parse_message(lines, start_idx)
+  local line = lines[start_idx]
+  local msg_type = line:match("^@([%w]+):")
+  if not msg_type then
+    return nil, start_idx
+  end
+
+  local content = {}
+  local i = start_idx
+  -- Remove the prefix from first line
+  content[#content + 1] = line:sub(#msg_type + 3):gsub("^%s*", "")
+  
+  i = i + 1
+  -- Collect lines until we hit another prefix or end of buffer
+  while i <= #lines do
+    local next_line = lines[i]
+    if next_line:match("^@[%w]+:") then
+      break
+    end
+    content[#content + 1] = next_line
+    i = i + 1
+  end
+
+  return {
+    type = msg_type,
+    content = table.concat(content, "\n")
+  }, i - 1
+end
+
+-- Parse the entire buffer into a sequence of messages
+function M.parse_buffer()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local messages = {}
+  local i = 1
+
+  while i <= #lines do
+    local msg, last_idx = parse_message(lines, i)
+    if msg then
+      messages[#messages + 1] = msg
+      i = last_idx + 1
+    else
+      i = i + 1
+    end
+  end
+
+  return messages
+end
+
+-- Handle the Claude interaction
+function M.send_to_claude()
+  local messages = M.parse_buffer()
+  -- TODO: Implement the actual Claude API interaction
+  vim.notify("Parsed " .. #messages .. " messages", vim.log.levels.INFO)
 end
 
 return M
