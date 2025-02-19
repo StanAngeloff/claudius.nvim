@@ -217,6 +217,10 @@ M.setup = function(opts)
     M.cancel_request()
   end, {})
 
+  vim.api.nvim_create_user_command("ClaudiusImport", function()
+    require("claudius.import").import_buffer()
+  end, {})
+
   vim.api.nvim_create_user_command("ClaudiusSendAndInsert", function()
     vim.cmd("stopinsert")
     M.send_to_claude({
