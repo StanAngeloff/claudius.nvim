@@ -370,15 +370,8 @@ function M.send_to_claude()
     on_stdout = function(_, data)
       if data then
         for _, line in ipairs(data) do
-          if line:match("^data: ") then
-            local ok, decoded = pcall(json_decode, line:gsub("^data: ", ""))
-            if ok and decoded.type == "content_block_delta" then
-              response_text = response_text .. (decoded.delta.text or "")
-              vim.schedule(function()
-                vim.fn.timer_stop(spinner_timer)
-                append_response(response_text)
-              end)
-            end
+          if line and #line > 0 then
+            handle_response_line(line)
           end
         end
       end
