@@ -1,7 +1,7 @@
 local M = {}
 
 -- Get the bounds of the current message
-function M.get_message_bounds()
+local function get_message_bounds()
   local cur_line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
@@ -46,34 +46,42 @@ function M.get_message_bounds()
   }
 end
 
-function M.select_in_message()
-  local bounds = M.get_message_bounds()
+-- Text object implementations
+function M.message_textobj(type)
+  local bounds = get_message_bounds()
   if not bounds then
     return
   end
 
-  -- Get the lines
-  local lines = vim.api.nvim_buf_get_lines(0, bounds.start_line - 1, bounds.inner_end, false)
+  local start_pos, end_pos
 
-  -- Select from after prefix to last non-empty line
-  vim.api.nvim_win_set_cursor(0, { bounds.start_line, bounds.prefix_end })
-  vim.cmd("normal! v")
-  vim.api.nvim_win_set_cursor(0, { bounds.inner_end, #lines[#lines] })
+  if type == 'i' then -- inner message
+    -- Get the lines for calculating final column
+    local lines = vim.api.nvim_buf_get_lines(0, bounds.start_line - 1, bounds.inner_end, false)
+    start_pos = { bounds.start_line, bounds.prefix_end }
+    end_pos = { bounds.inner_end, #lines[#lines] }
+  else -- around message
+    local lines = vim.api.nvim_buf_get_lines(0, bounds.end_line - 1, bounds.end_line, false)
+    start_pos = { bounds.start_line, 0 }
+    end_pos = { bounds.end_line, #lines[1] }
+  end
+
+  -- Set marks for the text object
+  vim.api.nvim_buf_set_mark(0, '[', start_pos[1], start_pos[2], {})
+  vim.api.nvim_buf_set_mark(0, ']', end_pos[1], end_pos[2], {})
 end
 
-function M.select_message()
-  local bounds = M.get_message_bounds()
-  if not bounds then
-    return
-  end
-
-  -- Select entire message including prefix and trailing whitespace
-  vim.api.nvim_win_set_cursor(0, { bounds.start_line, 0 })
-  vim.cmd("normal! v")
-  vim.api.nvim_win_set_cursor(
-    0,
-    { bounds.end_line, #vim.api.nvim_buf_get_lines(0, bounds.end_line - 1, bounds.end_line, false)[1] }
-  )
+-- Setup function to create the text objects
+function M.setup()
+  -- Create text objects for inner message (im) and around message (am)
+  vim.keymap.set('x', 'im', ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
+    { silent = true, buffer = true })
+  vim.keymap.set('o', 'im', ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
+    { silent = true, buffer = true })
+  vim.keymap.set('x', 'am', ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
+    { silent = true, buffer = true })
+  vim.keymap.set('o', 'am', ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
+    { silent = true, buffer = true })
 end
 
 return M
