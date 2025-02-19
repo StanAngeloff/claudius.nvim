@@ -99,7 +99,8 @@ local default_config = {
   ruler = {
     char = "─",  -- The character to use for the ruler
     style = "FoldColumn"  -- Highlight group for the ruler
-  }
+  },
+  model = "claude-3-sonnet-20240229"  -- Default Claude model to use
 }
 
 -- Helper function to add rulers
@@ -419,7 +420,7 @@ function M.send_to_claude()
 
   local formatted_messages, system_message = format_messages(messages)
   local request_body = {
-    model = "claude-3-sonnet-20240229",
+    model = config.model,
     messages = formatted_messages,
     system = system_message,
     max_tokens = 4000,
