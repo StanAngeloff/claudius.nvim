@@ -641,7 +641,7 @@ function M.send_to_claude(opts)
     -- Handle error responses
     if data.type == "error" then
       vim.schedule(function()
-        vim.fn.timer_stop(spinner_timer)
+        vim.fn.timer_stop(timer)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
         M.current_request = nil
 
@@ -660,7 +660,7 @@ function M.send_to_claude(opts)
 
         -- Stop spinner on first content
         if not response_started then
-          vim.fn.timer_stop(spinner_timer)
+          vim.fn.timer_stop(timer)
         end
 
         -- Split content into lines
