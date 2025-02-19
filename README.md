@@ -32,16 +32,16 @@ The plugin works out of the box with sensible defaults, but you can customize va
 ```lua
 require("claudius").setup({
     highlights = {
-        system = "Special",  -- highlight group for system messages
-        user = "Normal",     -- highlight group for user messages
-        assistant = "Comment" -- highlight group for Claude's responses
+        system = "Special",    -- highlight group for system messages
+        user = "Normal",       -- highlight group for user messages
+        assistant = "Comment"  -- highlight group for Claude's responses
     },
-    prefix_style = "bold,underline", -- style applied to message prefixes
+    prefix_style = "bold,underline",  -- style applied to message prefixes
     ruler = {
-        char = "─",         -- character used for the separator line
-        style = "FoldColumn" -- highlight group for the separator
+        char = "─",           -- character used for the separator line
+        style = "FoldColumn"  -- highlight group for the separator
     },
-    model = "claude-3-sonnet-20240229", -- Claude model to use
+    model = "claude-3-sonnet-20240229",  -- Claude model to use
     keymaps = {
         normal = {
             send = "<C-]>",       -- Key to send message in normal mode
@@ -50,9 +50,9 @@ require("claudius").setup({
             prev_message = "[m",  -- Jump to previous message
         },
         insert = {
-            send = "<C-]>"        -- Key to send message in insert mode
+            send = "<C-]>"  -- Key to send message in insert mode
         },
-        enable = true          -- Set to false to disable all keymaps
+        enable = true  -- Set to false to disable all keymaps
     }
 })
 ```
@@ -60,6 +60,47 @@ require("claudius").setup({
 ## Usage
 
 The plugin only works with files having the .chat extension. Create or open a .chat file and the plugin will automatically set up syntax highlighting and keybindings.
+
+### Commands and Keybindings
+
+The plugin provides several commands for interacting with Claude and managing chat content:
+
+#### Core Commands
+- `ClaudiusSend` - Send the current conversation to Claude
+- `ClaudiusCancel` - Cancel an ongoing request
+- `ClaudiusSendAndInsert` - Send to Claude and return to insert mode
+
+#### Navigation Commands
+- `ClaudiusNextMessage` - Jump to next message (`]m` by default)
+- `ClaudiusPrevMessage` - Jump to previous message (`[m` by default)
+
+#### Selection Commands
+- `ClaudiusSelectInMessage` - Select just the message content (`vim` by default)
+- `ClaudiusSelectMessage` - Select the entire message including prefix (`vam` by default)
+
+#### Import Command
+- `ClaudiusImport` - Convert a Claude Workbench API call into chat format
+
+By default, the following keybindings are active in chat files:
+- <kbd>Ctrl-]</kbd> - Send conversation (normal and insert mode)
+- <kbd>Ctrl-C</kbd> - Cancel ongoing request
+- <kbd>]m</kbd> - Jump to next message
+- <kbd>[m</kbd> - Jump to previous message
+- <kbd>vim</kbd> - Select inside message content
+- <kbd>vam</kbd> - Select entire message
+
+You can disable the default keymaps by setting `keymaps.enable = false` and define your own:
+
+```lua
+-- Example custom keymaps
+vim.keymap.set('n', '<Leader>cs', '<cmd>ClaudiusSend<cr>')
+vim.keymap.set('n', '<Leader>cc', '<cmd>ClaudiusCancel<cr>')
+vim.keymap.set('i', '<C-s>', '<cmd>ClaudiusSendAndInsert<cr>')
+vim.keymap.set('n', '<Leader>cn', '<cmd>ClaudiusNextMessage<cr>')
+vim.keymap.set('n', '<Leader>cp', '<cmd>ClaudiusPrevMessage<cr>')
+vim.keymap.set('n', '<Leader>ci', '<cmd>ClaudiusSelectInMessage<cr>')
+vim.keymap.set('n', '<Leader>ca', '<cmd>ClaudiusSelectMessage<cr>')
+```
 
 ### Starting a New Chat
 
@@ -72,25 +113,6 @@ Then add your first message:
 ```
 @You: Hello Claude!
 ```
-
-By default, press <kbd>Ctrl-]</kbd> to send the conversation to Claude and <kbd>Ctrl-C</kbd> to cancel an ongoing request.
-
-If you prefer to set up your own keymaps, you can disable the default ones by setting `keymaps.enable = false` and use these commands in your configuration:
-
-```lua
--- Map to your preferred keys
-vim.keymap.set('n', '<Leader>cs', '<cmd>ClaudiusSend<cr>')
-vim.keymap.set('n', '<Leader>cc', '<cmd>ClaudiusCancel<cr>')
-vim.keymap.set('i', '<C-s>', '<cmd>ClaudiusSendAndInsert<cr>')
-vim.keymap.set('n', '<Leader>cn', '<cmd>ClaudiusNextMessage<cr>')
-vim.keymap.set('n', '<Leader>cp', '<cmd>ClaudiusPrevMessage<cr>')
-vim.keymap.set('n', '<Leader>ci', '<cmd>ClaudiusSelectInMessage<cr>')
-vim.keymap.set('n', '<Leader>ca', '<cmd>ClaudiusSelectMessage<cr>')
-```
-
-The plugin also provides commands for selecting message content:
-- `ClaudiusSelectInMessage` - Select just the message content (excluding prefix)
-- `ClaudiusSelectMessage` - Select the entire message including prefix
 
 Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
 
