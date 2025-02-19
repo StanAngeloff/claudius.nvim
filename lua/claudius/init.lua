@@ -299,8 +299,13 @@ local function start_loading_spinner()
   -- Clear any existing virtual text
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   
-  -- Create loading line at the end of buffer
-  vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"@Assistant: Thinking..."})
+  -- Check if we need to add a blank line
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  if #lines > 0 and lines[#lines]:match("%S") then
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"", "@Assistant: Thinking..."})
+  else
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"@Assistant: Thinking..."})
+  end
   
   return vim.fn.timer_start(100, function()
     if not M.current_request then
