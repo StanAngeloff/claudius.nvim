@@ -90,42 +90,44 @@ local MSG_TYPE = {
 
 -- Navigation functions
 local function find_next_message()
-    local cur_line = vim.api.nvim_win_get_cursor(0)[1]
-    local lines = vim.api.nvim_buf_get_lines(0, cur_line, -1, false)
-    
-    for i, line in ipairs(lines) do
-        if line:match("^@[%w]+:") then
-            -- Get the line and find position after the colon and whitespace
-            local line = vim.api.nvim_buf_get_lines(0, cur_line + i - 1, cur_line + i, false)[1]
-            local col = line:find(":%s*") + 1  -- Find position after the colon
-            while line:sub(col, col) == " " do  -- Skip any whitespace
-                col = col + 1
-            end
-            vim.api.nvim_win_set_cursor(0, {cur_line + i, col - 1})
-            return true
-        end
+  local cur_line = vim.api.nvim_win_get_cursor(0)[1]
+  local lines = vim.api.nvim_buf_get_lines(0, cur_line, -1, false)
+
+  for i, line in ipairs(lines) do
+    if line:match("^@[%w]+:") then
+      -- Get the line and find position after the colon and whitespace
+      local line = vim.api.nvim_buf_get_lines(0, cur_line + i - 1, cur_line + i, false)[1]
+      local col = line:find(":%s*") + 1 -- Find position after the colon
+      while line:sub(col, col) == " " do -- Skip any whitespace
+        col = col + 1
+      end
+      vim.api.nvim_win_set_cursor(0, { cur_line + i, col - 1 })
+      return true
     end
-    return false
+  end
+  return false
 end
 
 local function find_prev_message()
-    local cur_line = vim.api.nvim_win_get_cursor(0)[1] - 2
-    if cur_line < 0 then return false end
-    
-    for i = cur_line, 0, -1 do
-        local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
-        if line:match("^@[%w]+:") then
-            -- Get the line and find position after the colon and whitespace
-            local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
-            local col = line:find(":%s*") + 1  -- Find position after the colon
-            while line:sub(col, col) == " " do  -- Skip any whitespace
-                col = col + 1
-            end
-            vim.api.nvim_win_set_cursor(0, {i + 1, col - 1})
-            return true
-        end
-    end
+  local cur_line = vim.api.nvim_win_get_cursor(0)[1] - 2
+  if cur_line < 0 then
     return false
+  end
+
+  for i = cur_line, 0, -1 do
+    local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
+    if line:match("^@[%w]+:") then
+      -- Get the line and find position after the colon and whitespace
+      local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
+      local col = line:find(":%s*") + 1 -- Find position after the colon
+      while line:sub(col, col) == " " do -- Skip any whitespace
+        col = col + 1
+      end
+      vim.api.nvim_win_set_cursor(0, { i + 1, col - 1 })
+      return true
+    end
+  end
+  return false
 end
 
 -- Module configuration
@@ -148,8 +150,8 @@ local default_config = {
     normal = {
       send = "<C-]>",
       cancel = "<C-c>",
-      next_message = "]m",     -- Jump to next message
-      prev_message = "[m",     -- Jump to previous message
+      next_message = "]m", -- Jump to next message
+      prev_message = "[m", -- Jump to previous message
     },
     insert = {
       send = "<C-]>",
@@ -223,11 +225,16 @@ M.setup = function(opts)
     vim.cmd(string.format("highlight link ChatAssistant %s", config.highlights.assistant))
 
     -- Set up prefix highlights
-    vim.cmd(string.format([[
+    vim.cmd(string.format(
+      [[
       execute 'highlight ChatSystemPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatSystem")), "fg", "gui") . ' gui=%s'
       execute 'highlight ChatUserPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatUser")), "fg", "gui") . ' gui=%s'
       execute 'highlight ChatAssistantPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatAssistant")), "fg", "gui") . ' gui=%s'
-    ]], config.prefix_style, config.prefix_style, config.prefix_style))
+    ]],
+      config.prefix_style,
+      config.prefix_style,
+      config.prefix_style
+    ))
   end
 
   -- Set up folding expression
@@ -770,8 +777,8 @@ function M.send_to_claude(opts)
 
           -- Move cursor to after the colon and any whitespace
           local line = vim.api.nvim_buf_get_lines(0, last_line + 1, last_line + 2, false)[1]
-          local col = line:find(":%s*") + 1  -- Find position after the colon
-          while line:sub(col, col) == " " do  -- Skip any whitespace
+          local col = line:find(":%s*") + 1 -- Find position after the colon
+          while line:sub(col, col) == " " do -- Skip any whitespace
             col = col + 1
           end
           vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
