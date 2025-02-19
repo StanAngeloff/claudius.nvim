@@ -20,7 +20,6 @@ end
 local function extract_content(lines)
   local content = {}
   local capturing = false
-  local depth = 0
 
   for _, line in ipairs(lines) do
     if line:match("anthropic%.messages%.create%(") then
