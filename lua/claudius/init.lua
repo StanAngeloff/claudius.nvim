@@ -222,7 +222,7 @@ local default_config = {
       next_message = "]m", -- Jump to next message
       prev_message = "[m", -- Jump to previous message
       select_in_message = "vim", -- Select inside message content
-      select_message = "vaM", -- Select entire message including prefix
+      select_message = "vam", -- Select entire message including prefix
     },
     insert = {
       send = "<C-]>",
