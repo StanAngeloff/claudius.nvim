@@ -510,7 +510,7 @@ function M.send_to_claude()
         for _, line in ipairs(data) do
           if line and #line > 0 then
             log.debug("Received: " .. line)
-            handle_response_line(line)
+            handle_response_line(line, spinner_timer)
           end
         end
       end
