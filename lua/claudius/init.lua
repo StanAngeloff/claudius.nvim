@@ -99,9 +99,9 @@ local function find_next_message()
   for i, line in ipairs(lines) do
     if line:match("^@[%w]+:") then
       -- Get the line and find position after the colon and whitespace
-      local line = vim.api.nvim_buf_get_lines(0, cur_line + i - 1, cur_line + i, false)[1]
-      local col = line:find(":%s*") + 1 -- Find position after the colon
-      while line:sub(col, col) == " " do -- Skip any whitespace
+      local full_line = vim.api.nvim_buf_get_lines(0, cur_line + i - 1, cur_line + i, false)[1]
+      local col = full_line:find(":%s*") + 1 -- Find position after the colon
+      while full_line:sub(col, col) == " " do -- Skip any whitespace
         col = col + 1
       end
       vim.api.nvim_win_set_cursor(0, { cur_line + i, col - 1 })
