@@ -328,11 +328,18 @@ function M.send_to_claude()
   }
 
   local spinner_timer = start_loading_spinner()
+  local response_started = false
   local function handle_response_line(line)
     if not line:match("^data: ") then return end
     
     local json_str = line:gsub("^data: ", "")
-    if json_str == "[DONE]" then return end
+    if json_str == "[DONE]" then
+      vim.schedule(function()
+        vim.fn.timer_stop(spinner_timer)
+        M.current_request = nil
+      end)
+      return
+    end
 
     local ok, data = pcall(json_decode, json_str)
     if not ok then
@@ -344,16 +351,28 @@ function M.send_to_claude()
 
     if data.type == "content_block_delta" and data.delta and data.delta.text then
       vim.schedule(function()
-        -- Remove the "Thinking..." line
-        local bufnr = vim.api.nvim_get_current_buf()
-        local last_line = vim.api.nvim_buf_line_count(bufnr)
-        vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+        -- Stop spinner on first content
+        if not response_started then
+          vim.fn.timer_stop(spinner_timer)
+          response_started = true
+          
+          -- Remove the "Thinking..." line
+          local bufnr = vim.api.nvim_get_current_buf()
+          local last_line = vim.api.nvim_buf_line_count(bufnr)
+          vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+        end
         
         -- Append the new content
+        local bufnr = vim.api.nvim_get_current_buf()
+        local last_line = vim.api.nvim_buf_line_count(bufnr)
         local prefix = "@Assistant: "
         local lines = vim.split(data.delta.text, "\n", { plain = true })
+        
         if #lines > 0 then
-          lines[1] = prefix .. lines[1]
+          -- For first line, either create new line with prefix or append to existing
+          if not response_started then
+            lines[1] = prefix .. lines[1]
+          end
           vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line - 1, false, lines)
         end
       end)
