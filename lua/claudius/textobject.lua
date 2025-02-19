@@ -75,15 +75,18 @@ function M.message_textobj(type)
 end
 
 -- Setup function to create the text objects
-function M.setup()
-  -- Create text objects for inner message (im) and around message (am)
-  vim.keymap.set('x', 'im', ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
+function M.setup(opts)
+  opts = opts or {}
+  local key = opts.text_object or "m"
+
+  -- Create text objects for inner message (i{key}) and around message (a{key})
+  vim.keymap.set('x', 'i' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
     { silent = true, buffer = true })
-  vim.keymap.set('o', 'im', ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
+  vim.keymap.set('o', 'i' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("i")<CR>', 
     { silent = true, buffer = true })
-  vim.keymap.set('x', 'am', ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
+  vim.keymap.set('x', 'a' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
     { silent = true, buffer = true })
-  vim.keymap.set('o', 'am', ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
+  vim.keymap.set('o', 'a' .. key, ':<C-u>lua require("claudius.textobject").message_textobj("a")<CR>', 
     { silent = true, buffer = true })
 end
 
