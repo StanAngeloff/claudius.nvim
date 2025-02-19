@@ -302,6 +302,23 @@ function M.cancel_request()
   end
 end
 
+-- Clean up spinner and prepare for response
+local function cleanup_spinner(bufnr)
+  -- Stop any existing rulers/virtual text
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  
+  -- Remove the "Thinking..." line
+  local last_line = vim.api.nvim_buf_line_count(bufnr)
+  local prev_line = vim.api.nvim_buf_get_lines(bufnr, last_line - 2, last_line - 1, false)[1]
+  
+  -- Ensure we maintain a blank line if needed
+  if prev_line and prev_line:match("%S") then
+    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {""})
+  else
+    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+  end
+end
+
 -- Show loading spinner
 local function start_loading_spinner()
   local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
@@ -331,22 +348,6 @@ local function start_loading_spinner()
   end, {["repeat"] = -1})
 end
 
--- Clean up spinner and prepare for response
-local function cleanup_spinner(bufnr)
-  -- Stop any existing rulers/virtual text
-  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-  
-  -- Remove the "Thinking..." line
-  local last_line = vim.api.nvim_buf_line_count(bufnr)
-  local prev_line = vim.api.nvim_buf_get_lines(bufnr, last_line - 2, last_line - 1, false)[1]
-  
-  -- Ensure we maintain a blank line if needed
-  if prev_line and prev_line:match("%S") then
-    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {""})
-  else
-    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
-  end
-end
 
 -- Handle the Claude interaction
 function M.send_to_claude()
