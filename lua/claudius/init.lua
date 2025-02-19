@@ -284,8 +284,20 @@ end
 -- Cancel ongoing request if any
 function M.cancel_request()
   if M.current_request then
-    M.current_request:shutdown()
+    -- Stop the job
+    vim.fn.jobstop(M.current_request)
     M.current_request = nil
+    
+    -- Clean up the buffer
+    local bufnr = vim.api.nvim_get_current_buf()
+    local last_line = vim.api.nvim_buf_line_count(bufnr)
+    local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
+    
+    -- If we're still showing the thinking message, remove it
+    if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+      cleanup_spinner(bufnr)
+    end
+    
     vim.notify("Claude request cancelled", vim.log.levels.INFO)
   end
 end
