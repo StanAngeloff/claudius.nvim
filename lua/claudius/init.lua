@@ -226,9 +226,11 @@ M.setup = function(opts)
       vim.keymap.set("i", "<C-]>", function()
         -- Exit insert mode, send to Claude, and return to insert mode when done
         vim.cmd("stopinsert")
-        M.send_to_claude(function()
-          vim.cmd("startinsert!")
-        end)
+        M.send_to_claude({
+          on_complete = function()
+            vim.cmd("startinsert!")
+          end
+        })
       end, { buffer = true, desc = "Send to Claude and continue editing" })
     end
   })
@@ -426,7 +428,8 @@ end
 
 
 -- Handle the Claude interaction
-function M.send_to_claude(on_complete)
+function M.send_to_claude(opts)
+  opts = opts or {}
   -- Check if there's already a request in progress
   if M.current_request then
     vim.notify("Claudius: A request is already in progress. Use <C-c> to cancel it first.", vim.log.levels.WARN)
@@ -648,8 +651,8 @@ function M.send_to_claude(on_complete)
           vim.api.nvim_win_set_cursor(0, {last_line + 2, 7})
 
           -- Call the completion callback if provided
-          if on_complete then
-            on_complete()
+          if opts.on_complete then
+            opts.on_complete()
           end
         end
       end)
