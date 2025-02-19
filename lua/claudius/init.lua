@@ -417,9 +417,6 @@ function M.send_to_claude()
     vim.ui.input({
       prompt = "Enter your Anthropic API key: ",
       default = "",
-      highlight = function(input)
-        return string.rep("*", #input)
-      end,
       border = "rounded",
       title = " Claudius - API Key Required ",
       relative = "editor"
