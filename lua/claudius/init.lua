@@ -342,7 +342,7 @@ function M.send_to_claude()
 
   local formatted_messages, system_message = format_messages(messages)
   local request_body = {
-    model = "claude-3-opus-20240229",
+    model = "claude-3-sonnet-20240229",
     messages = formatted_messages,
     system = system_message,
     stream = true
