@@ -257,6 +257,15 @@ M.setup = function(opts)
     })
   end, {})
 
+  -- Navigation commands
+  vim.api.nvim_create_user_command("ClaudiusNextMessage", function()
+    find_next_message()
+  end, {})
+
+  vim.api.nvim_create_user_command("ClaudiusPrevMessage", function()
+    find_prev_message()
+  end, {})
+
   -- Set up autocmd for the chat filetype
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     pattern = "*.chat",

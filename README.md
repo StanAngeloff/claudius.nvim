@@ -82,6 +82,8 @@ If you prefer to set up your own keymaps, you can disable the default ones by se
 vim.keymap.set('n', '<Leader>cs', '<cmd>ClaudiusSend<cr>')
 vim.keymap.set('n', '<Leader>cc', '<cmd>ClaudiusCancel<cr>')
 vim.keymap.set('i', '<C-s>', '<cmd>ClaudiusSendAndInsert<cr>')
+vim.keymap.set('n', '<Leader>cn', '<cmd>ClaudiusNextMessage<cr>')
+vim.keymap.set('n', '<Leader>cp', '<cmd>ClaudiusPrevMessage<cr>')
 ```
 
 Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
