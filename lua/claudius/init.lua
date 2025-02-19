@@ -437,6 +437,22 @@ function M.send_to_claude()
       return
     end
 
+    -- Handle error responses
+    if data.type == "error" then
+      vim.schedule(function()
+        vim.fn.timer_stop(spinner_timer)
+        M.cleanup_spinner(vim.api.nvim_get_current_buf())
+        M.current_request = nil
+        
+        local msg = "Claude API error"
+        if data.error and data.error.message then
+          msg = data.error.message
+        end
+        vim.notify(msg .. ". See " .. log_path .. " for details.", vim.log.levels.ERROR)
+      end)
+      return
+    end
+
     if data.type == "content_block_delta" and data.delta and data.delta.text then
       vim.schedule(function()
         local bufnr = vim.api.nvim_get_current_buf()
