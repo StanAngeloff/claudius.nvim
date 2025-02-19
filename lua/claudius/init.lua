@@ -145,7 +145,7 @@ M.setup = function(opts)
   opts = opts or {}
   config = vim.tbl_deep_extend("force", default_config, opts)
 
-  -- Create filetype detection for .chat files
+  -- Set up filetype detection for .chat files
   vim.filetype.add({
     extension = {
       chat = "chat",
@@ -155,40 +155,37 @@ M.setup = function(opts)
     },
   })
 
-  -- Define syntax highlighting
+  -- Define syntax highlighting and Tree-sitter configuration
   local function set_syntax()
-    -- Clear existing syntax
-    vim.cmd("syntax clear")
+    local bufnr = vim.api.nvim_get_current_buf()
 
-    -- Define syntax regions and matches
+    -- Enable Tree-sitter for the buffer
+    vim.treesitter.start(bufnr, "markdown")
+
+    -- Define our custom syntax on top of markdown
     vim.cmd([[
-      " Define the prefix matches first
+      " Define the prefix matches
       syntax match ChatSystemPrefix '^@System:' contained
       syntax match ChatUserPrefix '^@You:' contained
       syntax match ChatAssistantPrefix '^@Assistant:' contained
 
-      " Define the regions that contain the prefixes
-      syntax region ChatSystem start='^@System:' end='\(^@\(You\|Assistant\):\)\@=\|\%$' contains=ChatSystemPrefix
-      syntax region ChatUser start='^@You:' end='\(^@\(System\|Assistant\):\)\@=\|\%$' contains=ChatUserPrefix
-      syntax region ChatAssistant start='^@Assistant:' end='\(^@\(System\|You\):\)\@=\|\%$' contains=ChatAssistantPrefix
+      " Define regions that contain both prefixes and markdown
+      syntax region ChatSystem start='^@System:' end='\(^@\(You\|Assistant\):\)\@=\|\%$' contains=ChatSystemPrefix,@Markdown
+      syntax region ChatUser start='^@You:' end='\(^@\(System\|Assistant\):\)\@=\|\%$' contains=ChatUserPrefix,@Markdown
+      syntax region ChatAssistant start='^@Assistant:' end='\(^@\(System\|You\):\)\@=\|\%$' contains=ChatAssistantPrefix,@Markdown
     ]])
 
-    -- Link main highlights to user config
+    -- Link highlights to user config
     vim.cmd(string.format("highlight link ChatSystem %s", config.highlights.system))
     vim.cmd(string.format("highlight link ChatUser %s", config.highlights.user))
     vim.cmd(string.format("highlight link ChatAssistant %s", config.highlights.assistant))
 
-    -- Set up prefix highlights to inherit colors but add custom style
-    vim.cmd(string.format(
-      [[
+    -- Set up prefix highlights
+    vim.cmd(string.format([[
       execute 'highlight ChatSystemPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatSystem")), "fg", "gui") . ' gui=%s'
       execute 'highlight ChatUserPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatUser")), "fg", "gui") . ' gui=%s'
       execute 'highlight ChatAssistantPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatAssistant")), "fg", "gui") . ' gui=%s'
-    ]],
-      config.prefix_style,
-      config.prefix_style,
-      config.prefix_style
-    ))
+    ]], config.prefix_style, config.prefix_style, config.prefix_style))
   end
 
   -- Set up folding expression
