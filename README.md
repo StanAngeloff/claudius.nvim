@@ -44,10 +44,14 @@ require("claudius").setup({
 The plugin only works with files having the .chat extension. Create or open a .chat file and the plugin will automatically set up syntax highlighting and keybindings.
 
 Start your conversation with a system message (optional):
+```
 @System: You are a helpful AI assistant.
+```
 
 Then add your first message:
+```
 @You: Hello Claude!
+```
 
 Press Ctrl-] to send the conversation to Claude. Use Ctrl-c to cancel an ongoing request.
 
