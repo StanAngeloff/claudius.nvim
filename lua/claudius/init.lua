@@ -101,7 +101,7 @@ local default_config = {
   prefix_style = "bold,underline",
   ruler = {
     char = "─", -- The character to use for the ruler
-    style = "FoldColumn", -- Highlight group for the ruler
+    style = "NonText", -- Highlight group for the ruler
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
   keymaps = {
