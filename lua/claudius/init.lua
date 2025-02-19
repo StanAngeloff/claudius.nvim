@@ -415,7 +415,7 @@ function M.send_to_claude()
           
           if not response_started then
             -- Clean up spinner and ensure blank line
-            cleanup_spinner(bufnr)
+            M.cleanup_spinner(bufnr)
             last_line = vim.api.nvim_buf_line_count(bufnr)
             
             -- Start with @Assistant: prefix
