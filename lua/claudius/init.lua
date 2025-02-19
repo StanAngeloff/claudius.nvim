@@ -601,7 +601,7 @@ function M.send_to_claude(opts)
 
   local spinner_timer = start_loading_spinner()
   local response_started = false
-  local function handle_response_line(line)
+  local function handle_response_line(line, spinner_timer)
     -- First try parsing the line directly as JSON for error responses
     local ok, error_data = pcall(json_decode, line)
     if ok and error_data.type == "error" then
