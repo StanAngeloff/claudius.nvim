@@ -434,14 +434,18 @@ function M.send_to_claude()
             -- Get the last line's content
             local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
             
-            -- Append first new line to last existing line
-            vim.cmd('undojoin')
-            vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {last_line_content .. lines[1]})
-            
-            -- Add remaining lines if any
-            if #lines > 1 then
+            if #lines == 1 then
+              -- Just append to the last line
               vim.cmd('undojoin')
-              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line - 1, false, {unpack(lines, 2)})
+              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {last_line_content .. lines[1]})
+            else
+              -- First chunk goes to the end of the last line
+              vim.cmd('undojoin')
+              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {last_line_content .. lines[1]})
+              
+              -- Remaining lines get added as new lines
+              vim.cmd('undojoin')
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {unpack(lines, 2)})
             end
           end
           
