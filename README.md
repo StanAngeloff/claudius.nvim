@@ -41,7 +41,7 @@ require("claudius").setup({
 
 # Usage
 
-Create or open a file with the .chat extension. The plugin will automatically set up syntax highlighting and keybindings.
+The plugin only works with files having the .chat extension. Create or open a .chat file and the plugin will automatically set up syntax highlighting and keybindings.
 
 Start your conversation with a system message (optional):
 @System: You are a helpful AI assistant.
