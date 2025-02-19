@@ -343,7 +343,7 @@ function M.cancel_request()
       M.cleanup_spinner(bufnr)
     end
     
-    vim.notify("Claude request cancelled. See " .. log_path .. " for details.", vim.log.levels.INFO)
+    vim.notify("Claudius: Request cancelled. See " .. log_path .. " for details.", vim.log.levels.INFO)
   else
     log.debug("Cancel request called but no current request found")
   end
@@ -407,13 +407,13 @@ function M.send_to_claude()
   local api_key = os.getenv("ANTHROPIC_API_KEY")
   if not api_key then
     log.error("ANTHROPIC_API_KEY environment variable not set")
-    vim.notify("ANTHROPIC_API_KEY environment variable not set. See " .. log_path .. " for details.", vim.log.levels.ERROR)
+    vim.notify("Claudius: ANTHROPIC_API_KEY environment variable not set. See " .. log_path .. " for details.", vim.log.levels.ERROR)
     return
   end
 
   local messages = M.parse_buffer()
   if #messages == 0 then
-    vim.notify("No messages found in buffer", vim.log.levels.WARN)
+    vim.notify("Claudius: No messages found in buffer", vim.log.levels.WARN)
     return
   end
 
@@ -442,7 +442,7 @@ function M.send_to_claude()
         if data.error and data.error.message then
           msg = data.error.message
         end
-        vim.notify(msg .. ". See " .. log_path .. " for details.", vim.log.levels.ERROR)
+        vim.notify("Claudius: " .. msg .. ". See " .. log_path .. " for details.", vim.log.levels.ERROR)
       end)
       return
     end
