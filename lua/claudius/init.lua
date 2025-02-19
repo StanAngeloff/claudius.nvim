@@ -320,7 +320,14 @@ local function cleanup_spinner(bufnr)
   
   -- Remove the "Thinking..." line
   local last_line = vim.api.nvim_buf_line_count(bufnr)
-  vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+  local prev_line = vim.api.nvim_buf_get_lines(bufnr, last_line - 2, last_line - 1, false)[1]
+  
+  -- Ensure we maintain a blank line if needed
+  if prev_line and prev_line:match("%S") then
+    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {""})
+  else
+    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+  end
 end
 
 -- Handle the Claude interaction
@@ -390,6 +397,13 @@ function M.send_to_claude()
           
           -- Handle first response line
           if not response_started then
+            -- Ensure there's a blank line before the response
+            local prev_line = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
+            if prev_line and prev_line:match("%S") then
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {""})
+              last_line = last_line + 1
+            end
+            
             lines[1] = "@Assistant: " .. lines[1]
             vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines)
           else
