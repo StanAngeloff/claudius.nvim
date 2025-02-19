@@ -443,20 +443,6 @@ local function format_messages(messages)
   return formatted, system_message
 end
 
--- Append assistant response to buffer
-local function append_response(response)
-  local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-
-  -- Add a newline if the last line isn't empty
-  if #lines > 0 and lines[#lines]:match("%S") then
-    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "" })
-  end
-
-  -- Add the assistant response
-  local response_lines = { "@Assistant: " .. response }
-  vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, response_lines)
-end
 
 -- Cancel ongoing request if any
 function M.cancel_request()
