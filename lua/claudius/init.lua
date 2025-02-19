@@ -217,14 +217,18 @@ M.setup = function(opts)
     pattern = "chat",
     callback = function()
       -- Normal mode mappings
-      vim.keymap.set("n", "<C-]>", M.send_to_claude, { buffer = true, desc = "Send to Claude" })
+      vim.keymap.set("n", "<C-]>", function()
+        M.send_to_claude()
+      end, { buffer = true, desc = "Send to Claude" })
       vim.keymap.set("n", "<C-c>", M.cancel_request, { buffer = true, desc = "Cancel Claude Request" })
       
       -- Insert mode mapping - send and return to insert mode
       vim.keymap.set("i", "<C-]>", function()
-        -- Exit insert mode, send to Claude, which will handle returning to insert
+        -- Exit insert mode, send to Claude, and return to insert mode when done
         vim.cmd("stopinsert")
-        M.send_to_claude()
+        M.send_to_claude(function()
+          vim.cmd("startinsert")
+        end)
       end, { buffer = true, desc = "Send to Claude and continue editing" })
     end
   })
@@ -422,7 +426,7 @@ end
 
 
 -- Handle the Claude interaction
-function M.send_to_claude()
+function M.send_to_claude(on_complete)
   -- Check if there's already a request in progress
   if M.current_request then
     vim.notify("Claudius: A request is already in progress. Use <C-c> to cancel it first.", vim.log.levels.WARN)
@@ -639,9 +643,14 @@ function M.send_to_claude()
           local last_line = vim.api.nvim_buf_line_count(bufnr)
           vim.cmd('undojoin')
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"", "@You: "})
-          
+            
           -- Move cursor to after the colon
           vim.api.nvim_win_set_cursor(0, {last_line + 2, 7})
+
+          -- Call the completion callback if provided
+          if on_complete then
+            on_complete()
+          end
         end
       end)
     end
