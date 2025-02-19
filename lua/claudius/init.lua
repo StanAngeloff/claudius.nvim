@@ -344,16 +344,32 @@ function M.send_to_claude()
   local spinner_timer = start_loading_spinner()
   local response_started = false
   local function handle_response_line(line)
-    if not line:match("^data: ") then return end
+    -- Debug: Log raw line
+    vim.schedule(function()
+      vim.notify("Raw line: " .. vim.inspect(line), vim.log.levels.DEBUG)
+    end)
+    
+    if not line:match("^data: ") then 
+      vim.schedule(function()
+        vim.notify("Skipping non-data line", vim.log.levels.DEBUG)
+      end)
+      return 
+    end
     
     local json_str = line:gsub("^data: ", "")
     if json_str == "[DONE]" then
       vim.schedule(function()
+        vim.notify("Received [DONE] event", vim.log.levels.DEBUG)
         vim.fn.timer_stop(spinner_timer)
         M.current_request = nil
       end)
       return
     end
+
+    -- Debug: Log JSON string
+    vim.schedule(function()
+      vim.notify("JSON string: " .. json_str, vim.log.levels.DEBUG)
+    end)
 
     local ok, data = pcall(json_decode, json_str)
     if not ok then
@@ -362,6 +378,11 @@ function M.send_to_claude()
       end)
       return
     end
+
+    -- Debug: Log parsed data
+    vim.schedule(function()
+      vim.notify("Parsed data: " .. vim.inspect(data), vim.log.levels.DEBUG)
+    end)
 
     if data.type == "content_block_delta" and data.delta and data.delta.text then
       vim.schedule(function()
@@ -411,12 +432,22 @@ function M.send_to_claude()
   -- Start job
   M.current_request = vim.fn.jobstart(cmd, {
     on_stdout = function(_, data)
+      vim.schedule(function()
+        vim.notify("Received stdout chunk: " .. vim.inspect(data), vim.log.levels.DEBUG)
+      end)
       if data then
         for _, line in ipairs(data) do
           if line and #line > 0 then
             handle_response_line(line)
           end
         end
+      end
+    end,
+    on_stderr = function(_, data)
+      if data then
+        vim.schedule(function()
+          vim.notify("Stderr: " .. vim.inspect(data), vim.log.levels.ERROR)
+        end)
       end
     end,
     on_exit = function()
