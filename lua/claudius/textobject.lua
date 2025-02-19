@@ -53,22 +53,25 @@ function M.message_textobj(type)
     return
   end
 
-  local start_pos, end_pos
+  local mode = vim.api.nvim_get_mode().mode
+  local is_visual = mode:match("[vV]")
 
-  if type == 'i' then -- inner message
-    -- Get the lines for calculating final column
-    local lines = vim.api.nvim_buf_get_lines(0, bounds.start_line - 1, bounds.inner_end, false)
-    start_pos = { bounds.start_line, bounds.prefix_end }
-    end_pos = { bounds.inner_end, #lines[#lines] }
-  else -- around message
-    local lines = vim.api.nvim_buf_get_lines(0, bounds.end_line - 1, bounds.end_line, false)
-    start_pos = { bounds.start_line, 0 }
-    end_pos = { bounds.end_line, #lines[1] }
+  -- Exit visual mode if we're in it
+  if is_visual then
+    vim.cmd("normal! v")
   end
 
-  -- Set marks for the text object
-  vim.api.nvim_buf_set_mark(0, '[', start_pos[1], start_pos[2], {})
-  vim.api.nvim_buf_set_mark(0, ']', end_pos[1], end_pos[2], {})
+  if type == 'i' then -- inner message
+    -- Start at first character after prefix
+    vim.cmd(string.format("normal! %dG%d|v", bounds.start_line, bounds.prefix_end + 1))
+    -- Move to last non-empty line
+    vim.cmd(string.format("normal! %dG$", bounds.inner_end))
+  else -- around message
+    -- Start at beginning of first line
+    vim.cmd(string.format("normal! %dG0v", bounds.start_line))
+    -- Move to end of last line
+    vim.cmd(string.format("normal! %dG$", bounds.end_line))
+  end
 end
 
 -- Setup function to create the text objects

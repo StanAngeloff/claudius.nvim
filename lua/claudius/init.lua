@@ -347,7 +347,7 @@ M.setup = function(opts)
         end
 
         -- Set up text objects
-        require("claudius.textobject").setup()
+        textobject.setup()
 
         -- Insert mode mapping - send and return to insert mode
         if config.keymaps.insert.send then
