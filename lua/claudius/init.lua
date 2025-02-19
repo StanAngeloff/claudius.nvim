@@ -227,7 +227,7 @@ M.setup = function(opts)
         -- Exit insert mode, send to Claude, and return to insert mode when done
         vim.cmd("stopinsert")
         M.send_to_claude(function()
-          vim.cmd("startinsert")
+          vim.cmd("startinsert!")
         end)
       end, { buffer = true, desc = "Send to Claude and continue editing" })
     end
