@@ -1,5 +1,6 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace('claudius')
+local api_key = nil
 
 -- Setup logging
 local log_path = vim.fn.stdpath('cache') .. '/claudius.log'
@@ -408,11 +409,32 @@ function M.send_to_claude()
   M.cancel_request()
   M.request_cancelled = false
 
-  local api_key = os.getenv("ANTHROPIC_API_KEY")
+  -- Try environment variable first
+  api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+  
+  -- If no API key, prompt for it
   if not api_key then
-    log.error("ANTHROPIC_API_KEY environment variable not set")
-    vim.notify("Claudius: ANTHROPIC_API_KEY environment variable not set. See " .. log_path .. " for details.", vim.log.levels.ERROR)
-    return
+    vim.ui.input({
+      prompt = "Enter your Anthropic API key: ",
+      default = "",
+      highlight = function(input)
+        return string.rep("*", #input)
+      end,
+      border = "rounded",
+      title = " Claudius - API Key Required ",
+      relative = "editor"
+    }, function(input)
+      if input then
+        api_key = input
+        log.info("API key set via prompt")
+      else
+        log.error("API key prompt cancelled")
+        vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
+        return
+      end
+    end)
+    
+    if not api_key then return end
   end
 
   local messages = M.parse_buffer()
