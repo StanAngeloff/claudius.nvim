@@ -290,6 +290,9 @@ local function start_loading_spinner()
   local frame = 1
   local bufnr = vim.api.nvim_get_current_buf()
   
+  -- Clear any existing virtual text
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  
   -- Create loading line at the end of buffer
   vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"@Assistant: Thinking..."})
   
@@ -299,8 +302,19 @@ local function start_loading_spinner()
     end
     frame = (frame % #spinner_frames) + 1
     local text = "@Assistant: " .. spinner_frames[frame] .. " Thinking..."
-    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {text})
+    local last_line = vim.api.nvim_buf_line_count(bufnr)
+    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {text})
   end, {["repeat"] = -1})
+end
+
+-- Clean up spinner and prepare for response
+local function cleanup_spinner(bufnr)
+  -- Stop any existing rulers/virtual text
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  
+  -- Remove the "Thinking..." line
+  local last_line = vim.api.nvim_buf_line_count(bufnr)
+  vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
 end
 
 -- Handle the Claude interaction
@@ -351,29 +365,32 @@ function M.send_to_claude()
 
     if data.type == "content_block_delta" and data.delta and data.delta.text then
       vim.schedule(function()
+        local bufnr = vim.api.nvim_get_current_buf()
+        
         -- Stop spinner on first content
         if not response_started then
           vim.fn.timer_stop(spinner_timer)
           response_started = true
-          
-          -- Remove the "Thinking..." line
-          local bufnr = vim.api.nvim_get_current_buf()
-          local last_line = vim.api.nvim_buf_line_count(bufnr)
-          vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+          cleanup_spinner(bufnr)
         end
         
-        -- Append the new content
-        local bufnr = vim.api.nvim_get_current_buf()
-        local last_line = vim.api.nvim_buf_line_count(bufnr)
-        local prefix = "@Assistant: "
+        -- Split content into lines
         local lines = vim.split(data.delta.text, "\n", { plain = true })
         
         if #lines > 0 then
-          -- For first line, either create new line with prefix or append to existing
+          local last_line = vim.api.nvim_buf_line_count(bufnr)
+          
+          -- Handle first response line
           if not response_started then
-            lines[1] = prefix .. lines[1]
+            lines[1] = "@Assistant: " .. lines[1]
+            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines)
+          else
+            -- Append to existing response
+            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines)
           end
-          vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line - 1, false, lines)
+          
+          -- Update response_started after handling first line
+          response_started = true
         end
       end)
     end
