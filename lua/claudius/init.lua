@@ -1,6 +1,7 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace('claudius')
 
+
 -- Utility functions for JSON encoding/decoding
 local function json_decode(str)
   return vim.fn.json_decode(str)
