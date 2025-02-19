@@ -53,7 +53,7 @@ Then add your first message:
 @You: Hello Claude!
 ```
 
-Press Ctrl-] to send the conversation to Claude. Use Ctrl-c to cancel an ongoing request.
+Press Ctrl-] to send the conversation to Claude. Use Ctrl-C to cancel an ongoing request.
 
 Messages are automatically folded for better overview. Press za to toggle folds.
 
