@@ -452,6 +452,14 @@ function M.send_to_claude()
       vim.schedule(function()
         M.current_request = nil
         vim.fn.timer_stop(spinner_timer)
+        
+        -- Add a blank line and the new prompt
+        local bufnr = vim.api.nvim_get_current_buf()
+        local last_line = vim.api.nvim_buf_line_count(bufnr)
+        vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"", "@You: "})
+        
+        -- Move cursor to after the colon
+        vim.api.nvim_win_set_cursor(0, {last_line + 2, 7})
       end)
     end
   })
