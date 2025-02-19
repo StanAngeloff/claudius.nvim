@@ -88,6 +88,9 @@ local MSG_TYPE = {
   ASSISTANT = "Assistant"
 }
 
+-- Module configuration
+local config = {}
+
 -- Default configuration
 local default_config = {
   highlights = {
@@ -130,7 +133,7 @@ end
 M.setup = function(opts)
   -- Merge user config with defaults
   opts = opts or {}
-  local config = vim.tbl_deep_extend("force", default_config, opts)
+  config = vim.tbl_deep_extend("force", default_config, opts)
 
   -- Create filetype detection for .chat files
   vim.filetype.add({
