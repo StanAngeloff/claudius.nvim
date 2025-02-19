@@ -9,6 +9,7 @@ A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI 
 ## Requirements
 
 Claudius requires:
+
 - An Anthropic API key (set via ANTHROPIC_API_KEY environment variable)
 - Tree-sitter for syntax highlighting
 
@@ -66,22 +67,27 @@ The plugin only works with files having the .chat extension. Create or open a .c
 The plugin provides several commands for interacting with Claude and managing chat content:
 
 #### Core Commands
+
 - `ClaudiusSend` - Send the current conversation to Claude
 - `ClaudiusCancel` - Cancel an ongoing request
 - `ClaudiusSendAndInsert` - Send to Claude and return to insert mode
 
 #### Navigation Commands
+
 - `ClaudiusNextMessage` - Jump to next message (`]m` by default)
 - `ClaudiusPrevMessage` - Jump to previous message (`[m` by default)
 
 #### Selection Commands
+
 - `ClaudiusSelectInMessage` - Select just the message content (`vim` by default)
 - `ClaudiusSelectMessage` - Select the entire message including prefix (`vam` by default)
 
 #### Import Command
+
 - `ClaudiusImport` - Convert a Claude Workbench API call into chat format
 
 By default, the following keybindings are active in chat files:
+
 - <kbd>Ctrl-]</kbd> - Send conversation (normal and insert mode)
 - <kbd>Ctrl-C</kbd> - Cancel ongoing request
 - <kbd>]m</kbd> - Jump to next message
@@ -105,11 +111,13 @@ vim.keymap.set('n', '<Leader>ca', '<cmd>ClaudiusSelectMessage<cr>')
 ### Starting a New Chat
 
 Start your conversation with a system message (optional):
+
 ```
 @System: You are a helpful AI assistant.
 ```
 
 Then add your first message:
+
 ```
 @You: Hello Claude!
 ```
