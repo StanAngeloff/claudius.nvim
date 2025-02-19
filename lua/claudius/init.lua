@@ -328,28 +328,35 @@ function M.send_to_claude()
   }
 
   local spinner_timer = start_loading_spinner()
-  local response_text = ""
-  local function handle_chunk(err, chunk)
-    if err then
+  local function handle_response_line(line)
+    if not line:match("^data: ") then return end
+    
+    local json_str = line:gsub("^data: ", "")
+    if json_str == "[DONE]" then return end
+
+    local ok, data = pcall(json_decode, json_str)
+    if not ok then
       vim.schedule(function()
-        vim.notify("Error from Claude API: " .. vim.inspect(err), vim.log.levels.ERROR)
-        M.current_request = nil
-        vim.fn.timer_stop(spinner_timer)
+        vim.notify("Failed to parse JSON: " .. json_str, vim.log.levels.ERROR)
       end)
       return
     end
 
-    if chunk then
-      local ok, data = pcall(json.decode, chunk:gsub("^data: ", ""))
-      if ok and data.type == "content_block_delta" then
-        response_text = response_text .. (data.delta.text or "")
-        vim.schedule(function()
-          -- Remove loading spinner
-          vim.fn.timer_stop(spinner_timer)
-          -- Update buffer with accumulated response
-          append_response(response_text)
-        end)
-      end
+    if data.type == "content_block_delta" and data.delta and data.delta.text then
+      vim.schedule(function()
+        -- Remove the "Thinking..." line
+        local bufnr = vim.api.nvim_get_current_buf()
+        local last_line = vim.api.nvim_buf_line_count(bufnr)
+        vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+        
+        -- Append the new content
+        local prefix = "@Assistant: "
+        local lines = vim.split(data.delta.text, "\n", { plain = true })
+        if #lines > 0 then
+          lines[1] = prefix .. lines[1]
+          vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line - 1, false, lines)
+        end
+      end)
     end
   end
 
