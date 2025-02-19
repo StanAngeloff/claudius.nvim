@@ -9,9 +9,6 @@ local function prepare_json(content)
     -- This handles property names that may contain periods or other special chars
     content = content:gsub("([%w_%.-]+)%s*:", "\"%1\":")
     
-    -- Replace single quotes with double quotes
-    content = content:gsub("'([^']*)'", "\"%1\"")
-    
     return content
 end
 
