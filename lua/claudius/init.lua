@@ -136,6 +136,8 @@ local default_config = {
     normal = {
       send = "<C-]>",
       cancel = "<C-c>",
+      next_message = "]m",     -- Jump to next message
+      prev_message = "[m",     -- Jump to previous message
     },
     insert = {
       send = "<C-]>",
