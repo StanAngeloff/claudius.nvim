@@ -316,9 +316,18 @@ function M.cancel_request()
   if M.current_request then
     log.info("Cancelling request " .. tostring(M.current_request))
     
-    -- Mark as cancelled and stop the job
+    -- Mark as cancelled and send SIGTERM to curl process
     M.request_cancelled = true
     vim.fn.jobstop(M.current_request)
+    
+    -- Get the process group ID and send SIGTERM to ensure curl aborts
+    local pid = vim.fn.jobpid(M.current_request)
+    if pid then
+      -- Send SIGTERM to the process group
+      vim.fn.system('kill -TERM -' .. pid)
+      log.info("Sent SIGTERM to process group " .. pid)
+    end
+    
     M.current_request = nil
     
     -- Clean up the buffer
@@ -537,8 +546,9 @@ function M.send_to_claude()
     'https://api.anthropic.com/v1/messages'
   }
 
-  -- Start job
+  -- Start job in its own process group
   M.current_request = vim.fn.jobstart(cmd, {
+    detach = true,  -- Put process in its own group
     on_stdout = function(_, data)
       if data then
         for _, line in ipairs(data) do
