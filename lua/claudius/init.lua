@@ -216,8 +216,16 @@ M.setup = function(opts)
   vim.api.nvim_create_autocmd("FileType", {
     pattern = "chat",
     callback = function()
+      -- Normal mode mappings
       vim.keymap.set("n", "<C-]>", M.send_to_claude, { buffer = true, desc = "Send to Claude" })
       vim.keymap.set("n", "<C-c>", M.cancel_request, { buffer = true, desc = "Cancel Claude Request" })
+      
+      -- Insert mode mapping - send and return to insert mode
+      vim.keymap.set("i", "<C-]>", function()
+        -- Exit insert mode, send to Claude, which will handle returning to insert
+        vim.cmd("stopinsert")
+        M.send_to_claude()
+      end, { buffer = true, desc = "Send to Claude and continue editing" })
     end
   })
 end
