@@ -8,7 +8,9 @@ A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI 
 
 ## Requirements
 
-Claudius requires an Anthropic API key to function. You'll need to set the ANTHROPIC_API_KEY environment variable with your key before using the plugin.
+Claudius requires:
+- An Anthropic API key (set via ANTHROPIC_API_KEY environment variable)
+- Tree-sitter for syntax highlighting
 
 ## Installation
 
