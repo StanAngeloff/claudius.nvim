@@ -564,8 +564,8 @@ function M.send_to_claude()
         M.current_request = nil
         vim.fn.timer_stop(spinner_timer)
         
-        -- Only add the new prompt if the request wasn't cancelled
-        if not M.request_cancelled then
+        -- Only add the new prompt if the request wasn't cancelled and completed successfully
+        if not M.request_cancelled and code == 0 and response_started then
           local bufnr = vim.api.nvim_get_current_buf()
           local last_line = vim.api.nvim_buf_line_count(bufnr)
           vim.cmd('undojoin')
