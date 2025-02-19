@@ -633,8 +633,8 @@ function M.send_to_claude(opts)
       return
     end
 
-    local ok, data = pcall(json_decode, json_str)
-    if not ok then
+    local parse_ok, data = pcall(json_decode, json_str)
+    if not parse_ok then
       return
     end
 
