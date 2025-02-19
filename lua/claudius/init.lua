@@ -356,6 +356,14 @@ M.setup = function(opts)
     find_prev_message()
   end, {})
 
+  vim.api.nvim_create_user_command("ClaudiusSelectInMessage", function()
+    select_in_message()
+  end, {})
+
+  vim.api.nvim_create_user_command("ClaudiusSelectMessage", function()
+    select_message()
+  end, {})
+
   -- Set up autocmd for the chat filetype
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     pattern = "*.chat",
