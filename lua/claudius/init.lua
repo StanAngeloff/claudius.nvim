@@ -427,6 +427,13 @@ function M.send_to_claude()
     stream = true
   }
 
+  -- Log the outgoing request
+  log.debug("Sending request to Claude API:")
+  log.debug("System message: " .. (system_message or "none"))
+  for i, msg in ipairs(formatted_messages) do
+    log.debug(string.format("Message %d - Role: %s, Content: %s", i, msg.role, msg.content))
+  end
+
   local spinner_timer = start_loading_spinner()
   local response_started = false
   local function handle_response_line(line)
