@@ -43,6 +43,7 @@ require("claudius").setup({
         style = "FoldColumn"  -- highlight group for the separator
     },
     model = "claude-3-sonnet-20240229",  -- Claude model to use
+    text_object = "m",  -- Default text object key, set to false to disable
     keymaps = {
         normal = {
             send = "<C-]>",       -- Key to send message in normal mode
