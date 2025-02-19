@@ -400,10 +400,12 @@ function M.send_to_claude()
             last_line = vim.api.nvim_buf_line_count(bufnr)
             
             -- Start with @Assistant: prefix
+            vim.cmd('undojoin')
             vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"@Assistant: " .. lines[1]})
             
             -- Add remaining lines if any
             if #lines > 1 then
+              vim.cmd('undojoin')
               vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, {unpack(lines, 2)})
             end
           else
@@ -411,10 +413,12 @@ function M.send_to_claude()
             local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
             
             -- Append first new line to last existing line
+            vim.cmd('undojoin')
             vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {last_line_content .. lines[1]})
             
             -- Add remaining lines if any
             if #lines > 1 then
+              vim.cmd('undojoin')
               vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line - 1, false, {unpack(lines, 2)})
             end
           end
@@ -457,6 +461,7 @@ function M.send_to_claude()
         -- Add a blank line and the new prompt
         local bufnr = vim.api.nvim_get_current_buf()
         local last_line = vim.api.nvim_buf_line_count(bufnr)
+        vim.cmd('undojoin')
         vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"", "@You: "})
         
         -- Move cursor to after the colon
