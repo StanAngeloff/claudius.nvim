@@ -244,20 +244,26 @@ end
 -- Format messages for Claude API
 local function format_messages(messages)
   local formatted = {}
+  local system_message = nil
+  
   for _, msg in ipairs(messages) do
-    local role = msg.type == MSG_TYPE.SYSTEM and "system" 
-      or msg.type == MSG_TYPE.USER and "user"
-      or msg.type == MSG_TYPE.ASSISTANT and "assistant"
-      or nil
-    
-    if role then
-      table.insert(formatted, {
-        role = role,
-        content = msg.content
-      })
+    if msg.type == MSG_TYPE.SYSTEM then
+      system_message = msg.content
+    else
+      local role = msg.type == MSG_TYPE.USER and "user"
+        or msg.type == MSG_TYPE.ASSISTANT and "assistant"
+        or nil
+      
+      if role then
+        table.insert(formatted, {
+          role = role,
+          content = msg.content
+        })
+      end
     end
   end
-  return formatted
+  
+  return formatted, system_message
 end
 
 -- Append assistant response to buffer
@@ -334,10 +340,11 @@ function M.send_to_claude()
     return
   end
 
-  local formatted_messages = format_messages(messages)
+  local formatted_messages, system_message = format_messages(messages)
   local request_body = {
     model = "claude-3-opus-20240229",
     messages = formatted_messages,
+    system = system_message,
     stream = true
   }
 
