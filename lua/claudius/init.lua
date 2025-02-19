@@ -651,9 +651,9 @@ Start your conversation with a system message (optional):
 Then add your first message:
 @You: Hello Claude!
 
-Press Ctrl-] to send the conversation to Claude. Use Ctrl-c to cancel an ongoing request.
+Press <kbd>Ctrl-]</kbd> to send the conversation to Claude. Use <kbd>Ctrl-c</kbd> to cancel an ongoing request.
 
-Messages are automatically folded for better overview. Press za to toggle folds.
+Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
 
 # About
 
