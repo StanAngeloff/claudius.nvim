@@ -345,6 +345,8 @@ function M.send_to_claude()
     model = "claude-3-sonnet-20240229",
     messages = formatted_messages,
     system = system_message,
+    max_tokens = 4000,
+    temperature = 0.7,
     stream = true
   }
 
