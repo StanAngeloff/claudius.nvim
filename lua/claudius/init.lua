@@ -321,18 +321,30 @@ function M.cancel_request()
   if M.current_request then
     log.info("Cancelling request " .. tostring(M.current_request))
     
-    -- Get the process group ID before stopping the job
+    -- Get the process ID
     local pid = vim.fn.jobpid(M.current_request)
     
-    -- Mark as cancelled and stop the job
+    -- Mark as cancelled
     M.request_cancelled = true
-    vim.fn.jobstop(M.current_request)
     
-    -- Send SIGTERM to the process group if we got the PID
     if pid then
-      -- Send SIGTERM to the process group
-      vim.fn.system('kill -TERM -' .. pid)
-      log.info("Sent SIGTERM to process group " .. pid)
+      -- Send SIGINT first for clean connection termination
+      vim.fn.system('kill -INT ' .. pid)
+      log.info("Sent SIGINT to curl process " .. pid)
+      
+      -- Give curl a moment to cleanup, then force kill if still running
+      vim.defer_fn(function()
+        if M.current_request then
+          vim.fn.jobstop(M.current_request)
+          vim.fn.system('kill -KILL ' .. pid)
+          log.info("Sent SIGKILL to curl process " .. pid)
+          M.current_request = nil
+        end
+      end, 500)
+    else
+      -- Fallback to jobstop if we couldn't get PID
+      vim.fn.jobstop(M.current_request)
+      M.current_request = nil
     end
     
     M.current_request = nil
@@ -568,11 +580,16 @@ function M.send_to_claude()
     end
   end
 
-  -- Prepare curl command
+  -- Prepare curl command with proper timeouts and signal handling
   local cmd = {
     'curl',
     '-N',  -- disable buffering
     '-s',  -- silent mode
+    '--connect-timeout', '10',  -- connection timeout
+    '--max-time', '120',       -- maximum time allowed
+    '--retry', '0',           -- disable retries
+    '--http1.1',             -- force HTTP/1.1 for better interrupt handling
+    '-H', 'Connection: close', -- request connection close
     '-H', 'x-api-key: ' .. api_key,
     '-H', 'anthropic-version: 2023-06-01',
     '-H', 'content-type: application/json',
