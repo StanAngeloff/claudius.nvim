@@ -119,14 +119,14 @@ M.setup = function(opts)
     -- Define syntax regions and matches
     vim.cmd([[
       " Define the prefix matches first
-      syntax match ChatSystemPrefix "^@System:" contained
-      syntax match ChatUserPrefix "^@You:" contained
-      syntax match ChatAssistantPrefix "^@Assistant:" contained
+      syntax match ChatSystemPrefix '^@System:' contained
+      syntax match ChatUserPrefix '^@You:' contained
+      syntax match ChatAssistantPrefix '^@Assistant:' contained
 
       " Define the regions that contain the prefixes
-      syntax region ChatSystem start=/^@System:/ end=/\(^@\(You\|Assistant\):\)\@=\|\%$/ contains=ChatSystemPrefix
-      syntax region ChatUser start=/^@You:/ end=/\(^@\(System\|Assistant\):\)\@=\|\%$/ contains=ChatUserPrefix
-      syntax region ChatAssistant start=/^@Assistant:/ end=/\(^@\(System\|You\):\)\@=\|\%$/ contains=ChatAssistantPrefix
+      syntax region ChatSystem start='^@System:' end='\(^@\(You\|Assistant\):\)\@=\|\%$' contains=ChatSystemPrefix
+      syntax region ChatUser start='^@You:' end='\(^@\(System\|Assistant\):\)\@=\|\%$' contains=ChatUserPrefix
+      syntax region ChatAssistant start='^@Assistant:' end='\(^@\(System\|You\):\)\@=\|\%$' contains=ChatAssistantPrefix
     ]])
 
     -- Link main highlights to user config
