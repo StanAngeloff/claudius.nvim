@@ -424,14 +424,16 @@ function M.send_to_claude()
       if input then
         api_key = input
         log.info("API key set via prompt")
+        -- Continue with the Claude request immediately
+        M.send_to_claude()
       else
         log.error("API key prompt cancelled")
         vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
-        return
       end
     end)
     
-    if not api_key then return end
+    -- Return early since we'll continue in the callback
+    return
   end
 
   local messages = M.parse_buffer()
