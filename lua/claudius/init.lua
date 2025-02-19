@@ -347,8 +347,8 @@ M.setup = function(opts)
           )
         end
 
-        -- Set up text objects
-        textobject.setup()
+        -- Set up text objects with configured key
+        textobject.setup({ text_object = config.text_object })
 
         -- Insert mode mapping - send and return to insert mode
         if config.keymaps.insert.send then
