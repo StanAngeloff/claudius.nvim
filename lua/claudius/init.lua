@@ -3,6 +3,9 @@ local ns_id = vim.api.nvim_create_namespace('claudius')
 local curl = require('plenary.curl')
 local json = require('vim.json')
 
+-- Track ongoing requests
+M.current_request = nil
+
 -- Folding functions
 function M.get_fold_level(lnum)
   local line = vim.fn.getline(lnum)
@@ -167,11 +170,12 @@ M.setup = function(opts)
     end
   })
 
-  -- Set up the mapping for Claude interaction
+  -- Set up the mappings for Claude interaction
   vim.api.nvim_create_autocmd("FileType", {
     pattern = "chat",
     callback = function()
       vim.keymap.set("n", "<C-]>", M.send_to_claude, { buffer = true, desc = "Send to Claude" })
+      vim.keymap.set("n", "<C-c>", M.cancel_request, { buffer = true, desc = "Cancel Claude Request" })
     end
   })
 end
@@ -187,7 +191,10 @@ local function parse_message(lines, start_idx)
   local content = {}
   local i = start_idx
   -- Remove the prefix from first line
-  content[#content + 1] = line:sub(#msg_type + 3):gsub("^%s*", "")
+  local first_content = line:sub(#msg_type + 3)
+  if first_content:match("%S") then
+    content[#content + 1] = first_content:gsub("^%s*", "")
+  end
   
   i = i + 1
   -- Collect lines until we hit another prefix or end of buffer
@@ -196,7 +203,9 @@ local function parse_message(lines, start_idx)
     if next_line:match("^@[%w]+:") then
       break
     end
-    content[#content + 1] = next_line
+    if next_line:match("%S") or #content > 0 then
+      content[#content + 1] = next_line
+    end
     i = i + 1
   end
 
@@ -259,8 +268,39 @@ local function append_response(response)
   vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, response_lines)
 end
 
+-- Cancel ongoing request if any
+function M.cancel_request()
+  if M.current_request then
+    M.current_request:shutdown()
+    M.current_request = nil
+    vim.notify("Claude request cancelled", vim.log.levels.INFO)
+  end
+end
+
+-- Show loading spinner
+local function start_loading_spinner()
+  local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+  local frame = 1
+  local bufnr = vim.api.nvim_get_current_buf()
+  
+  -- Create loading line at the end of buffer
+  vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"@Assistant: Thinking..."})
+  
+  return vim.fn.timer_start(100, function()
+    if not M.current_request then
+      return
+    end
+    frame = (frame % #spinner_frames) + 1
+    local text = "@Assistant: " .. spinner_frames[frame] .. " Thinking..."
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {text})
+  end, {["repeat"] = -1})
+end
+
 -- Handle the Claude interaction
 function M.send_to_claude()
+  -- Cancel any ongoing request
+  M.cancel_request()
+
   local api_key = os.getenv("ANTHROPIC_API_KEY")
   if not api_key then
     vim.notify("ANTHROPIC_API_KEY environment variable not set", vim.log.levels.ERROR)
@@ -280,19 +320,33 @@ function M.send_to_claude()
     stream = true
   }
 
+  local spinner_timer = start_loading_spinner()
   local response_text = ""
-  local function handle_chunk(chunk)
+  local function handle_chunk(err, chunk)
+    if err then
+      vim.schedule(function()
+        vim.notify("Error from Claude API: " .. vim.inspect(err), vim.log.levels.ERROR)
+        M.current_request = nil
+        vim.fn.timer_stop(spinner_timer)
+      end)
+      return
+    end
+
     if chunk then
-      local data = json.decode(chunk:gsub("^data: ", ""))
-      if data.type == "content_block_delta" then
+      local ok, data = pcall(json.decode, chunk:gsub("^data: ", ""))
+      if ok and data.type == "content_block_delta" then
         response_text = response_text .. (data.delta.text or "")
-        -- Update buffer with accumulated response
-        append_response(response_text)
+        vim.schedule(function()
+          -- Remove loading spinner
+          vim.fn.timer_stop(spinner_timer)
+          -- Update buffer with accumulated response
+          append_response(response_text)
+        end)
       end
     end
   end
 
-  curl.post("https://api.anthropic.com/v1/messages", {
+  M.current_request = curl.post("https://api.anthropic.com/v1/messages", {
     headers = {
       ["x-api-key"] = api_key,
       ["anthropic-version"] = "2023-06-01",
