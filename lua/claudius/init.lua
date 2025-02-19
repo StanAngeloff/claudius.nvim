@@ -1,5 +1,7 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace('claudius')
+local curl = require('plenary.curl')
+local json = require('vim.json')
 
 -- Folding functions
 function M.get_fold_level(lnum)
@@ -223,11 +225,82 @@ function M.parse_buffer()
   return messages
 end
 
+-- Format messages for Claude API
+local function format_messages(messages)
+  local formatted = {}
+  for _, msg in ipairs(messages) do
+    local role = msg.type == MSG_TYPE.SYSTEM and "system" 
+      or msg.type == MSG_TYPE.USER and "user"
+      or msg.type == MSG_TYPE.ASSISTANT and "assistant"
+      or nil
+    
+    if role then
+      table.insert(formatted, {
+        role = role,
+        content = msg.content
+      })
+    end
+  end
+  return formatted
+end
+
+-- Append assistant response to buffer
+local function append_response(response)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  
+  -- Add a newline if the last line isn't empty
+  if #lines > 0 and lines[#lines]:match("%S") then
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {""})
+  end
+  
+  -- Add the assistant response
+  local response_lines = {"@Assistant: " .. response}
+  vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, response_lines)
+end
+
 -- Handle the Claude interaction
 function M.send_to_claude()
+  local api_key = os.getenv("ANTHROPIC_API_KEY")
+  if not api_key then
+    vim.notify("ANTHROPIC_API_KEY environment variable not set", vim.log.levels.ERROR)
+    return
+  end
+
   local messages = M.parse_buffer()
-  -- TODO: Implement the actual Claude API interaction
-  vim.notify("Parsed " .. #messages .. " messages", vim.log.levels.INFO)
+  if #messages == 0 then
+    vim.notify("No messages found in buffer", vim.log.levels.WARN)
+    return
+  end
+
+  local formatted_messages = format_messages(messages)
+  local request_body = {
+    model = "claude-3-opus-20240229",
+    messages = formatted_messages,
+    stream = true
+  }
+
+  local response_text = ""
+  local function handle_chunk(chunk)
+    if chunk then
+      local data = json.decode(chunk:gsub("^data: ", ""))
+      if data.type == "content_block_delta" then
+        response_text = response_text .. (data.delta.text or "")
+        -- Update buffer with accumulated response
+        append_response(response_text)
+      end
+    end
+  end
+
+  curl.post("https://api.anthropic.com/v1/messages", {
+    headers = {
+      ["x-api-key"] = api_key,
+      ["anthropic-version"] = "2023-06-01",
+      ["content-type"] = "application/json",
+    },
+    body = json.encode(request_body),
+    stream = handle_chunk,
+  })
 end
 
 return M
