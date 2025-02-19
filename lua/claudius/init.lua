@@ -1,7 +1,14 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace('claudius')
-local curl = require('plenary.curl')
-local json = require('vim.json')
+
+-- Utility functions for JSON encoding/decoding
+local function json_decode(str)
+  return vim.fn.json_decode(str)
+end
+
+local function json_encode(data)
+  return vim.fn.json_encode(data)
+end
 
 -- Track ongoing requests
 M.current_request = nil
@@ -346,14 +353,42 @@ function M.send_to_claude()
     end
   end
 
-  M.current_request = curl.post("https://api.anthropic.com/v1/messages", {
-    headers = {
-      ["x-api-key"] = api_key,
-      ["anthropic-version"] = "2023-06-01",
-      ["content-type"] = "application/json",
-    },
-    body = json.encode(request_body),
-    stream = handle_chunk,
+  -- Prepare curl command
+  local cmd = {
+    'curl',
+    '-N',  -- disable buffering
+    '-s',  -- silent mode
+    '-H', 'x-api-key: ' .. api_key,
+    '-H', 'anthropic-version: 2023-06-01',
+    '-H', 'content-type: application/json',
+    '-d', json_encode(request_body),
+    'https://api.anthropic.com/v1/messages'
+  }
+
+  -- Start job
+  M.current_request = vim.fn.jobstart(cmd, {
+    on_stdout = function(_, data)
+      if data then
+        for _, line in ipairs(data) do
+          if line:match("^data: ") then
+            local ok, decoded = pcall(json_decode, line:gsub("^data: ", ""))
+            if ok and decoded.type == "content_block_delta" then
+              response_text = response_text .. (decoded.delta.text or "")
+              vim.schedule(function()
+                vim.fn.timer_stop(spinner_timer)
+                append_response(response_text)
+              end)
+            end
+          end
+        end
+      end
+    end,
+    on_exit = function()
+      vim.schedule(function()
+        M.current_request = nil
+        vim.fn.timer_stop(spinner_timer)
+      end)
+    end
   })
 end
 
