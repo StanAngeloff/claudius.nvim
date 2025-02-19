@@ -77,11 +77,6 @@ The plugin provides several commands for interacting with Claude and managing ch
 - `ClaudiusNextMessage` - Jump to next message (`]m` by default)
 - `ClaudiusPrevMessage` - Jump to previous message (`[m` by default)
 
-#### Selection Commands
-
-- `ClaudiusSelectInMessage` - Select just the message content (`vim` by default)
-- `ClaudiusSelectMessage` - Select the entire message including prefix (`vam` by default)
-
 #### Import Command
 
 - `ClaudiusImport` - Convert a Claude Workbench API call into chat format
@@ -92,8 +87,8 @@ By default, the following keybindings are active in chat files:
 - <kbd>Ctrl-C</kbd> - Cancel ongoing request
 - <kbd>]m</kbd> - Jump to next message
 - <kbd>[m</kbd> - Jump to previous message
-- <kbd>vim</kbd> - Select inside message content
-- <kbd>vam</kbd> - Select entire message
+- <kbd>im</kbd> - Text object for inside message content (customizable key)
+- <kbd>am</kbd> - Text object for around message (customizable key)
 
 You can disable the default keymaps by setting `keymaps.enable = false` and define your own:
 
