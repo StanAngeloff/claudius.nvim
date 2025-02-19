@@ -443,7 +443,6 @@ local function format_messages(messages)
   return formatted, system_message
 end
 
-
 -- Cancel ongoing request if any
 function M.cancel_request()
   if M.current_request then
