@@ -2,8 +2,17 @@ local M = {}
 
 -- Helper function to convert JS object notation to valid JSON
 local function prepare_json(content)
-    -- Replace property names with quoted versions
-    return content:gsub("([%w_]+):", "\"%1\":")
+    -- First clean up any line breaks and extra spaces
+    content = content:gsub("\n%s*", " ")
+    
+    -- Replace unquoted property names with quoted versions
+    -- This handles property names that may contain periods or other special chars
+    content = content:gsub("([%w_%.-]+)%s*:", "\"%1\":")
+    
+    -- Replace single quotes with double quotes
+    content = content:gsub("'([^']*)'", "\"%1\"")
+    
+    return content
 end
 
 -- Extract content between create() call
@@ -86,10 +95,20 @@ function M.import_buffer()
     
     local json_str = prepare_json(content)
     
-    -- Parse JSON
+    -- Parse JSON with better error handling
     local ok, data = pcall(vim.fn.json_decode, json_str)
     if not ok then
-        vim.notify("Failed to parse API call data: " .. tostring(data), vim.log.levels.ERROR)
+        -- Log the problematic JSON string for debugging
+        local debug_file = io.open("/tmp/claudius-import-debug.log", "w")
+        if debug_file then
+            debug_file:write("Original content:\n")
+            debug_file:write(content .. "\n\n")
+            debug_file:write("Prepared JSON:\n")
+            debug_file:write(json_str .. "\n")
+            debug_file:close()
+        end
+        
+        vim.notify("Failed to parse API call data. Debug info written to /tmp/claudius-import-debug.log", vim.log.levels.ERROR)
         return
     end
     
