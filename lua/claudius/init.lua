@@ -403,10 +403,13 @@ end
 
 -- Handle the Claude interaction
 function M.send_to_claude()
+  -- Check if there's already a request in progress
+  if M.current_request then
+    vim.notify("Claudius: A request is already in progress. Use <C-c> to cancel it first.", vim.log.levels.WARN)
+    return
+  end
+
   log.info("Starting new Claude request")
-  
-  -- Cancel any ongoing request and reset cancelled state
-  M.cancel_request()
   M.request_cancelled = false
 
   -- Try environment variable first
