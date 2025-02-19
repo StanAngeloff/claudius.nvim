@@ -1,35 +1,34 @@
 local M = {}
-local ns_id = vim.api.nvim_create_namespace('claudius')
+local ns_id = vim.api.nvim_create_namespace("claudius")
 local api_key = nil
 
 -- Setup logging
-local log_path = vim.fn.stdpath('cache') .. '/claudius.log'
+local log_path = vim.fn.stdpath("cache") .. "/claudius.log"
 local log = {}
 
 function log.info(msg)
-  local f = io.open(log_path, 'a')
+  local f = io.open(log_path, "a")
   if f then
-    f:write(os.date('%Y-%m-%d %H:%M:%S') .. ' [INFO] ' .. msg .. '\n')
+    f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [INFO] " .. msg .. "\n")
     f:close()
   end
 end
 
 function log.error(msg)
-  local f = io.open(log_path, 'a')
+  local f = io.open(log_path, "a")
   if f then
-    f:write(os.date('%Y-%m-%d %H:%M:%S') .. ' [ERROR] ' .. msg .. '\n')
+    f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [ERROR] " .. msg .. "\n")
     f:close()
   end
 end
 
 function log.debug(msg)
-  local f = io.open(log_path, 'a')
+  local f = io.open(log_path, "a")
   if f then
-    f:write(os.date('%Y-%m-%d %H:%M:%S') .. ' [DEBUG] ' .. msg .. '\n')
+    f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [DEBUG] " .. msg .. "\n")
     f:close()
   end
 end
-
 
 -- Utility functions for JSON encoding/decoding
 local function json_decode(str)
@@ -47,7 +46,7 @@ M.request_cancelled = false
 -- Folding functions
 function M.get_fold_level(lnum)
   local line = vim.fn.getline(lnum)
-  local last_line = vim.fn.line('$')
+  local last_line = vim.fn.line("$")
 
   -- If line starts with @, it's the start of a fold
   if line:match("^@[%w]+:") then
@@ -86,7 +85,7 @@ end
 local MSG_TYPE = {
   SYSTEM = "System",
   USER = "You",
-  ASSISTANT = "Assistant"
+  ASSISTANT = "Assistant",
 }
 
 -- Module configuration
@@ -97,24 +96,24 @@ local default_config = {
   highlights = {
     system = "Special",
     user = "Normal",
-    assistant = "Comment"
+    assistant = "Comment",
   },
   prefix_style = "bold,underline",
   ruler = {
-    char = "─",  -- The character to use for the ruler
-    style = "FoldColumn"  -- Highlight group for the ruler
+    char = "─", -- The character to use for the ruler
+    style = "FoldColumn", -- Highlight group for the ruler
   },
-  model = "claude-3-5-sonnet-20241022",  -- Default Claude model to use
+  model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
   keymaps = {
     normal = {
       send = "<C-]>",
-      cancel = "<C-c>"
+      cancel = "<C-c>",
     },
     insert = {
-      send = "<C-]>"
+      send = "<C-]>",
     },
-    enable = true -- Set to false to disable all keymaps
-  }
+    enable = true, -- Set to false to disable all keymaps
+  },
 }
 
 -- Helper function to add rulers
@@ -131,8 +130,8 @@ local function add_rulers(bufnr)
       if i > 1 then
         -- Create virtual line with ruler
         local ruler_text = string.rep(default_config.ruler.char, math.floor(vim.api.nvim_win_get_width(0) * 1))
-        vim.api.nvim_buf_set_extmark(bufnr, ns_id, i-1, 0, {
-          virt_lines = {{{ruler_text, default_config.ruler.style}}},
+        vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
+          virt_lines = { { { ruler_text, default_config.ruler.style } } },
           virt_lines_above = true,
         })
       end
@@ -149,11 +148,11 @@ M.setup = function(opts)
   -- Create filetype detection for .chat files
   vim.filetype.add({
     extension = {
-      chat = "chat"
+      chat = "chat",
     },
     pattern = {
-      [".*%.chat"] = "chat"
-    }
+      [".*%.chat"] = "chat",
+    },
   })
 
   -- Define syntax highlighting
@@ -180,16 +179,21 @@ M.setup = function(opts)
     vim.cmd(string.format("highlight link ChatAssistant %s", config.highlights.assistant))
 
     -- Set up prefix highlights to inherit colors but add custom style
-    vim.cmd(string.format([[
+    vim.cmd(string.format(
+      [[
       execute 'highlight ChatSystemPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatSystem")), "fg", "gui") . ' gui=%s'
       execute 'highlight ChatUserPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatUser")), "fg", "gui") . ' gui=%s'
       execute 'highlight ChatAssistantPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatAssistant")), "fg", "gui") . ' gui=%s'
-    ]], config.prefix_style, config.prefix_style, config.prefix_style))
+    ]],
+      config.prefix_style,
+      config.prefix_style,
+      config.prefix_style
+    ))
   end
 
   -- Set up folding expression
   local function setup_folding()
-    vim.wo.foldmethod = 'expr'
+    vim.wo.foldmethod = "expr"
     vim.wo.foldexpr = 'v:lua.require("claudius").get_fold_level(v:lnum)'
     vim.wo.foldtext = 'v:lua.require("claudius").get_fold_text()'
     -- Start with all folds open
@@ -197,47 +201,47 @@ M.setup = function(opts)
   end
 
   -- Add autocmd for updating rulers
-  vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter", "VimResized", "TextChanged", "TextChangedI"}, {
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "VimResized", "TextChanged", "TextChangedI" }, {
     pattern = "*.chat",
     callback = function(ev)
       add_rulers(ev.buf)
-    end
+    end,
   })
 
   -- Create user commands
-  vim.api.nvim_create_user_command('ClaudiusSend', function()
+  vim.api.nvim_create_user_command("ClaudiusSend", function()
     M.send_to_claude()
   end, {})
 
-  vim.api.nvim_create_user_command('ClaudiusCancel', function()
+  vim.api.nvim_create_user_command("ClaudiusCancel", function()
     M.cancel_request()
   end, {})
 
-  vim.api.nvim_create_user_command('ClaudiusSendAndInsert', function()
+  vim.api.nvim_create_user_command("ClaudiusSendAndInsert", function()
     vim.cmd("stopinsert")
     M.send_to_claude({
       on_complete = function()
         vim.cmd("startinsert!")
-      end
+      end,
     })
   end, {})
 
   -- Set up autocmd for the chat filetype
-  vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter"}, {
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     pattern = "*.chat",
     callback = function(ev)
       set_syntax()
       add_rulers(ev.buf)
-    end
+    end,
   })
 
   -- Create the filetype detection
-  vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
+  vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
     pattern = "*.chat",
     callback = function()
       vim.bo.filetype = "chat"
       setup_folding()
-    end
+    end,
   })
 
   -- Set up the mappings for Claude interaction if enabled
@@ -251,12 +255,16 @@ M.setup = function(opts)
             M.send_to_claude()
           end, { buffer = true, desc = "Send to Claude" })
         end
-        
+
         if config.keymaps.normal.cancel then
-          vim.keymap.set("n", config.keymaps.normal.cancel, M.cancel_request, 
-            { buffer = true, desc = "Cancel Claude Request" })
+          vim.keymap.set(
+            "n",
+            config.keymaps.normal.cancel,
+            M.cancel_request,
+            { buffer = true, desc = "Cancel Claude Request" }
+          )
         end
-        
+
         -- Insert mode mapping - send and return to insert mode
         if config.keymaps.insert.send then
           vim.keymap.set("i", config.keymaps.insert.send, function()
@@ -264,11 +272,11 @@ M.setup = function(opts)
             M.send_to_claude({
               on_complete = function()
                 vim.cmd("startinsert!")
-              end
+              end,
             })
           end, { buffer = true, desc = "Send to Claude and continue editing" })
         end
-      end
+      end,
     })
   end
 end
@@ -288,7 +296,7 @@ local function parse_message(lines, start_idx)
   if first_content:match("%S") then
     content[#content + 1] = first_content:gsub("^%s*", "")
   end
-  
+
   i = i + 1
   -- Collect lines until we hit another prefix or end of buffer
   while i <= #lines do
@@ -304,7 +312,7 @@ local function parse_message(lines, start_idx)
 
   return {
     type = msg_type,
-    content = table.concat(content, "\n")
+    content = table.concat(content, "\n"),
   }, i - 1
 end
 
@@ -331,24 +339,22 @@ end
 local function format_messages(messages)
   local formatted = {}
   local system_message = nil
-  
+
   for _, msg in ipairs(messages) do
     if msg.type == MSG_TYPE.SYSTEM then
       system_message = msg.content:gsub("%s+$", "")
     else
-      local role = msg.type == MSG_TYPE.USER and "user"
-        or msg.type == MSG_TYPE.ASSISTANT and "assistant"
-        or nil
-      
+      local role = msg.type == MSG_TYPE.USER and "user" or msg.type == MSG_TYPE.ASSISTANT and "assistant" or nil
+
       if role then
         table.insert(formatted, {
           role = role,
-          content = msg.content:gsub("%s+$", "")
+          content = msg.content:gsub("%s+$", ""),
         })
       end
     end
   end
-  
+
   return formatted, system_message
 end
 
@@ -356,14 +362,14 @@ end
 local function append_response(response)
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  
+
   -- Add a newline if the last line isn't empty
   if #lines > 0 and lines[#lines]:match("%S") then
-    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {""})
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "" })
   end
-  
+
   -- Add the assistant response
-  local response_lines = {"@Assistant: " .. response}
+  local response_lines = { "@Assistant: " .. response }
   vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, response_lines)
 end
 
@@ -371,23 +377,23 @@ end
 function M.cancel_request()
   if M.current_request then
     log.info("Cancelling request " .. tostring(M.current_request))
-    
+
     -- Get the process ID
     local pid = vim.fn.jobpid(M.current_request)
-    
+
     -- Mark as cancelled
     M.request_cancelled = true
-    
+
     if pid then
       -- Send SIGINT first for clean connection termination
-      vim.fn.system('kill -INT ' .. pid)
+      vim.fn.system("kill -INT " .. pid)
       log.info("Sent SIGINT to curl process " .. pid)
-      
+
       -- Give curl a moment to cleanup, then force kill if still running
       vim.defer_fn(function()
         if M.current_request then
           vim.fn.jobstop(M.current_request)
-          vim.fn.system('kill -KILL ' .. pid)
+          vim.fn.system("kill -KILL " .. pid)
           log.info("Sent SIGKILL to curl process " .. pid)
           M.current_request = nil
         end
@@ -397,20 +403,20 @@ function M.cancel_request()
       vim.fn.jobstop(M.current_request)
       M.current_request = nil
     end
-    
+
     M.current_request = nil
-    
+
     -- Clean up the buffer
     local bufnr = vim.api.nvim_get_current_buf()
     local last_line = vim.api.nvim_buf_line_count(bufnr)
     local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
-    
+
     -- If we're still showing the thinking message, remove it
     if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
       log.debug("Cleaning up thinking message")
       M.cleanup_spinner(bufnr)
     end
-    
+
     vim.notify("Claudius: Request cancelled. See " .. log_path .. " for details.", vim.log.levels.INFO)
   else
     log.debug("Cancel request called but no current request found")
@@ -421,14 +427,14 @@ end
 M.cleanup_spinner = function(bufnr)
   -- Stop any existing rulers/virtual text
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-  
+
   -- Remove the "Thinking..." line
   local last_line = vim.api.nvim_buf_line_count(bufnr)
   local prev_line = vim.api.nvim_buf_get_lines(bufnr, last_line - 2, last_line - 1, false)[1]
-  
+
   -- Ensure we maintain a blank line if needed
   if prev_line and prev_line:match("%S") then
-    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {""})
+    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { "" })
   else
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
   end
@@ -439,18 +445,18 @@ local function start_loading_spinner()
   local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
   local frame = 1
   local bufnr = vim.api.nvim_get_current_buf()
-  
+
   -- Clear any existing virtual text
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-  
+
   -- Check if we need to add a blank line
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   if #lines > 0 and lines[#lines]:match("%S") then
-    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"", "@Assistant: Thinking..."})
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "", "@Assistant: Thinking..." })
   else
-    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"@Assistant: Thinking..."})
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "@Assistant: Thinking..." })
   end
-  
+
   return vim.fn.timer_start(100, function()
     if not M.current_request then
       return
@@ -458,11 +464,10 @@ local function start_loading_spinner()
     frame = (frame % #spinner_frames) + 1
     local text = "@Assistant: " .. spinner_frames[frame] .. " Thinking..."
     local last_line = vim.api.nvim_buf_line_count(bufnr)
-    vim.cmd('undojoin')
-    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {text})
-  end, {["repeat"] = -1})
+    vim.cmd("undojoin")
+    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
+  end, { ["repeat"] = -1 })
 end
-
 
 -- Handle the Claude interaction
 function M.send_to_claude(opts)
@@ -478,7 +483,7 @@ function M.send_to_claude(opts)
 
   -- Try environment variable first
   api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-  
+
   -- If no API key, prompt for it
   if not api_key then
     vim.ui.input({
@@ -486,7 +491,7 @@ function M.send_to_claude(opts)
       default = "",
       border = "rounded",
       title = " Claudius - API Key Required ",
-      relative = "editor"
+      relative = "editor",
     }, function(input)
       if input then
         api_key = input
@@ -498,7 +503,7 @@ function M.send_to_claude(opts)
         vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
       end
     end)
-    
+
     -- Return early since we'll continue in the callback
     return
   end
@@ -516,7 +521,7 @@ function M.send_to_claude(opts)
     system = system_message,
     max_tokens = 4000,
     temperature = 0.7,
-    stream = true
+    stream = true,
   }
 
   -- Log the outgoing request as JSON
@@ -533,7 +538,7 @@ function M.send_to_claude(opts)
         vim.fn.timer_stop(spinner_timer)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
         M.current_request = nil
-        
+
         local msg = "Claude API error"
         if data.error and data.error.message then
           msg = data.error.message
@@ -544,10 +549,10 @@ function M.send_to_claude(opts)
     end
 
     -- Otherwise handle normal event stream format
-    if not line:match("^data: ") then 
-      return 
+    if not line:match("^data: ") then
+      return
     end
-    
+
     local json_str = line:gsub("^data: ", "")
     if json_str == "[DONE]" then
       vim.schedule(function()
@@ -568,7 +573,7 @@ function M.send_to_claude(opts)
         vim.fn.timer_stop(spinner_timer)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
         M.current_request = nil
-        
+
         local msg = "Claude API error"
         if data.error and data.error.message then
           msg = data.error.message
@@ -581,51 +586,51 @@ function M.send_to_claude(opts)
     if data.type == "content_block_delta" and data.delta and data.delta.text then
       vim.schedule(function()
         local bufnr = vim.api.nvim_get_current_buf()
-        
+
         -- Stop spinner on first content
         if not response_started then
           vim.fn.timer_stop(spinner_timer)
         end
-        
+
         -- Split content into lines
         local lines = vim.split(data.delta.text, "\n", { plain = true })
-        
+
         if #lines > 0 then
           local last_line = vim.api.nvim_buf_line_count(bufnr)
-          
+
           if not response_started then
             -- Clean up spinner and ensure blank line
             M.cleanup_spinner(bufnr)
             last_line = vim.api.nvim_buf_line_count(bufnr)
-            
+
             -- Start with @Assistant: prefix
-            vim.cmd('undojoin')
-            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"@Assistant: " .. lines[1]})
-            
+            vim.cmd("undojoin")
+            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant: " .. lines[1] })
+
             -- Add remaining lines if any
             if #lines > 1 then
-              vim.cmd('undojoin')
-              vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, {unpack(lines, 2)})
+              vim.cmd("undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, { unpack(lines, 2) })
             end
           else
             -- Get the last line's content
             local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
-            
+
             if #lines == 1 then
               -- Just append to the last line
-              vim.cmd('undojoin')
-              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {last_line_content .. lines[1]})
+              vim.cmd("undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
             else
               -- First chunk goes to the end of the last line
-              vim.cmd('undojoin')
-              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {last_line_content .. lines[1]})
-              
+              vim.cmd("undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
+
               -- Remaining lines get added as new lines
-              vim.cmd('undojoin')
-              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {unpack(lines, 2)})
+              vim.cmd("undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { unpack(lines, 2) })
             end
           end
-          
+
           response_started = true
         end
       end)
@@ -634,24 +639,32 @@ function M.send_to_claude(opts)
 
   -- Prepare curl command with proper timeouts and signal handling
   local cmd = {
-    'curl',
-    '-N',  -- disable buffering
-    '-s',  -- silent mode
-    '--connect-timeout', '10',  -- connection timeout
-    '--max-time', '120',       -- maximum time allowed
-    '--retry', '0',           -- disable retries
-    '--http1.1',             -- force HTTP/1.1 for better interrupt handling
-    '-H', 'Connection: close', -- request connection close
-    '-H', 'x-api-key: ' .. api_key,
-    '-H', 'anthropic-version: 2023-06-01',
-    '-H', 'content-type: application/json',
-    '-d', json_encode(request_body),
-    'https://api.anthropic.com/v1/messages'
+    "curl",
+    "-N", -- disable buffering
+    "-s", -- silent mode
+    "--connect-timeout",
+    "10", -- connection timeout
+    "--max-time",
+    "120", -- maximum time allowed
+    "--retry",
+    "0", -- disable retries
+    "--http1.1", -- force HTTP/1.1 for better interrupt handling
+    "-H",
+    "Connection: close", -- request connection close
+    "-H",
+    "x-api-key: " .. api_key,
+    "-H",
+    "anthropic-version: 2023-06-01",
+    "-H",
+    "content-type: application/json",
+    "-d",
+    json_encode(request_body),
+    "https://api.anthropic.com/v1/messages",
   }
 
   -- Start job in its own process group
   M.current_request = vim.fn.jobstart(cmd, {
-    detach = true,  -- Put process in its own group
+    detach = true, -- Put process in its own group
     on_stdout = function(_, data)
       if data then
         for _, line in ipairs(data) do
@@ -676,16 +689,16 @@ function M.send_to_claude(opts)
       vim.schedule(function()
         M.current_request = nil
         vim.fn.timer_stop(spinner_timer)
-        
+
         -- Only add the new prompt if the request wasn't cancelled and completed successfully
         if not M.request_cancelled and code == 0 and response_started then
           local bufnr = vim.api.nvim_get_current_buf()
           local last_line = vim.api.nvim_buf_line_count(bufnr)
-          vim.cmd('undojoin')
-          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"", "@You: "})
-            
+          vim.cmd("undojoin")
+          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
+
           -- Move cursor to after the colon
-          vim.api.nvim_win_set_cursor(0, {last_line + 2, 7})
+          vim.api.nvim_win_set_cursor(0, { last_line + 2, 7 })
 
           -- Call the completion callback if provided
           if opts.on_complete then
@@ -693,7 +706,7 @@ function M.send_to_claude(opts)
           end
         end
       end)
-    end
+    end,
   })
 end
 
