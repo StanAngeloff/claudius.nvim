@@ -11,8 +11,9 @@ local function json_encode(data)
   return vim.fn.json_encode(data)
 end
 
--- Track ongoing requests
+-- Track ongoing requests and their state
 M.current_request = nil
+M.request_cancelled = false
 
 -- Folding functions
 function M.get_fold_level(lnum)
@@ -285,7 +286,8 @@ end
 -- Cancel ongoing request if any
 function M.cancel_request()
   if M.current_request then
-    -- Stop the job
+    -- Mark as cancelled and stop the job
+    M.request_cancelled = true
     vim.fn.jobstop(M.current_request)
     M.current_request = nil
     
@@ -352,8 +354,9 @@ end
 
 -- Handle the Claude interaction
 function M.send_to_claude()
-  -- Cancel any ongoing request
+  -- Cancel any ongoing request and reset cancelled state
   M.cancel_request()
+  M.request_cancelled = false
 
   local api_key = os.getenv("ANTHROPIC_API_KEY")
   if not api_key then
@@ -477,14 +480,16 @@ function M.send_to_claude()
         M.current_request = nil
         vim.fn.timer_stop(spinner_timer)
         
-        -- Add a blank line and the new prompt
-        local bufnr = vim.api.nvim_get_current_buf()
-        local last_line = vim.api.nvim_buf_line_count(bufnr)
-        vim.cmd('undojoin')
-        vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"", "@You: "})
-        
-        -- Move cursor to after the colon
-        vim.api.nvim_win_set_cursor(0, {last_line + 2, 7})
+        -- Only add the new prompt if the request wasn't cancelled
+        if not M.request_cancelled then
+          local bufnr = vim.api.nvim_get_current_buf()
+          local last_line = vim.api.nvim_buf_line_count(bufnr)
+          vim.cmd('undojoin')
+          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, {"", "@You: "})
+          
+          -- Move cursor to after the colon
+          vim.api.nvim_win_set_cursor(0, {last_line + 2, 7})
+        end
       end)
     end
   })
