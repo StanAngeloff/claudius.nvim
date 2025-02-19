@@ -603,16 +603,16 @@ function M.send_to_claude(opts)
   local response_started = false
   local function handle_response_line(line)
     -- First try parsing the line directly as JSON for error responses
-    local ok, data = pcall(json_decode, line)
-    if ok and data.type == "error" then
+    local ok, error_data = pcall(json_decode, line)
+    if ok and error_data.type == "error" then
       vim.schedule(function()
         vim.fn.timer_stop(spinner_timer)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
         M.current_request = nil
 
         local msg = "Claude API error"
-        if data.error and data.error.message then
-          msg = data.error.message
+        if error_data.error and error_data.error.message then
+          msg = error_data.error.message
         end
         vim.notify("Claudius: " .. msg .. ". See " .. log_path .. " for details.", vim.log.levels.ERROR)
       end)
