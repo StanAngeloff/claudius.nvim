@@ -10,19 +10,16 @@ A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI 
 
 Claudius requires:
 
-- An Anthropic API key, which can be provided in one of these ways:
-  1. Via ANTHROPIC_API_KEY environment variable
-  2. On Linux systems with libsecret installed, via the system keyring
-  3. Manual input prompt if not found in env or keyring
+- An Anthropic API key (via ANTHROPIC_API_KEY environment variable, or manual input prompt)
 - Tree-sitter for syntax highlighting
 
-To store your API key in the system keyring on Linux:
+Optional Features:
 
-```bash
-secret-tool store --label="Anthropic API Key" service anthropic key api
-```
-
-This will securely prompt for your API key and store it in the system keyring.
+- On Linux systems with libsecret installed, your API key can be stored and retrieved from the system keyring:
+  ```bash
+  secret-tool store --label="Anthropic API Key" service anthropic key api
+  ```
+  This will securely prompt for your API key and store it in the system keyring.
 
 ## Installation
 
