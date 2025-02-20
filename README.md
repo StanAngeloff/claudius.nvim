@@ -137,6 +137,56 @@ The command will parse the API call and convert it into Claudius's chat format.
 
 Claudius aims to provide a simple, native-feeling interface for having conversations with Claude directly in Neovim. The plugin focuses on being lightweight and following Vim/Neovim conventions.
 
+## Contributing
+
+### Development Setup
+
+The project uses Nix for development environment management. This ensures all contributors have access to the same tools and versions.
+
+#### Prerequisites
+
+1. Install [Nix](https://nixos.org/download.html)
+2. Set up your Anthropic API key:
+   ```bash
+   export ANTHROPIC_API_KEY=your_key_here
+   ```
+
+#### Development Workflow
+
+1. Enter the development environment:
+
+   ```bash
+   nix develop
+   ```
+
+2. Available development commands:
+   - `claudius-dev`: Starts an Aider session with the correct files loaded
+   - `claudius-fmt`: Reformats the codebase using:
+     - nixfmt for .nix files
+     - stylua for Lua files
+     - prettier for Markdown
+
+#### Quick Testing
+
+You can test changes without installing the plugin by running:
+
+```bash
+nvim --cmd "set runtimepath+=`pwd`" -c 'lua require("claudius").setup({})' -c ':edit example.chat'
+```
+
+This command:
+
+- Adds the current directory to Neovim's runtime path
+- Loads and configures the plugin
+- Opens a new chat file ready for testing
+
+### Development Guidelines
+
+1. Use the provided formatting tools via `claudius-fmt` before committing
+2. Test changes using the quick testing command above
+3. Keep changes focused and minimal
+4. Follow existing code style and patterns
+
 ---
 
 _Keywords: claude tui, claude cli, claude terminal, claude vim, claude neovim, anthropic vim, anthropic neovim, ai vim, ai neovim, llm vim, llm neovim, chat vim, chat neovim_
