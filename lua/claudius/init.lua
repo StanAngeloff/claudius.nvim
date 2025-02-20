@@ -3,30 +3,40 @@ local ns_id = vim.api.nvim_create_namespace("claudius")
 local api_key = nil
 
 -- Setup logging
-local log_path = vim.fn.stdpath("cache") .. "/claudius.log"
 local log = {}
 
-function log.info(msg)
-  local f = io.open(log_path, "a")
-  if f then
-    f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [INFO] " .. msg .. "\n")
-    f:close()
+local function write_log(level, msg)
+  if config.logging and config.logging.enabled then
+    local f = io.open(config.logging.path, "a")
+    if f then
+      f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [" .. level .. "] " .. msg .. "\n")
+      f:close()
+    end
   end
+end
+
+function log.info(msg)
+  write_log("INFO", msg)
 end
 
 function log.error(msg)
-  local f = io.open(log_path, "a")
-  if f then
-    f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [ERROR] " .. msg .. "\n")
-    f:close()
-  end
+  write_log("ERROR", msg)
 end
 
 function log.debug(msg)
-  local f = io.open(log_path, "a")
-  if f then
-    f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [DEBUG] " .. msg .. "\n")
-    f:close()
+  write_log("DEBUG", msg)
+end
+
+-- Helper function to toggle logging
+local function toggle_logging(enable)
+  if enable == nil then
+    enable = not config.logging.enabled
+  end
+  config.logging.enabled = enable
+  if enable then
+    vim.notify("Claudius: Logging enabled - " .. config.logging.path)
+  else
+    vim.notify("Claudius: Logging disabled")
   end
 end
 
@@ -150,6 +160,10 @@ local default_config = {
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
   text_object = "m", -- Default text object key, set to false to disable
+  logging = {
+    enabled = false, -- Logging disabled by default
+    path = vim.fn.stdpath("cache") .. "/claudius.log", -- Default log path
+  },
   keymaps = {
     normal = {
       send = "<C-]>",
@@ -287,6 +301,23 @@ M.setup = function(opts)
 
   vim.api.nvim_create_user_command("ClaudiusPrevMessage", function()
     find_prev_message()
+  end, {})
+
+  -- Logging commands
+  vim.api.nvim_create_user_command("ClaudiusEnableLogging", function()
+    toggle_logging(true)
+  end, {})
+
+  vim.api.nvim_create_user_command("ClaudiusDisableLogging", function()
+    toggle_logging(false)
+  end, {})
+
+  vim.api.nvim_create_user_command("ClaudiusOpenLog", function()
+    if config.logging.enabled then
+      vim.cmd("tabedit " .. config.logging.path)
+    else
+      vim.notify("Claudius: Logging is currently disabled", vim.log.levels.WARN)
+    end
   end, {})
 
   -- Set up autocmd for the chat filetype
@@ -487,7 +518,11 @@ function M.cancel_request()
       M.cleanup_spinner(bufnr)
     end
 
-    vim.notify("Claudius: Request cancelled. See " .. log_path .. " for details.", vim.log.levels.INFO)
+    local msg = "Claudius: Request cancelled"
+    if config.logging.enabled then
+      msg = msg .. ". See " .. config.logging.path .. " for details"
+    end
+    vim.notify(msg, vim.log.levels.INFO)
   else
     log.debug("Cancel request called but no current request found")
   end
