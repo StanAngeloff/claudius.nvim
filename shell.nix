@@ -20,6 +20,8 @@ pkgs.mkShell {
   '';
 
   nativeBuildInputs = with pkgs; [
+    libsecret
+
     (writeShellApplication {
       name = "claudius-dev";
       runtimeInputs = [ aider-chat ];
