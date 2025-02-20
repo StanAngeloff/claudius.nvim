@@ -9,12 +9,12 @@ pkgs.mkShell {
         API_KEY=$(secret-tool lookup service anthropic key api 2>/dev/null)
         if [ ! -z "$API_KEY" ]; then
           export ANTHROPIC_API_KEY="$API_KEY"
-          echo -e "\033[0;32mRetrieved API key from system keyring.\033[0m"
+          echo -e "\033[0;32m[claudius-shell] Retrieved API key from system keyring.\033[0m"
         else
-          echo -e "\033[0;33mWarning: \$ANTHROPIC_API_KEY was not set and not found in system keyring.\033[0m"
+          echo -e "\033[0;33m[claudius-shell] Warning: \$ANTHROPIC_API_KEY was not set and not found in system keyring.\033[0m"
         fi
       else
-        echo -e "\033[0;33mWarning: \$ANTHROPIC_API_KEY was not set and libsecret tools not available.\033[0m"
+        echo -e "\033[0;33m[claudius-shell] Warning: \$ANTHROPIC_API_KEY was not set and libsecret tools not available.\033[0m"
       fi
     fi
   '';
