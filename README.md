@@ -182,10 +182,16 @@ This command:
 
 ### Development Guidelines
 
-1. Use the provided formatting tools via `claudius-fmt` before committing
-2. Test changes using the quick testing command above
-3. Keep changes focused and minimal
-4. Follow existing code style and patterns
+This project is an experiment in AI-driven development - every line of code must be written by AI, not humans. To maintain this:
+
+1. **Use Aider**: All code changes must be made through [Aider](https://aider.chat), not written directly
+2. **No Manual Edits**: Do not write or modify code by hand - let the AI do all coding
+3. **Document AI Interactions**: Keep chat logs of significant Aider conversations
+4. **Use Formatting Tools**: Run `claudius-fmt` before committing to maintain consistent style
+5. **Test Changes**: Use the quick testing command above to verify functionality
+6. **Keep Focus**: Make small, focused changes in each Aider session
+
+The goal is to demonstrate how far we can push AI-driven development. Think of yourself as a "code conductor" - directing the AI but never writing code directly.
 
 ---
 
