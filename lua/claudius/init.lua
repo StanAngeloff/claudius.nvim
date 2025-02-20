@@ -313,10 +313,14 @@ M.setup = function(opts)
   end, {})
 
   vim.api.nvim_create_user_command("ClaudiusOpenLog", function()
-    if config.logging.enabled then
-      vim.cmd("tabedit " .. config.logging.path)
-    else
+    if not config.logging.enabled then
       vim.notify("Claudius: Logging is currently disabled", vim.log.levels.WARN)
+      -- Give user time to see the warning
+      vim.defer_fn(function()
+        vim.cmd("tabedit " .. config.logging.path)
+      end, 1000)
+    else
+      vim.cmd("tabedit " .. config.logging.path)
     end
   end, {})
 
