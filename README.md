@@ -90,6 +90,26 @@ The plugin provides several commands for interacting with Claude and managing ch
 
 - `ClaudiusImport` - Convert a Claude Workbench API call into chat format
 
+#### Logging Commands
+
+- `ClaudiusEnableLogging` - Enable logging of API requests and responses
+- `ClaudiusDisableLogging` - Disable logging (default state)
+- `ClaudiusOpenLog` - Open the log file in a new tab
+
+Logging is disabled by default to prevent sensitive data from being written to disk. When troubleshooting issues:
+
+1. Enable logging with `:ClaudiusEnableLogging`
+2. Reproduce the problem
+3. Check the log with `:ClaudiusOpenLog`
+4. Disable logging with `:ClaudiusDisableLogging` when done
+
+The log file is stored at `~/.cache/nvim/claudius.log` (or equivalent on your system) and contains:
+
+- API request details
+- Response data
+- Error messages
+- Timing information
+
 By default, the following keybindings are active in chat files:
 
 - <kbd>Ctrl-]</kbd> - Send conversation (normal and insert mode)
