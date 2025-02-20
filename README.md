@@ -42,7 +42,7 @@ require("claudius").setup({
         char = "─",           -- character used for the separator line
         style = "FoldColumn"  -- highlight group for the separator
     },
-    model = "claude-3-sonnet-20240229",  -- Claude model to use
+    model = "claude-3-5-sonnet-20241022",  -- Claude model to use
     text_object = "m",  -- Default text object key, set to false to disable
     keymaps = {
         normal = {
@@ -75,8 +75,8 @@ The plugin provides several commands for interacting with Claude and managing ch
 
 #### Navigation Commands
 
-- `ClaudiusNextMessage` - Jump to next message (`]m` by default)
-- `ClaudiusPrevMessage` - Jump to previous message (`[m` by default)
+- `ClaudiusNextMessage` - Jump to next message (<kbd>]m</kbd> by default)
+- `ClaudiusPrevMessage` - Jump to previous message (<kbd>[m</kbd> by default)
 
 #### Import Command
 
