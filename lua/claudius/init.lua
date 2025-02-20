@@ -551,11 +551,36 @@ function M.send_to_claude(opts)
   log.info("Starting new Claude request")
   M.request_cancelled = false
 
+  -- Helper function to try getting API key from system keyring
+  local function try_keyring()
+    if vim.fn.has("linux") == 1 then
+      local handle = io.popen("secret-tool lookup service anthropic key api 2>/dev/null")
+      if handle then
+        local result = handle:read("*a")
+        handle:close()
+        if result and #result > 0 then
+          log.info("API key retrieved from system keyring")
+          return result:gsub("%s+$", "") -- Trim whitespace
+        end
+      end
+    end
+    return nil
+  end
+
   -- Try environment variable first
   api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+  if api_key then
+    log.info("API key found in environment variable")
+  end
 
-  -- If no API key, prompt for it
+  -- Try system keyring if no env var
   if not api_key then
+    api_key = try_keyring()
+  end
+
+  -- If still no API key, prompt for it
+  if not api_key then
+    log.info("No API key found in environment or keyring, prompting user")
     vim.ui.input({
       prompt = "Enter your Anthropic API key: ",
       default = "",
