@@ -770,8 +770,8 @@ function M.send_to_claude(opts)
     end
   end
 
-  -- Create temporary file for request body
-  local tmp_file = os.tmpname()
+  -- Create temporary file for request body with claudius prefix
+  local tmp_file = os.tmpname():gsub("^/tmp/", "/tmp/claudius_")
   local f = io.open(tmp_file, "w")
   if not f then
     vim.notify("Claudius: Failed to create temporary file", vim.log.levels.ERROR)
