@@ -840,7 +840,7 @@ function M.send_to_claude(opts)
       vim.schedule(function()
         -- Clean up temporary file
         os.remove(tmp_file)
-        
+
         M.current_request = nil
         vim.fn.timer_stop(spinner_timer)
 

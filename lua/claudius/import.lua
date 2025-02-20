@@ -115,7 +115,10 @@ function M.import_buffer()
     end
 
     vim.notify(
-      "Failed to parse API call data. Debug info written to " .. os.tmpname():match("^(.+)[/\\]") .. os.tmpname():match("[/\\]") .. "claudius_import_debug.log",
+      "Failed to parse API call data. Debug info written to "
+        .. os.tmpname():match("^(.+)[/\\]")
+        .. os.tmpname():match("[/\\]")
+        .. "claudius_import_debug.log",
       vim.log.levels.ERROR
     )
     return
