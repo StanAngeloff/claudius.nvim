@@ -1,3 +1,5 @@
+--- Claudius plugin core functionality
+--- Provides chat interface and Claude API integration
 local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
 local api_key = nil
@@ -23,7 +25,7 @@ function M.get_fold_level(lnum)
 
   -- If line starts with @, it's the start of a fold
   if line:match("^@[%w]+:") then
-    return ">1"
+    return ">1" -- vim: foldlevel string
   end
 
   -- If next line starts with @ or this is the last line, this is the end of the current fold

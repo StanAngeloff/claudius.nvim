@@ -1,3 +1,5 @@
+--- Import functionality for Claudius
+--- Converts Claude Workbench API calls to chat format
 local M = {}
 
 -- Helper function to convert JS object notation to valid JSON
