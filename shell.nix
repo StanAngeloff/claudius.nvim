@@ -4,7 +4,18 @@
 pkgs.mkShell {
   shellHook = ''
     if [ -z "$ANTHROPIC_API_KEY" ]; then
-      echo -e "\033[0;33mWarning: \$ANTHROPIC_API_KEY was not set before entering the dev shell.\033[0m"
+      # Try to get API key from libsecret if available
+      if command -v secret-tool >/dev/null 2>&1; then
+        API_KEY=$(secret-tool lookup service anthropic key api 2>/dev/null)
+        if [ ! -z "$API_KEY" ]; then
+          export ANTHROPIC_API_KEY="$API_KEY"
+          echo -e "\033[0;32mRetrieved API key from system keyring.\033[0m"
+        else
+          echo -e "\033[0;33mWarning: \$ANTHROPIC_API_KEY was not set and not found in system keyring.\033[0m"
+        fi
+      else
+        echo -e "\033[0;33mWarning: \$ANTHROPIC_API_KEY was not set and libsecret tools not available.\033[0m"
+      fi
     fi
   '';
 
