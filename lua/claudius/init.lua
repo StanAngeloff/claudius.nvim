@@ -770,6 +770,16 @@ function M.send_to_claude(opts)
     end
   end
 
+  -- Create temporary file for request body
+  local tmp_file = os.tmpname()
+  local f = io.open(tmp_file, "w")
+  if not f then
+    vim.notify("Claudius: Failed to create temporary file", vim.log.levels.ERROR)
+    return
+  end
+  f:write(json_encode(request_body))
+  f:close()
+
   -- Prepare curl command with proper timeouts and signal handling
   local cmd = {
     "curl",
@@ -791,7 +801,7 @@ function M.send_to_claude(opts)
     "-H",
     "content-type: application/json",
     "-d",
-    json_encode(request_body),
+    "@" .. tmp_file,
     "https://api.anthropic.com/v1/messages",
   }
 
@@ -820,6 +830,9 @@ function M.send_to_claude(opts)
     on_exit = function(_, code)
       log.info("Request completed with exit code: " .. tostring(code))
       vim.schedule(function()
+        -- Clean up temporary file
+        os.remove(tmp_file)
+        
         M.current_request = nil
         vim.fn.timer_stop(spinner_timer)
 
