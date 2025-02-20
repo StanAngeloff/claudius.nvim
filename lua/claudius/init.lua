@@ -772,9 +772,12 @@ function M.send_to_claude(opts)
 
   -- Create temporary file for request body with claudius prefix
   local tmp_file = os.tmpname()
-  local tmp_dir = tmp_file:match("^(.+)/")
-  local tmp_name = tmp_file:match("/([^/]+)$")
-  tmp_file = tmp_dir .. "/claudius_" .. tmp_name
+  -- Handle both Unix and Windows paths
+  local tmp_dir = tmp_file:match("^(.+)[/\\]")
+  local tmp_name = tmp_file:match("[/\\]([^/\\]+)$")
+  -- Use the same separator that was in the original path
+  local sep = tmp_file:match("[/\\]")
+  tmp_file = tmp_dir .. sep .. "claudius_" .. tmp_name
   local f = io.open(tmp_file, "w")
   if not f then
     vim.notify("Claudius: Failed to create temporary file", vim.log.levels.ERROR)
