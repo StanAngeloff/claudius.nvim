@@ -1,44 +1,7 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
 local api_key = nil
-
--- Setup logging
 local log = {}
-
-local function write_log(level, msg)
-  if config.logging and config.logging.enabled then
-    local f = io.open(config.logging.path, "a")
-    if f then
-      f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [" .. level .. "] " .. msg .. "\n")
-      f:close()
-    end
-  end
-end
-
-function log.info(msg)
-  write_log("INFO", msg)
-end
-
-function log.error(msg)
-  write_log("ERROR", msg)
-end
-
-function log.debug(msg)
-  write_log("DEBUG", msg)
-end
-
--- Helper function to toggle logging
-local function toggle_logging(enable)
-  if enable == nil then
-    enable = not config.logging.enabled
-  end
-  config.logging.enabled = enable
-  if enable then
-    vim.notify("Claudius: Logging enabled - " .. config.logging.path)
-  else
-    vim.notify("Claudius: Logging disabled")
-  end
-end
 
 -- Utility functions for JSON encoding/decoding
 local function json_decode(str)
@@ -206,6 +169,42 @@ M.setup = function(opts)
   -- Merge user config with defaults
   opts = opts or {}
   config = vim.tbl_deep_extend("force", default_config, opts)
+
+  -- Setup logging
+  local function write_log(level, msg)
+    if config.logging and config.logging.enabled then
+      local f = io.open(config.logging.path, "a")
+      if f then
+        f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [" .. level .. "] " .. msg .. "\n")
+        f:close()
+      end
+    end
+  end
+
+  function log.info(msg)
+    write_log("INFO", msg)
+  end
+
+  function log.error(msg)
+    write_log("ERROR", msg)
+  end
+
+  function log.debug(msg)
+    write_log("DEBUG", msg)
+  end
+
+  -- Helper function to toggle logging
+  local function toggle_logging(enable)
+    if enable == nil then
+      enable = not config.logging.enabled
+    end
+    config.logging.enabled = enable
+    if enable then
+      vim.notify("Claudius: Logging enabled - " .. config.logging.path)
+    else
+      vim.notify("Claudius: Logging disabled")
+    end
+  end
 
   -- Set up filetype detection for .chat files
   vim.filetype.add({
