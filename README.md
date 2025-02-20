@@ -28,9 +28,7 @@ Using your preferred package manager, for example with lazy.nvim:
 ```lua
 {
     "StanAngeloff/claudius.nvim",
-    config = function()
-        require("claudius").setup()
-    end
+    opts = {},
 }
 ```
 
