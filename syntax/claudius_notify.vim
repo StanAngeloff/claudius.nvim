@@ -3,6 +3,6 @@ if exists("b:current_syntax")
 endif
 
 syntax region ClaudiusNotifyBold start="\*\*" end="\*\*" contains=NONE
-highlight link ClaudiusNotifyBold Bold
+highlight ClaudiusNotifyBold term=bold cterm=bold gui=bold
 
 let b:current_syntax = "claudius_notify"
