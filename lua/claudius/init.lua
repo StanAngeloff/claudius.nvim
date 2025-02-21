@@ -4,6 +4,7 @@ local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
 local api_key = nil
 local log = {}
+local current_usage = nil
 
 -- Utility functions for JSON encoding/decoding
 local function json_decode(str)
@@ -735,6 +736,22 @@ function M.send_to_claude(opts)
 
   local spinner_timer = start_loading_spinner()
   local response_started = false
+  -- Format usage information for display
+  local function format_usage(usage)
+    if not usage then return "" end
+    local parts = {}
+    if usage.input_tokens then
+      table.insert(parts, string.format("Input: %d", usage.input_tokens))
+    end
+    if usage.output_tokens then
+      table.insert(parts, string.format("Output: %d", usage.output_tokens))
+    end
+    if #parts > 0 then
+      return table.concat(parts, " | ")
+    end
+    return ""
+  end
+
   local function handle_response_line(line, timer)
     -- First try parsing the line directly as JSON for error responses
     local ok, error_data = pcall(json_decode, line)
@@ -786,6 +803,33 @@ function M.send_to_claude(opts)
         vim.notify(msg .. ". See " .. log_path .. " for details.", vim.log.levels.ERROR)
       end)
       return
+    end
+
+    -- Track usage information
+    if data.usage then
+      if not current_usage then
+        current_usage = data.usage
+      else
+        -- Update cumulative totals
+        if data.usage.input_tokens then
+          current_usage.input_tokens = data.usage.input_tokens
+        end
+        if data.usage.output_tokens then
+          current_usage.output_tokens = data.usage.output_tokens
+        end
+      end
+    end
+
+    -- Display final usage on message_stop
+    if data.type == "message_stop" and current_usage then
+      vim.schedule(function()
+        local usage_str = format_usage(current_usage)
+        if usage_str ~= "" then
+          vim.notify("Claude usage: " .. usage_str, vim.log.levels.INFO)
+        end
+        -- Reset usage for next request
+        current_usage = nil
+      end)
     end
 
     if data.type == "content_block_delta" and data.delta and data.delta.text then
@@ -884,6 +928,9 @@ function M.send_to_claude(opts)
   }
 
   -- Start job in its own process group
+  -- Reset usage tracking
+  current_usage = nil
+  
   M.current_request = vim.fn.jobstart(cmd, {
     detach = true, -- Put process in its own group
     on_stdout = function(_, data)
