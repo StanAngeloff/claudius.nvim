@@ -749,23 +749,21 @@ function M.send_to_claude(opts)
   local response_started = false
   -- Format usage information for display
   local function format_usage(current, session)
-    local parts = {}
-    -- Current request usage
+    local lines = {}
+    -- Request usage
     if current and (current.input_tokens > 0 or current.output_tokens > 0) then
-      table.insert(parts, string.format("Request: Input %d | Output %d", 
-        current.input_tokens or 0, 
-        current.output_tokens or 0))
+      table.insert(lines, "Request:")
+      table.insert(lines, string.format("  Input: %d tokens", current.input_tokens or 0))
+      table.insert(lines, string.format("  Output: %d tokens", current.output_tokens or 0))
     end
     -- Session totals
     if session and (session.input_tokens > 0 or session.output_tokens > 0) then
-      table.insert(parts, string.format("Session: Input %d | Output %d", 
-        session.input_tokens or 0, 
-        session.output_tokens or 0))
+      if #lines > 0 then table.insert(lines, "") end -- Add spacing between sections
+      table.insert(lines, "Session:")
+      table.insert(lines, string.format("  Input: %d tokens", session.input_tokens or 0))
+      table.insert(lines, string.format("  Output: %d tokens", session.output_tokens or 0))
     end
-    if #parts > 0 then
-      return table.concat(parts, " • ")
-    end
-    return ""
+    return table.concat(lines, "\n")
   end
 
   local function handle_response_line(line, timer)
@@ -846,8 +844,9 @@ function M.send_to_claude(opts)
         -- Format and display usage information using our custom notification
         local usage_str = format_usage(current_usage, session_usage)
         if usage_str ~= "" then
-          require("claudius.notify").show("Claude usage: " .. usage_str, {
-            timeout = 8000 -- Show usage for longer (8 seconds)
+          require("claudius.notify").show(usage_str, {
+            timeout = 8000, -- Show usage for longer (8 seconds)
+            title = "Claude Usage"
           })
         end
         -- Reset current usage for next request

@@ -9,7 +9,8 @@ local default_opts = {
   timeout = 5000, -- Time in ms before auto-dismiss
   width = 60,     -- Max width of notification
   padding = 1,    -- Padding around content
-  border = "rounded"
+  border = "rounded",
+  title = nil     -- Optional title for the notification
 }
 
 -- Create a notification window
@@ -55,8 +56,8 @@ local function create_notification(msg, opts)
   vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
   vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
 
-  -- Create window
-  local win_id = vim.api.nvim_open_win(bufnr, false, {
+  -- Create window with title if provided
+  local win_opts = {
     relative = "editor",
     row = row,
     col = col,
@@ -65,7 +66,14 @@ local function create_notification(msg, opts)
     style = "minimal",
     border = opts.border,
     noautocmd = true
-  })
+  }
+  
+  if opts.title then
+    win_opts.title = opts.title
+    win_opts.title_pos = "center"
+  end
+  
+  local win_id = vim.api.nvim_open_win(bufnr, false, win_opts)
 
   -- Set window options
   vim.api.nvim_win_set_option(win_id, "wrap", true)
