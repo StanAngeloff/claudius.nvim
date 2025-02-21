@@ -68,6 +68,14 @@ require("claudius").setup({
     editing = {
         disable_textwidth = true,  -- Whether to disable textwidth in chat buffers
     },
+    notify = {
+        enabled = true,      -- Enable/disable notifications
+        timeout = 5000,      -- How long notifications stay visible (ms)
+        max_width = 60,      -- Maximum width of notification windows
+        padding = 1,         -- Padding around notification text
+        border = "rounded",  -- Border style (same as nvim_open_win)
+        title = nil,         -- Default title (nil for none)
+    },
     text_object = "m",  -- Default text object key, set to false to disable
     keymaps = {
         normal = {
