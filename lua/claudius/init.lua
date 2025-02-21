@@ -245,6 +245,8 @@ M.setup = function(opts)
       ["System"] = { config = config.signs.system, highlight = config.highlights.system },
       ["Assistant"] = { config = config.signs.assistant, highlight = config.highlights.assistant },
     }
+    -- Ensure we have lowercase versions of the role names for sign configs
+    config.signs.you = config.signs.user
     for role, sign_data in pairs(signs) do
       if sign_data.config.hl ~= false then
         local sign_name = "claudius_" .. string.lower(role)
