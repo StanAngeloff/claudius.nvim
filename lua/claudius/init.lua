@@ -135,7 +135,7 @@ local default_config = {
       hl = "Normal",
     },
     assistant = {
-      char = nil, -- Use default char 
+      char = nil, -- Use default char
       hl = "Comment",
     },
   },
@@ -451,7 +451,7 @@ local function place_signs(bufnr, start_line, end_line, role)
   if not config.signs.enabled then
     return
   end
-  
+
   local sign_name = "claudius_" .. string.lower(role)
   for lnum = start_line, end_line do
     vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
@@ -491,12 +491,12 @@ local function parse_message(lines, start_idx)
     type = msg_type,
     content = table.concat(content, "\n"),
     start_line = start_idx,
-    end_line = i - 1
+    end_line = i - 1,
   }
-  
+
   -- Place signs for the message
   place_signs(vim.api.nvim_get_current_buf(), result.start_line, result.end_line, msg_type)
-  
+
   return result, i - 1
 end
 
