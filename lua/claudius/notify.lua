@@ -75,6 +75,7 @@ local function create_notification(msg, opts)
   vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
   vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
   vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(bufnr, "filetype", "markdown")
 
   -- Create window with title if provided
   local win_opts = {
