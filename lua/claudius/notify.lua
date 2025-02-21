@@ -69,9 +69,20 @@ local function create_notification(msg, opts)
     end
   end
 
+  -- Add padding to each line
+  local padded_lines = {}
+  local padding_str = string.rep(" ", opts.padding)
+  for _, line in ipairs(lines) do
+    if line:match("%S") then
+      table.insert(padded_lines, padding_str .. line .. padding_str)
+    else
+      table.insert(padded_lines, line) -- Keep empty lines as-is
+    end
+  end
+
   -- Calculate dimensions - use actual content width but respect screen bounds
   local width = math.min(max_line_length + (opts.padding * 2), vim.o.columns - 4)
-  local height = #lines
+  local height = #padded_lines
 
   -- Calculate initial position (will be adjusted by reposition)
   local row = 1
@@ -79,7 +90,7 @@ local function create_notification(msg, opts)
 
   -- Create buffer
   local bufnr = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, padded_lines)
 
   -- Set buffer options
   vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
