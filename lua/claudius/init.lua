@@ -757,7 +757,7 @@ function M.send_to_claude(opts)
     -- Request usage
     if current and (current.input_tokens > 0 or current.output_tokens > 0) then
       table.insert(lines, "**Request:**")
-      table.insert(lines, string.format("  Input: %d tokens", current.input_tokens or 0))
+      table.insert(lines, string.format("  Input:  %d tokens", current.input_tokens or 0))
       table.insert(lines, string.format("  Output: %d tokens", current.output_tokens or 0))
     end
     -- Session totals
@@ -766,7 +766,7 @@ function M.send_to_claude(opts)
         table.insert(lines, "")
       end -- Add spacing between sections
       table.insert(lines, "**Session:**")
-      table.insert(lines, string.format("  Input: %d tokens", session.input_tokens or 0))
+      table.insert(lines, string.format("  Input:  %d tokens", session.input_tokens or 0))
       table.insert(lines, string.format("  Output: %d tokens", session.output_tokens or 0))
     end
     return table.concat(lines, "\n")
