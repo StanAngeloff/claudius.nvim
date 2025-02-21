@@ -88,19 +88,29 @@ local function create_notification(msg, opts)
   vim.api.nvim_win_set_option(win_id, "wrap", true)
   vim.api.nvim_win_set_option(win_id, "winblend", 15)
 
-  -- Store notification
+  -- Create notification object first
   local notification = {
     win_id = win_id,
     bufnr = bufnr,
     height = height,
     valid = true,
-    timer = vim.fn.timer_start(opts.timeout, function()
-      if vim.api.nvim_win_is_valid(win_id) then
-        vim.api.nvim_win_close(win_id, true)
-      end
-      notification.valid = false
-    end)
+    timer = nil -- Will be set after object creation
   }
+  
+  -- Now set up the timer with access to the notification object
+  notification.timer = vim.fn.timer_start(opts.timeout, function()
+    if vim.api.nvim_win_is_valid(win_id) then
+      vim.api.nvim_win_close(win_id, true)
+    end
+    -- Find and remove this notification from the list
+    for i, n in ipairs(notifications) do
+      if n == notification then
+        table.remove(notifications, i)
+        break
+      end
+    end
+    notification.valid = false
+  end)
   
   table.insert(notifications, notification)
   
