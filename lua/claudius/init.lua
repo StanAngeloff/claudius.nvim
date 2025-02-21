@@ -125,7 +125,9 @@ local default_config = {
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
   text_object = "m", -- Default text object key, set to false to disable
-  disable_textwidth = true, -- Whether to disable textwidth in chat buffers
+  editing = {
+    disable_textwidth = true, -- Whether to disable textwidth in chat buffers
+  },
   logging = {
     enabled = false, -- Logging disabled by default
     path = vim.fn.stdpath("cache") .. "/claudius.log", -- Default log path
@@ -343,7 +345,7 @@ M.setup = function(opts)
       setup_folding()
 
       -- Disable textwidth if configured
-      if config.disable_textwidth then
+      if config.editing.disable_textwidth then
         vim.bo.textwidth = 0
       end
     end,
