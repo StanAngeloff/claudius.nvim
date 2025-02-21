@@ -9,7 +9,7 @@ local function get_default_opts()
   local config = require("claudius").config or {}
   return {
     timeout = config.notify and config.notify.timeout or 5000,
-    width = config.notify and config.notify.width or 40,
+    max_width = config.notify and config.notify.max_width or 60,
     padding = config.notify and config.notify.padding or 1,
     border = config.notify and config.notify.border or "rounded",
     title = nil, -- Optional title for the notification
@@ -35,32 +35,42 @@ end
 local function create_notification(msg, opts)
   opts = vim.tbl_deep_extend("force", get_default_opts(), opts or {})
 
-  -- Split message into lines first
+  -- Split message into lines and calculate max line length
   local msg_lines = vim.split(msg, "\n", { plain = true })
   local lines = {}
+  local max_line_length = 0
 
-  -- Process each line separately for wrapping
+  -- Process each line separately for wrapping if needed
   for _, msg_line in ipairs(msg_lines) do
     if msg_line == "" then
       table.insert(lines, "")
     else
-      local current_line = ""
-      for word in msg_line:gmatch("%S+") do
-        if #current_line + #word + 1 <= opts.width then
-          current_line = current_line == "" and word or current_line .. " " .. word
-        else
-          table.insert(lines, current_line)
-          current_line = word
+      -- If line is longer than max_width, wrap it
+      if #msg_line > opts.max_width then
+        local current_line = ""
+        for word in msg_line:gmatch("%S+") do
+          if #current_line + #word + 1 <= opts.max_width then
+            current_line = current_line == "" and word or current_line .. " " .. word
+          else
+            table.insert(lines, current_line)
+            max_line_length = math.max(max_line_length, #current_line)
+            current_line = word
+          end
         end
-      end
-      if current_line ~= "" then
-        table.insert(lines, current_line)
+        if current_line ~= "" then
+          table.insert(lines, current_line)
+          max_line_length = math.max(max_line_length, #current_line)
+        end
+      else
+        -- Line fits within max_width, keep it as is
+        table.insert(lines, msg_line)
+        max_line_length = math.max(max_line_length, #msg_line)
       end
     end
   end
 
-  -- Calculate dimensions
-  local width = math.min(opts.width, vim.o.columns - 4)
+  -- Calculate dimensions - use actual content width but respect screen bounds
+  local width = math.min(max_line_length + (opts.padding * 2), vim.o.columns - 4)
   local height = #lines
 
   -- Calculate initial position (will be adjusted by reposition)

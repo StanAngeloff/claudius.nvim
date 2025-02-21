@@ -151,7 +151,7 @@ local default_config = {
   notify = {
     enabled = true, -- Enable notifications (default: true)
     timeout = 5000, -- Time in ms before auto-dismiss
-    width = 40, -- Max width of notification
+    max_width = 60, -- Maximum width before wrapping
     padding = 1, -- Padding around content
     border = "rounded", -- Border style
   },
