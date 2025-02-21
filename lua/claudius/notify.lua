@@ -141,7 +141,7 @@ function M.show(msg, opts)
   if config.notify and config.notify.enabled == false then
     return
   end
-  
+
   vim.schedule(function()
     create_notification(msg, opts)
   end)
