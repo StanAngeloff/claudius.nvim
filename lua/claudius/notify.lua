@@ -7,7 +7,7 @@ local ns_id = vim.api.nvim_create_namespace("claudius_notify")
 -- Default options
 local default_opts = {
   timeout = 5000, -- Time in ms before auto-dismiss
-  width = 60,     -- Max width of notification
+  width = 40,     -- Max width of notification
   padding = 1,    -- Padding around content
   border = "rounded",
   title = nil     -- Optional title for the notification
