@@ -149,9 +149,10 @@ local default_config = {
     },
   },
   notify = {
-    timeout = 5000, -- Time in ms before auto-dismiss
-    width = 40, -- Max width of notification
-    padding = 1, -- Padding around content
+    enabled = true,     -- Enable notifications (default: true)
+    timeout = 5000,    -- Time in ms before auto-dismiss
+    width = 40,        -- Max width of notification
+    padding = 1,       -- Padding around content
     border = "rounded", -- Border style
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
