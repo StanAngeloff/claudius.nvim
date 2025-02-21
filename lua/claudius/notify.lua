@@ -17,19 +17,28 @@ local default_opts = {
 local function create_notification(msg, opts)
   opts = vim.tbl_deep_extend("force", default_opts, opts or {})
   
-  -- Wrap message text
+  -- Split message into lines first
+  local msg_lines = vim.split(msg, "\n", { plain = true })
   local lines = {}
-  local current_line = ""
-  for word in msg:gmatch("%S+") do
-    if #current_line + #word + 1 <= opts.width then
-      current_line = current_line == "" and word or current_line .. " " .. word
+  
+  -- Process each line separately for wrapping
+  for _, msg_line in ipairs(msg_lines) do
+    if msg_line == "" then
+      table.insert(lines, "")
     else
-      table.insert(lines, current_line)
-      current_line = word
+      local current_line = ""
+      for word in msg_line:gmatch("%S+") do
+        if #current_line + #word + 1 <= opts.width then
+          current_line = current_line == "" and word or current_line .. " " .. word
+        else
+          table.insert(lines, current_line)
+          current_line = word
+        end
+      end
+      if current_line ~= "" then
+        table.insert(lines, current_line)
+      end
     end
-  end
-  if current_line ~= "" then
-    table.insert(lines, current_line)
   end
 
   -- Calculate dimensions
