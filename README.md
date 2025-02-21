@@ -49,7 +49,7 @@ require("claudius").setup({
         style = "FoldColumn"  -- highlight group for the separator
     },
     signs = {
-        enabled = true,       -- enable sign column highlighting for roles
+        enabled = false,      -- enable sign column highlighting for roles (disabled by default)
         char = "▌",          -- default vertical bar character
         system = {
             char = nil,      -- use default char

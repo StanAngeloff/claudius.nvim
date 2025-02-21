@@ -124,7 +124,7 @@ local default_config = {
     style = "NonText", -- Highlight group for the ruler
   },
   signs = {
-    enabled = true, -- Enable sign column highlighting
+    enabled = false, -- Enable sign column highlighting (disabled by default)
     char = "▌", -- Default vertical bar character
     system = {
       char = nil, -- Use default char
