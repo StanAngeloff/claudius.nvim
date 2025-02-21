@@ -2,7 +2,6 @@
 local M = {}
 
 local notifications = {}
-local ns_id = vim.api.nvim_create_namespace("claudius_notify")
 
 -- Default notification options
 M.default_opts = {
