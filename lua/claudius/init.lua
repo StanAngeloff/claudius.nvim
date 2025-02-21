@@ -128,15 +128,15 @@ local default_config = {
     char = "▌", -- Default vertical bar character
     system = {
       char = nil, -- Use default char
-      hl = "Special",
+      hl = true, -- Inherit from highlights.system
     },
     user = {
       char = nil, -- Use default char
-      hl = "Normal",
+      hl = true, -- Inherit from highlights.user
     },
     assistant = {
       char = nil, -- Use default char
-      hl = "Comment",
+      hl = true, -- Inherit from highlights.assistant
     },
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
@@ -241,16 +241,18 @@ M.setup = function(opts)
   if config.signs.enabled then
     -- Define signs with proper casing to match message types
     local signs = {
-      ["You"] = config.signs.user,
-      ["System"] = config.signs.system,
-      ["Assistant"] = config.signs.assistant,
+      ["You"] = { config = config.signs.user, highlight = config.highlights.user },
+      ["System"] = { config = config.signs.system, highlight = config.highlights.system },
+      ["Assistant"] = { config = config.signs.assistant, highlight = config.highlights.assistant },
     }
-    for role, sign_config in pairs(signs) do
-      local sign_name = "claudius_" .. string.lower(role)
-      vim.fn.sign_define(sign_name, {
-        text = sign_config.char or config.signs.char,
-        texthl = sign_config.hl,
-      })
+    for role, sign_data in pairs(signs) do
+      if sign_data.config.hl ~= false then
+        local sign_name = "claudius_" .. string.lower(role)
+        vim.fn.sign_define(sign_name, {
+          text = sign_data.config.char or config.signs.char,
+          texthl = sign_data.config.hl == true and sign_data.highlight or sign_data.config.hl,
+        })
+      end
     end
   end
 
@@ -453,8 +455,11 @@ local function place_signs(bufnr, start_line, end_line, role)
   end
 
   local sign_name = "claudius_" .. string.lower(role)
-  for lnum = start_line, end_line do
-    vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
+  local sign_config = config.signs[string.lower(role)]
+  if sign_config and sign_config.hl ~= false then
+    for lnum = start_line, end_line do
+      vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
+    end
   end
 end
 
