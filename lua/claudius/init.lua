@@ -123,6 +123,22 @@ local default_config = {
     char = "─", -- The character to use for the ruler
     style = "NonText", -- Highlight group for the ruler
   },
+  signs = {
+    enabled = true, -- Enable sign column highlighting
+    char = "▌", -- Default vertical bar character
+    system = {
+      char = nil, -- Use default char
+      hl = "Special",
+    },
+    user = {
+      char = nil, -- Use default char
+      hl = "Normal",
+    },
+    assistant = {
+      char = nil, -- Use default char 
+      hl = "Comment",
+    },
+  },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
@@ -410,6 +426,18 @@ M.setup = function(opts)
   end
 end
 
+-- Place signs for a message
+local function place_signs(bufnr, start_line, end_line, role)
+  if not config.signs.enabled then
+    return
+  end
+  
+  local sign_name = "claudius_" .. string.lower(role)
+  for lnum = start_line, end_line do
+    vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
+  end
+end
+
 -- Parse a single message from lines
 local function parse_message(lines, start_idx)
   local line = lines[start_idx]
@@ -439,10 +467,17 @@ local function parse_message(lines, start_idx)
     i = i + 1
   end
 
-  return {
+  local result = {
     type = msg_type,
     content = table.concat(content, "\n"),
-  }, i - 1
+    start_line = start_idx,
+    end_line = i - 1
+  }
+  
+  -- Place signs for the message
+  place_signs(vim.api.nvim_get_current_buf(), result.start_line, result.end_line, msg_type)
+  
+  return result, i - 1
 end
 
 -- Parse the entire buffer into a sequence of messages
