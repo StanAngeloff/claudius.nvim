@@ -70,7 +70,7 @@ require("claudius").setup({
     },
     notify = {
         enabled = true,      -- Enable/disable notifications
-        timeout = 5000,      -- How long notifications stay visible (ms)
+        timeout = 8000,      -- How long notifications stay visible (ms)
         max_width = 60,      -- Maximum width of notification windows
         padding = 1,         -- Padding around notification text
         border = "rounded",  -- Border style (same as nvim_open_win)

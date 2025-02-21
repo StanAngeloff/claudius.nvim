@@ -6,7 +6,7 @@ local notifications = {}
 -- Default notification options
 M.default_opts = {
   enabled = true,
-  timeout = 5000,
+  timeout = 8000,
   max_width = 60,
   padding = 1,
   border = "rounded",
