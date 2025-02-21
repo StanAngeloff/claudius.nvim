@@ -1,6 +1,8 @@
 --- Claudius notification functionality
 local M = {}
 
+-- Store the last notification
+local last_notification = nil
 local notifications = {}
 
 -- Default notification options
@@ -161,9 +163,24 @@ function M.show(msg, opts)
     return
   end
 
+  -- Store this notification as the last one
+  last_notification = {
+    message = msg,
+    options = final_opts
+  }
+
   vim.schedule(function()
     create_notification(msg, final_opts)
   end)
+end
+
+-- Function to recall last notification
+function M.recall_last()
+  if last_notification then
+    M.show(last_notification.message, last_notification.options)
+  else
+    vim.notify("No previous notification to recall", vim.log.levels.INFO)
+  end
 end
 
 return M

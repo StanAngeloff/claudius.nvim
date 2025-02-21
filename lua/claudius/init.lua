@@ -378,6 +378,13 @@ M.setup = function(opts)
     end
   end, {})
 
+  -- Command to recall last notification
+  vim.api.nvim_create_user_command("ClaudiusRecallNotification", function()
+    require("claudius.notify").recall_last()
+  end, {
+    desc = "Recall the last notification"
+  })
+
   -- Set up autocmd for the chat filetype
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     pattern = "*.chat",
