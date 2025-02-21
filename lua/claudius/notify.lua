@@ -116,7 +116,7 @@ local function create_notification(msg, opts)
   
   -- Clean up old notifications
   notifications = vim.tbl_filter(function(n)
-    return n.valid
+    return not n.dismissed
   end, notifications)
 
   return notification
