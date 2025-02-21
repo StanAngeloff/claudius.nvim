@@ -76,10 +76,6 @@ local function create_notification(msg, opts)
   vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
   vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(bufnr, "filetype", "claudius_notify")
-  
-  -- Enable concealment
-  vim.api.nvim_win_set_option(win_id, "conceallevel", 2)
-  vim.api.nvim_win_set_option(win_id, "concealcursor", "nc")
 
   -- Create window with title if provided
   local win_opts = {
@@ -103,6 +99,8 @@ local function create_notification(msg, opts)
   -- Set window options
   vim.api.nvim_win_set_option(win_id, "wrap", true)
   vim.api.nvim_win_set_option(win_id, "winblend", 15)
+  vim.api.nvim_win_set_option(win_id, "conceallevel", 2)
+  vim.api.nvim_win_set_option(win_id, "concealcursor", "nc")
 
   -- Create notification object first
   local notification = {
