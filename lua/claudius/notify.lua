@@ -76,13 +76,6 @@ local function create_notification(msg, opts)
   vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
   vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(bufnr, "filetype", "claudius_notify")
-  
-  -- Define syntax for bold text
-  vim.cmd([[
-    syntax clear
-    syntax region ClaudiusNotifyBold start="\*\*" end="\*\*" contains=NONE
-    highlight link ClaudiusNotifyBold Bold
-  ]])
 
   -- Create window with title if provided
   local win_opts = {
