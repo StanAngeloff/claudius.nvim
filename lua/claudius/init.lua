@@ -714,10 +714,7 @@ function M.send_to_claude(opts)
         M.send_to_claude()
       else
         log.error("API key prompt cancelled")
-        require("claudius.notify").show("Claudius: API key required to continue", {
-          timeout = 10000,
-          border = "double"
-        })
+        vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
       end
     end)
 
@@ -779,10 +776,7 @@ function M.send_to_claude(opts)
         if error_data.error and error_data.error.message then
           msg = error_data.error.message
         end
-        require("claudius.notify").show("Claudius: " .. msg .. ". See " .. config.logging.path .. " for details.", {
-          timeout = 10000, -- Show errors longer (10 seconds)
-          border = "double" -- Use double border for errors
-        })
+        vim.notify("Claudius: " .. msg .. ". See " .. config.logging.path .. " for details.", vim.log.levels.ERROR)
       end)
       return
     end
