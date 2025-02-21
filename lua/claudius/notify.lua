@@ -1,6 +1,6 @@
+--- Claudius notification functionality
 local M = {}
 
--- Store active notifications
 local notifications = {}
 local ns_id = vim.api.nvim_create_namespace("claudius_notify")
 
