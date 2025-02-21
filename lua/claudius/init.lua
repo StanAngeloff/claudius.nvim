@@ -237,6 +237,19 @@ M.setup = function(opts)
     },
   })
 
+  -- Define sign groups for each role
+  if config.signs.enabled then
+    for role, sign_config in pairs(config.signs) do
+      if role ~= "enabled" and role ~= "char" then
+        local sign_name = "claudius_" .. role
+        vim.fn.sign_define(sign_name, {
+          text = sign_config.char or config.signs.char,
+          texthl = sign_config.hl,
+        })
+      end
+    end
+  end
+
   -- Define syntax highlighting and Tree-sitter configuration
   local function set_syntax()
     local bufnr = vim.api.nvim_get_current_buf()
@@ -289,6 +302,9 @@ M.setup = function(opts)
     pattern = "*.chat",
     callback = function(ev)
       add_rulers(ev.buf)
+      -- Clear and reapply all signs
+      vim.fn.sign_unplace("claudius_ns", { buffer = ev.buf })
+      M.parse_buffer() -- This will reapply signs
     end,
   })
 
