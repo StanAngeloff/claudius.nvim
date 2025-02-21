@@ -168,7 +168,7 @@ local default_config = {
     insert = {
       send = "<C-]>",
     },
-    enable = true, -- Set to false to disable all keymaps
+    enabled = true, -- Set to false to disable all keymaps
   },
 }
 
@@ -409,7 +409,7 @@ M.setup = function(opts)
   })
 
   -- Set up the mappings for Claude interaction if enabled
-  if config.keymaps.enable then
+  if config.keymaps.enabled then
     vim.api.nvim_create_autocmd("FileType", {
       pattern = "chat",
       callback = function()

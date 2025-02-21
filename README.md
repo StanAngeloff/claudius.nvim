@@ -86,7 +86,7 @@ require("claudius").setup({
         insert = {
             send = "<C-]>"  -- Key to send message in insert mode
         },
-        enable = true  -- Set to false to disable all keymaps
+        enabled = true  -- Set to false to disable all keymaps
     }
 })
 ```
