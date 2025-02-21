@@ -156,7 +156,7 @@ end
 function M.show(msg, opts)
   -- Merge with default options
   local final_opts = vim.tbl_deep_extend("force", M.default_opts, opts or {})
-  
+
   -- Check if notifications are enabled
   if not final_opts.enabled then
     return

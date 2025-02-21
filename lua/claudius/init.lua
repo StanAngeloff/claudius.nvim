@@ -779,7 +779,11 @@ function M.send_to_claude(opts)
         if error_data.error and error_data.error.message then
           msg = error_data.error.message
         end
-        vim.notify("Claudius: " .. msg .. ". See " .. config.logging.path .. " for details.", vim.log.levels.ERROR)
+        local notify_msg = "Claudius: " .. msg
+        if config.logging and config.logging.enabled then
+          notify_msg = notify_msg .. ". See " .. config.logging.path .. " for details"
+        end
+        vim.notify(notify_msg, vim.log.levels.ERROR)
       end)
       return
     end
@@ -814,11 +818,11 @@ function M.send_to_claude(opts)
         if data.error and data.error.message then
           msg = data.error.message
         end
-        local msg_with_log = msg
+        local notify_msg = "Claudius: " .. msg
         if config.logging and config.logging.enabled then
-          msg_with_log = msg .. ". See " .. config.logging.path .. " for details"
+          notify_msg = notify_msg .. ". See " .. config.logging.path .. " for details"
         end
-        vim.notify(msg_with_log, vim.log.levels.ERROR)
+        vim.notify(notify_msg, vim.log.levels.ERROR)
       end)
       return
     end
