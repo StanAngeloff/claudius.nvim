@@ -93,7 +93,7 @@ local function create_notification(msg, opts)
     win_id = win_id,
     bufnr = bufnr,
     height = height,
-    valid = true,
+    dismissed = false,
     timer = nil -- Will be set after object creation
   }
   
@@ -109,7 +109,7 @@ local function create_notification(msg, opts)
         break
       end
     end
-    notification.valid = false
+    notification.dismissed = true
   end)
   
   table.insert(notifications, notification)
