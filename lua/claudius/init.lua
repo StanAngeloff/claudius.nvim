@@ -749,21 +749,24 @@ function M.send_to_claude(opts)
   local function format_usage(current, session)
     local pricing = require("claudius.pricing")
     local lines = {}
-    
+
     -- Request usage
     if current and (current.input_tokens > 0 or current.output_tokens > 0) then
       local current_cost = pricing.calculate_cost(config.model, current.input_tokens, current.output_tokens)
       table.insert(lines, "**Request:**")
       if current_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", current.input_tokens or 0, current_cost.input))
-        table.insert(lines, string.format("  Output: %d tokens / $%.2f", current.output_tokens or 0, current_cost.output))
+        table.insert(
+          lines,
+          string.format(" Output:  %d tokens / $%.2f", current.output_tokens or 0, current_cost.output)
+        )
         table.insert(lines, string.format("  Total:  $%.2f", current_cost.total))
       else
         table.insert(lines, string.format("  Input:  %d tokens", current.input_tokens or 0))
-        table.insert(lines, string.format("  Output: %d tokens", current.output_tokens or 0))
+        table.insert(lines, string.format(" Output:  %d tokens", current.output_tokens or 0))
       end
     end
-    
+
     -- Session totals
     if session and (session.input_tokens > 0 or session.output_tokens > 0) then
       local session_cost = pricing.calculate_cost(config.model, session.input_tokens, session.output_tokens)
@@ -773,11 +776,14 @@ function M.send_to_claude(opts)
       table.insert(lines, "**Session:**")
       if session_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", session.input_tokens or 0, session_cost.input))
-        table.insert(lines, string.format("  Output: %d tokens / $%.2f", session.output_tokens or 0, session_cost.output))
+        table.insert(
+          lines,
+          string.format(" Output:  %d tokens / $%.2f", session.output_tokens or 0, session_cost.output)
+        )
         table.insert(lines, string.format("  Total:  $%.2f", session_cost.total))
       else
         table.insert(lines, string.format("  Input:  %d tokens", session.input_tokens or 0))
-        table.insert(lines, string.format("  Output: %d tokens", session.output_tokens or 0))
+        table.insert(lines, string.format(" Output:  %d tokens", session.output_tokens or 0))
       end
     end
     return table.concat(lines, "\n")
