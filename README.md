@@ -48,6 +48,22 @@ require("claudius").setup({
         char = "─",           -- character used for the separator line
         style = "FoldColumn"  -- highlight group for the separator
     },
+    signs = {
+        enabled = true,       -- enable sign column highlighting for roles
+        char = "▌",          -- default vertical bar character
+        system = {
+            char = nil,      -- use default char
+            hl = true,       -- inherit from highlights.system, set false to disable
+        },
+        user = {
+            char = nil,      -- use default char
+            hl = true,       -- inherit from highlights.user, set false to disable
+        },
+        assistant = {
+            char = nil,      -- use default char
+            hl = true,       -- inherit from highlights.assistant, set false to disable
+        }
+    },
     model = "claude-3-5-sonnet-20241022",  -- Claude model to use
     text_object = "m",  -- Default text object key, set to false to disable
     editing = {
