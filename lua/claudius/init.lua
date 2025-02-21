@@ -846,7 +846,6 @@ function M.send_to_claude(opts)
         local usage_str = format_usage(current_usage, session_usage)
         if usage_str ~= "" then
           local notify_opts = vim.tbl_deep_extend("force", config.notify, {
-            timeout = 8000, -- Show usage for longer (8 seconds)
             title = "Claude Usage",
           })
           require("claudius.notify").show(usage_str, notify_opts)
