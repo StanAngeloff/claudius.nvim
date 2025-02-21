@@ -4,14 +4,17 @@ local M = {}
 local notifications = {}
 local ns_id = vim.api.nvim_create_namespace("claudius_notify")
 
--- Default options
-local default_opts = {
-  timeout = 5000, -- Time in ms before auto-dismiss
-  width = 40,     -- Max width of notification
-  padding = 1,    -- Padding around content
-  border = "rounded",
-  title = nil     -- Optional title for the notification
-}
+-- Get default options from config
+local function get_default_opts()
+  local config = require("claudius").config or {}
+  return {
+    timeout = config.notify and config.notify.timeout or 5000,
+    width = config.notify and config.notify.width or 40,
+    padding = config.notify and config.notify.padding or 1,
+    border = config.notify and config.notify.border or "rounded",
+    title = nil -- Optional title for the notification
+  }
+end
 
 -- Reposition all active notifications
 local function reposition_notifications()
@@ -30,7 +33,7 @@ end
 
 -- Create a notification window
 local function create_notification(msg, opts)
-  opts = vim.tbl_deep_extend("force", default_opts, opts or {})
+  opts = vim.tbl_deep_extend("force", get_default_opts(), opts or {})
   
   -- Split message into lines first
   local msg_lines = vim.split(msg, "\n", { plain = true })
