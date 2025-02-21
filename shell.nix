@@ -26,7 +26,7 @@ pkgs.mkShell {
       name = "claudius-dev";
       runtimeInputs = [ aider-chat ];
       text = ''
-        aider --sonnet README.md lua/**/*.lua shell.nix
+        aider --sonnet README.md lua/**/*.lua syntax/*.vim shell.nix
       '';
     })
 
