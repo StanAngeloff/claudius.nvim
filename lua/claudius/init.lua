@@ -820,7 +820,11 @@ function M.send_to_claude(opts)
         if data.error and data.error.message then
           msg = data.error.message
         end
-        vim.notify(msg .. ". See " .. log_path .. " for details.", vim.log.levels.ERROR)
+        local msg_with_log = msg
+        if config.logging and config.logging.enabled then
+          msg_with_log = msg .. ". See " .. config.logging.path .. " for details"
+        end
+        vim.notify(msg_with_log, vim.log.levels.ERROR)
       end)
       return
     end
