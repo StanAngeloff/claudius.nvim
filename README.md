@@ -50,6 +50,9 @@ require("claudius").setup({
     },
     model = "claude-3-5-sonnet-20241022",  -- Claude model to use
     text_object = "m",  -- Default text object key, set to false to disable
+    editing = {
+        disable_textwidth = true,  -- Whether to disable textwidth in chat buffers
+    },
     keymaps = {
         normal = {
             send = "<C-]>",       -- Key to send message in normal mode
