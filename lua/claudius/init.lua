@@ -768,7 +768,7 @@ function M.send_to_claude(opts)
         if error_data.error and error_data.error.message then
           msg = error_data.error.message
         end
-        vim.notify("Claudius: " .. msg .. ". See " .. log_path .. " for details.", vim.log.levels.ERROR)
+        vim.notify("Claudius: " .. msg .. ". See " .. config.logging.path .. " for details.", vim.log.levels.ERROR)
       end)
       return
     end
