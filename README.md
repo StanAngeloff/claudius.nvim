@@ -106,6 +106,7 @@ The plugin provides several commands for interacting with Claude and managing ch
 - `ClaudiusSend` - Send the current conversation to Claude
 - `ClaudiusCancel` - Cancel an ongoing request
 - `ClaudiusSendAndInsert` - Send to Claude and return to insert mode
+- `ClaudiusRecallNotification` - Recall the last notification (useful for reviewing usage statistics)
 
 #### Navigation Commands
 
