@@ -166,7 +166,7 @@ function M.show(msg, opts)
   -- Store this notification as the last one
   last_notification = {
     message = msg,
-    options = final_opts
+    options = final_opts,
   }
 
   vim.schedule(function()
