@@ -239,14 +239,18 @@ M.setup = function(opts)
 
   -- Define sign groups for each role
   if config.signs.enabled then
-    for role, sign_config in pairs(config.signs) do
-      if role ~= "enabled" and role ~= "char" then
-        local sign_name = "claudius_" .. role
-        vim.fn.sign_define(sign_name, {
-          text = sign_config.char or config.signs.char,
-          texthl = sign_config.hl,
-        })
-      end
+    -- Define signs with proper casing to match message types
+    local signs = {
+      ["You"] = config.signs.user,
+      ["System"] = config.signs.system,
+      ["Assistant"] = config.signs.assistant,
+    }
+    for role, sign_config in pairs(signs) do
+      local sign_name = "claudius_" .. string.lower(role)
+      vim.fn.sign_define(sign_name, {
+        text = sign_config.char or config.signs.char,
+        texthl = sign_config.hl,
+      })
     end
   end
 
