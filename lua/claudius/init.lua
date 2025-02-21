@@ -809,15 +809,15 @@ function M.send_to_claude(opts)
     end
 
     -- Track usage information from all events
-    if data.usage then
-      -- Track input tokens from message_start
-      if data.type == "message_start" and data.usage.input_tokens then
-        current_usage.input_tokens = data.usage.input_tokens
+    if data.type == "message_start" then
+      -- Get input tokens from message.usage in message_start event
+      if data.message and data.message.usage and data.message.usage.input_tokens then
+        current_usage.input_tokens = data.message.usage.input_tokens
       end
-      -- Accumulate output tokens from all events
-      if data.usage.output_tokens then
-        current_usage.output_tokens = data.usage.output_tokens
-      end
+    end
+    -- Track output tokens from usage field in any event
+    if data.usage and data.usage.output_tokens then
+      current_usage.output_tokens = data.usage.output_tokens
     end
 
     -- Display final usage on message_stop
