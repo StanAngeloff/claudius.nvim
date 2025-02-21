@@ -115,7 +115,7 @@ function M.import_buffer()
     end
 
     vim.notify(
-      "Failed to parse API call data. Debug info written to " .. config.logging.path,
+      "Failed to parse API call data. Debug info written to " .. tmp_dir .. sep .. "claudius_import_debug.log",
       vim.log.levels.ERROR
     )
     return
