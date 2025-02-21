@@ -38,6 +38,7 @@ The plugin works out of the box with sensible defaults, but you can customize va
 
 ```lua
 require("claudius").setup({
+    model = "claude-3-5-sonnet-20241022",  -- Claude model to use
     highlights = {
         system = "Special",    -- highlight group for system messages
         user = "Normal",       -- highlight group for user messages
@@ -49,26 +50,25 @@ require("claudius").setup({
         style = "FoldColumn"  -- highlight group for the separator
     },
     signs = {
-        enabled = false,      -- enable sign column highlighting for roles (disabled by default)
-        char = "▌",          -- default vertical bar character
+        enabled = false,  -- enable sign column highlighting for roles (disabled by default)
+        char = "▌",       -- default vertical bar character
         system = {
-            char = nil,      -- use default char
-            hl = true,       -- inherit from highlights.system, set false to disable
+            char = nil,   -- use default char
+            hl = true,    -- inherit from highlights.system, set false to disable
         },
         user = {
-            char = nil,      -- use default char
-            hl = true,       -- inherit from highlights.user, set false to disable
+            char = nil,   -- use default char
+            hl = true,    -- inherit from highlights.user, set false to disable
         },
         assistant = {
-            char = nil,      -- use default char
-            hl = true,       -- inherit from highlights.assistant, set false to disable
+            char = nil,   -- use default char
+            hl = true,    -- inherit from highlights.assistant, set false to disable
         }
     },
-    model = "claude-3-5-sonnet-20241022",  -- Claude model to use
-    text_object = "m",  -- Default text object key, set to false to disable
     editing = {
         disable_textwidth = true,  -- Whether to disable textwidth in chat buffers
     },
+    text_object = "m",  -- Default text object key, set to false to disable
     keymaps = {
         normal = {
             send = "<C-]>",       -- Key to send message in normal mode
