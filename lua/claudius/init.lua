@@ -9,6 +9,11 @@ local current_usage = {
   output_tokens = 0
 }
 
+local session_usage = {
+  input_tokens = 0,
+  output_tokens = 0
+}
+
 -- Utility functions for JSON encoding/decoding
 local function json_decode(str)
   return vim.fn.json_decode(str)
@@ -740,17 +745,22 @@ function M.send_to_claude(opts)
   local spinner_timer = start_loading_spinner()
   local response_started = false
   -- Format usage information for display
-  local function format_usage(usage)
-    if not usage then return "" end
+  local function format_usage(current, session)
     local parts = {}
-    if usage.input_tokens then
-      table.insert(parts, string.format("Input: %d", usage.input_tokens))
+    -- Current request usage
+    if current and (current.input_tokens > 0 or current.output_tokens > 0) then
+      table.insert(parts, string.format("Request: Input %d | Output %d", 
+        current.input_tokens or 0, 
+        current.output_tokens or 0))
     end
-    if usage.output_tokens then
-      table.insert(parts, string.format("Output: %d", usage.output_tokens))
+    -- Session totals
+    if session and (session.input_tokens > 0 or session.output_tokens > 0) then
+      table.insert(parts, string.format("Session: Input %d | Output %d", 
+        session.input_tokens or 0, 
+        session.output_tokens or 0))
     end
     if #parts > 0 then
-      return table.concat(parts, " | ")
+      return table.concat(parts, " • ")
     end
     return ""
   end
@@ -823,11 +833,16 @@ function M.send_to_claude(opts)
     -- Display final usage on message_stop
     if data.type == "message_stop" and current_usage then
       vim.schedule(function()
-        local usage_str = format_usage(current_usage)
+        -- Update session totals
+        session_usage.input_tokens = session_usage.input_tokens + (current_usage.input_tokens or 0)
+        session_usage.output_tokens = session_usage.output_tokens + (current_usage.output_tokens or 0)
+        
+        -- Format and display usage information
+        local usage_str = format_usage(current_usage, session_usage)
         if usage_str ~= "" then
           vim.notify("Claude usage: " .. usage_str, vim.log.levels.INFO)
         end
-        -- Reset usage for next request
+        -- Reset current usage for next request
         current_usage = nil
       end)
     end
