@@ -12,7 +12,7 @@ local function get_default_opts()
     width = config.notify and config.notify.width or 40,
     padding = config.notify and config.notify.padding or 1,
     border = config.notify and config.notify.border or "rounded",
-    title = nil -- Optional title for the notification
+    title = nil, -- Optional title for the notification
   }
 end
 
@@ -24,7 +24,7 @@ local function reposition_notifications()
       vim.api.nvim_win_set_config(notif.win_id, {
         relative = "editor",
         row = row,
-        col = vim.o.columns - notif.width - 2
+        col = vim.o.columns - notif.width - 2,
       })
       row = row + notif.height + 1
     end
@@ -34,11 +34,11 @@ end
 -- Create a notification window
 local function create_notification(msg, opts)
   opts = vim.tbl_deep_extend("force", get_default_opts(), opts or {})
-  
+
   -- Split message into lines first
   local msg_lines = vim.split(msg, "\n", { plain = true })
   local lines = {}
-  
+
   -- Process each line separately for wrapping
   for _, msg_line in ipairs(msg_lines) do
     if msg_line == "" then
@@ -62,7 +62,7 @@ local function create_notification(msg, opts)
   -- Calculate dimensions
   local width = math.min(opts.width, vim.o.columns - 4)
   local height = #lines
-  
+
   -- Calculate initial position (will be adjusted by reposition)
   local row = 1
   local col = vim.o.columns - width - 2
@@ -70,7 +70,7 @@ local function create_notification(msg, opts)
   -- Create buffer
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-  
+
   -- Set buffer options
   vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
   vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
@@ -85,14 +85,14 @@ local function create_notification(msg, opts)
     height = height,
     style = "minimal",
     border = opts.border,
-    noautocmd = true
+    noautocmd = true,
   }
-  
+
   if opts.title then
     win_opts.title = opts.title
     win_opts.title_pos = "center"
   end
-  
+
   local win_id = vim.api.nvim_open_win(bufnr, false, win_opts)
 
   -- Set window options
@@ -107,9 +107,9 @@ local function create_notification(msg, opts)
     width = width,
     dismissed = false,
     valid = true,
-    timer = nil -- Will be set after object creation
+    timer = nil, -- Will be set after object creation
   }
-  
+
   -- Now set up the timer with access to the notification object
   notification.timer = vim.fn.timer_start(opts.timeout, function()
     if vim.api.nvim_win_is_valid(win_id) then
@@ -117,15 +117,15 @@ local function create_notification(msg, opts)
     end
     notification.valid = false
     notification.dismissed = true
-    
+
     -- Clean up notifications list and reposition remaining ones
     notifications = vim.tbl_filter(function(n)
       return not n.dismissed
     end, notifications)
-    
+
     reposition_notifications()
   end)
-  
+
   table.insert(notifications, notification)
   reposition_notifications()
 

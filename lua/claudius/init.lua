@@ -6,12 +6,12 @@ local api_key = nil
 local log = {}
 local current_usage = {
   input_tokens = 0,
-  output_tokens = 0
+  output_tokens = 0,
 }
 
 local session_usage = {
   input_tokens = 0,
-  output_tokens = 0
+  output_tokens = 0,
 }
 
 -- Utility functions for JSON encoding/decoding
@@ -149,9 +149,9 @@ local default_config = {
     },
   },
   notify = {
-    timeout = 5000,    -- Time in ms before auto-dismiss
-    width = 40,        -- Max width of notification
-    padding = 1,       -- Padding around content
+    timeout = 5000, -- Time in ms before auto-dismiss
+    width = 40, -- Max width of notification
+    padding = 1, -- Padding around content
     border = "rounded", -- Border style
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
@@ -761,7 +761,9 @@ function M.send_to_claude(opts)
     end
     -- Session totals
     if session and (session.input_tokens > 0 or session.output_tokens > 0) then
-      if #lines > 0 then table.insert(lines, "") end -- Add spacing between sections
+      if #lines > 0 then
+        table.insert(lines, "")
+      end -- Add spacing between sections
       table.insert(lines, "Session:")
       table.insert(lines, string.format("  Input: %d tokens", session.input_tokens or 0))
       table.insert(lines, string.format("  Output: %d tokens", session.output_tokens or 0))
@@ -840,13 +842,13 @@ function M.send_to_claude(opts)
         -- Update session totals
         session_usage.input_tokens = session_usage.input_tokens + (current_usage.input_tokens or 0)
         session_usage.output_tokens = session_usage.output_tokens + (current_usage.output_tokens or 0)
-        
+
         -- Format and display usage information using our custom notification
         local usage_str = format_usage(current_usage, session_usage)
         if usage_str ~= "" then
           require("claudius.notify").show(usage_str, {
             timeout = 8000, -- Show usage for longer (8 seconds)
-            title = "Claude Usage"
+            title = "Claude Usage",
           })
         end
         -- Reset current usage for next request
@@ -953,9 +955,9 @@ function M.send_to_claude(opts)
   -- Reset usage tracking
   current_usage = {
     input_tokens = 0,
-    output_tokens = 0
+    output_tokens = 0,
   }
-  
+
   M.current_request = vim.fn.jobstart(cmd, {
     detach = true, -- Put process in its own group
     on_stdout = function(_, data)
