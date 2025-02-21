@@ -4,17 +4,15 @@ local M = {}
 local notifications = {}
 local ns_id = vim.api.nvim_create_namespace("claudius_notify")
 
--- Get default options from config
-local function get_default_opts()
-  local config = require("claudius").config or {}
-  return {
-    timeout = config.notify and config.notify.timeout or 5000,
-    max_width = config.notify and config.notify.max_width or 60,
-    padding = config.notify and config.notify.padding or 1,
-    border = config.notify and config.notify.border or "rounded",
-    title = nil, -- Optional title for the notification
-  }
-end
+-- Default notification options
+M.default_opts = {
+  enabled = true,
+  timeout = 5000,
+  max_width = 60,
+  padding = 1,
+  border = "rounded",
+  title = nil,
+}
 
 -- Reposition all active notifications
 local function reposition_notifications()
@@ -33,8 +31,6 @@ end
 
 -- Create a notification window
 local function create_notification(msg, opts)
-  opts = vim.tbl_deep_extend("force", get_default_opts(), opts or {})
-
   -- Split message into lines and calculate max line length
   local msg_lines = vim.split(msg, "\n", { plain = true })
   local lines = {}
@@ -158,15 +154,16 @@ end
 
 -- Show a notification if enabled
 function M.show(msg, opts)
-  -- Get config
-  local config = require("claudius").config or {}
+  -- Merge with default options
+  local final_opts = vim.tbl_deep_extend("force", M.default_opts, opts or {})
+  
   -- Check if notifications are enabled
-  if config.notify and config.notify.enabled == false then
+  if not final_opts.enabled then
     return
   end
 
   vim.schedule(function()
-    create_notification(msg, opts)
+    create_notification(msg, final_opts)
   end)
 end
 

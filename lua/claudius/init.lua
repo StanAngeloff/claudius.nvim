@@ -148,13 +148,7 @@ local default_config = {
       hl = true, -- Inherit from highlights.assistant
     },
   },
-  notify = {
-    enabled = true, -- Enable notifications (default: true)
-    timeout = 5000, -- Time in ms before auto-dismiss
-    max_width = 60, -- Maximum width before wrapping
-    padding = 1, -- Padding around content
-    border = "rounded", -- Border style
-  },
+  notify = require("claudius.notify").default_opts,
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
@@ -851,10 +845,11 @@ function M.send_to_claude(opts)
         -- Format and display usage information using our custom notification
         local usage_str = format_usage(current_usage, session_usage)
         if usage_str ~= "" then
-          require("claudius.notify").show(usage_str, {
+          local notify_opts = vim.tbl_deep_extend("force", config.notify, {
             timeout = 8000, -- Show usage for longer (8 seconds)
             title = "Claude Usage",
           })
+          require("claudius.notify").show(usage_str, notify_opts)
         end
         -- Reset current usage for next request
         current_usage = nil
