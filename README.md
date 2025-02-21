@@ -1,7 +1,5 @@
 # Claudius 🤖
 
-> **Note**: This entire plugin, including this README, was coded exclusively using [Aider](https://aider.chat). Exactly zero lines of code were written directly by a human!
-
 A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI assistant. Claudius creates a natural chat-like interface right in your editor, with proper syntax highlighting and message folding.
 
 <img src="assets/Screenshot%20From%202025-02-21%2022-59-26.png" alt="A screenshot of Claudius in action" />
@@ -235,16 +233,19 @@ This command:
 
 ### Development Guidelines
 
-This project is an experiment in AI-driven development - every line of code must be written by AI, not humans. To maintain this:
+This project represents a unique experiment in AI-driven development. From its inception to the present day, every single line of code has been written using [Aider](https://aider.chat), demonstrating the potential of AI-assisted development in creating quality software.
 
-1. **Use Aider**: All code changes must be made through [Aider](https://aider.chat), not written directly
-2. **No Manual Edits**: Do not write or modify code by hand - let the AI do all coding
-3. **Document AI Interactions**: Keep chat logs of significant Aider conversations
-4. **Use Formatting Tools**: Run `claudius-fmt` before committing to maintain consistent style
-5. **Test Changes**: Use the quick testing command above to verify functionality
-6. **Keep Focus**: Make small, focused changes in each Aider session
+While I encourage contributors to explore AI-assisted development, particularly with Aider, I welcome all forms of quality contributions. The project's development guidelines are:
 
-The goal is to demonstrate how far we can push AI-driven development. Think of yourself as a "code conductor" - directing the AI but never writing code directly.
+1. **Consider Using Aider**: I recommend trying [Aider](https://aider.chat) for making changes - it's how this entire project was built
+2. **Document AI Interactions**: If using AI tools, keep chat logs of significant conversations
+3. **Use Formatting Tools**: Run `claudius-fmt` before committing to maintain consistent style
+4. **Test Changes**: Use the quick testing command above to verify functionality
+5. **Keep Focus**: Make small, focused changes in each development session
+
+> **Note**: This project started as an experiment in pure AI-driven development, and to this day, every line of code has been written exclusively through Aider. I continue to maintain this approach in my own development while welcoming contributions from all developers who share a commitment to quality.
+
+The goal is to demonstrate how far we can push AI-assisted development while maintaining code quality. Whether you choose to work with AI or write code directly, focus on creating clear, maintainable solutions.
 
 ---
 
