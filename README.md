@@ -11,7 +11,8 @@ A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI 
 Claudius requires:
 
 - An Anthropic API key (via ANTHROPIC_API_KEY environment variable, or manual input prompt)
-- Tree-sitter for syntax highlighting
+- Neovim with Tree-sitter support (required for core functionality)
+- Tree-sitter markdown parser (required for message formatting and syntax highlighting)
 
 Optional Features:
 
