@@ -714,7 +714,10 @@ function M.send_to_claude(opts)
         M.send_to_claude()
       else
         log.error("API key prompt cancelled")
-        vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
+        require("claudius.notify").show("Claudius: API key required to continue", {
+          timeout = 10000,
+          border = "double"
+        })
       end
     end)
 
@@ -778,7 +781,10 @@ function M.send_to_claude(opts)
         if error_data.error and error_data.error.message then
           msg = error_data.error.message
         end
-        vim.notify("Claudius: " .. msg .. ". See " .. config.logging.path .. " for details.", vim.log.levels.ERROR)
+        require("claudius.notify").show("Claudius: " .. msg .. ". See " .. config.logging.path .. " for details.", {
+          timeout = 10000, -- Show errors longer (10 seconds)
+          border = "double" -- Use double border for errors
+        })
       end)
       return
     end
@@ -837,10 +843,12 @@ function M.send_to_claude(opts)
         session_usage.input_tokens = session_usage.input_tokens + (current_usage.input_tokens or 0)
         session_usage.output_tokens = session_usage.output_tokens + (current_usage.output_tokens or 0)
         
-        -- Format and display usage information
+        -- Format and display usage information using our custom notification
         local usage_str = format_usage(current_usage, session_usage)
         if usage_str ~= "" then
-          vim.notify("Claude usage: " .. usage_str, vim.log.levels.INFO)
+          require("claudius.notify").show("Claude usage: " .. usage_str, {
+            timeout = 8000 -- Show usage for longer (8 seconds)
+          })
         end
         -- Reset current usage for next request
         current_usage = nil
