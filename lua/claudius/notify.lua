@@ -132,8 +132,15 @@ local function create_notification(msg, opts)
   return notification
 end
 
--- Show a notification
+-- Show a notification if enabled
 function M.show(msg, opts)
+  -- Get config
+  local config = require("claudius").config or {}
+  -- Check if notifications are enabled
+  if config.notify and config.notify.enabled == false then
+    return
+  end
+  
   vim.schedule(function()
     create_notification(msg, opts)
   end)
