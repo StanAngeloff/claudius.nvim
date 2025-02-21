@@ -4,7 +4,7 @@
 
 A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI assistant. Claudius creates a natural chat-like interface right in your editor, with proper syntax highlighting and message folding.
 
-<img src="assets/screenzy-1739995758256.png" alt="A screenshot of Claudius in action" />
+<img src="assets/Screenshot%20From%202025-02-21%2022-59-26.png" alt="A screenshot of Claudius in action" />
 
 ## Requirements
 
