@@ -4,7 +4,10 @@ local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
 local api_key = nil
 local log = {}
-local current_usage = nil
+local current_usage = {
+  input_tokens = 0,
+  output_tokens = 0
+}
 
 -- Utility functions for JSON encoding/decoding
 local function json_decode(str)
@@ -805,18 +808,15 @@ function M.send_to_claude(opts)
       return
     end
 
-    -- Track usage information
+    -- Track usage information from all events
     if data.usage then
-      if not current_usage then
-        current_usage = data.usage
-      else
-        -- Update cumulative totals
-        if data.usage.input_tokens then
-          current_usage.input_tokens = data.usage.input_tokens
-        end
-        if data.usage.output_tokens then
-          current_usage.output_tokens = data.usage.output_tokens
-        end
+      -- Track input tokens from message_start
+      if data.type == "message_start" and data.usage.input_tokens then
+        current_usage.input_tokens = data.usage.input_tokens
+      end
+      -- Accumulate output tokens from all events
+      if data.usage.output_tokens then
+        current_usage.output_tokens = data.usage.output_tokens
       end
     end
 
@@ -929,7 +929,10 @@ function M.send_to_claude(opts)
 
   -- Start job in its own process group
   -- Reset usage tracking
-  current_usage = nil
+  current_usage = {
+    input_tokens = 0,
+    output_tokens = 0
+  }
   
   M.current_request = vim.fn.jobstart(cmd, {
     detach = true, -- Put process in its own group
