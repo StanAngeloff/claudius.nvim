@@ -760,7 +760,7 @@ function M.send_to_claude(opts)
     -- Request usage
     if current and (current.input_tokens > 0 or current.output_tokens > 0) then
       local current_cost = pricing.calculate_cost(config.model, current.input_tokens, current.output_tokens)
-      table.insert(lines, "**Request:**")
+      table.insert(lines, "Request:")
       if current_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", current.input_tokens or 0, current_cost.input))
         table.insert(
@@ -780,7 +780,7 @@ function M.send_to_claude(opts)
       if #lines > 0 then
         table.insert(lines, "")
       end
-      table.insert(lines, "**Session:**")
+      table.insert(lines, "Session:")
       if session_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", session.input_tokens or 0, session_cost.input))
         table.insert(
