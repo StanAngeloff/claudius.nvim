@@ -153,6 +153,10 @@ local default_config = {
     enabled = true, -- Whether to show pricing information in notifications
   },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
+  parameters = {
+    max_tokens = 4000,    -- Maximum tokens in response
+    temperature = 0.7,    -- Response creativity (0.0-1.0)
+  },
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
     disable_textwidth = true, -- Whether to disable textwidth in chat buffers
