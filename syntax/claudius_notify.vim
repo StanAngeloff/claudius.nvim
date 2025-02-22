@@ -5,8 +5,8 @@ endif
 " Keywords
 syntax keyword ClaudiusNotifyKeyword Request Session
 
-" Numbers including decimals
-syntax match ClaudiusNotifyNumber "\<\d\+\(\.\d\+\)\?\>"
+" Numbers including decimals (with optional $ prefix)
+syntax match ClaudiusNotifyNumber "\$\?\<\d\+\(\.\d\+\)\?\>"
 
 " Highlight groups
 highlight default link ClaudiusNotifyKeyword Type
