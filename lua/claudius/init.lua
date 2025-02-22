@@ -149,7 +149,9 @@ local default_config = {
     },
   },
   notify = require("claudius.notify").default_opts,
-  show_pricing = true, -- Whether to show pricing information in notifications
+  pricing = {
+    enabled = true, -- Whether to show pricing information in notifications
+  },
   model = "claude-3-5-sonnet-20241022", -- Default Claude model to use
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
@@ -760,7 +762,8 @@ function M.send_to_claude(opts)
 
     -- Request usage
     if current and (current.input_tokens > 0 or current.output_tokens > 0) then
-      local current_cost = config.show_pricing and pricing.calculate_cost(config.model, current.input_tokens, current.output_tokens)
+      local current_cost = config.pricing.enabled
+        and pricing.calculate_cost(config.model, current.input_tokens, current.output_tokens)
       table.insert(lines, "Request:")
       if current_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", current.input_tokens or 0, current_cost.input))
@@ -777,7 +780,8 @@ function M.send_to_claude(opts)
 
     -- Session totals
     if session and (session.input_tokens > 0 or session.output_tokens > 0) then
-      local session_cost = config.show_pricing and pricing.calculate_cost(config.model, session.input_tokens, session.output_tokens)
+      local session_cost = config.pricing.enabled
+        and pricing.calculate_cost(config.model, session.input_tokens, session.output_tokens)
       if #lines > 0 then
         table.insert(lines, "")
       end

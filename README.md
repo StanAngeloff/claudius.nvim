@@ -67,7 +67,9 @@ require("claudius").setup({
     editing = {
         disable_textwidth = true,  -- Whether to disable textwidth in chat buffers
     },
-    show_pricing = true,  -- Whether to show pricing information in notifications
+    pricing = {
+        enabled = true,  -- Whether to show pricing information in notifications
+    },
     notify = {
         enabled = true,      -- Enable/disable notifications
         timeout = 8000,      -- How long notifications stay visible (ms)
