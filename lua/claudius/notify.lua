@@ -93,7 +93,7 @@ local function create_notification(msg, opts)
   vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
   vim.api.nvim_buf_set_option(bufnr, "buftype", "nofile")
   vim.api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(bufnr, "filetype", "claudius_notify") 
+  vim.api.nvim_buf_set_option(bufnr, "filetype", "claudius_notify")
   -- Remove markdown parser since we're using our own syntax
   vim.treesitter.stop(bufnr)
 
