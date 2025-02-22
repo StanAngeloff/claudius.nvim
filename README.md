@@ -38,6 +38,10 @@ The plugin works out of the box with sensible defaults, but you can customize va
 ```lua
 require("claudius").setup({
     model = "claude-3-5-sonnet-20241022",  -- Claude model to use
+    parameters = {
+        max_tokens = 4000,  -- Maximum tokens in response
+        temperature = 0.7,  -- Response creativity (0.0-1.0)
+    },
     highlights = {
         system = "Special",    -- highlight group for system messages
         user = "Normal",       -- highlight group for user messages
