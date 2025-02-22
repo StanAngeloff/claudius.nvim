@@ -744,8 +744,8 @@ function M.send_to_claude(opts)
     model = config.model,
     messages = formatted_messages,
     system = system_message,
-    max_tokens = 4000,
-    temperature = 0.7,
+    max_tokens = config.parameters.max_tokens,
+    temperature = config.parameters.temperature,
     stream = true,
   }
 
