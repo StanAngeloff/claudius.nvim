@@ -600,11 +600,11 @@ function M.cancel_request()
 
       -- Give curl a moment to cleanup, then force kill if still running
       vim.defer_fn(function()
-        if M.current_request then
-          vim.fn.jobstop(M.current_request)
+        if state.current_request then
+          vim.fn.jobstop(state.current_request)
           vim.fn.system("kill -KILL " .. pid)
           log.info("Sent SIGKILL to curl process " .. pid)
-          M.current_request = nil
+          state.current_request = nil
         end
       end, 500)
     else
@@ -613,7 +613,7 @@ function M.cancel_request()
       M.current_request = nil
     end
 
-    M.current_request = nil
+    state.current_request = nil
 
     -- Clean up the buffer
     local bufnr = vim.api.nvim_get_current_buf()
@@ -627,7 +627,7 @@ function M.cancel_request()
     end
 
     -- Auto-write if enabled and we've received some content
-    if M.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+    if state.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
       auto_write_buffer()
     end
 
@@ -698,14 +698,17 @@ end
 -- Handle the Claude interaction
 function M.send_to_claude(opts)
   opts = opts or {}
+  local bufnr = vim.api.nvim_get_current_buf()
+  local state = buffers.get_state(bufnr)
+
   -- Check if there's already a request in progress
-  if M.current_request then
+  if state.current_request then
     vim.notify("Claudius: A request is already in progress. Use <C-c> to cancel it first.", vim.log.levels.WARN)
     return
   end
 
   log.info("Starting new Claude request")
-  M.request_cancelled = false
+  state.request_cancelled = false
 
   -- Auto-write the buffer before sending if enabled
   auto_write_buffer()
@@ -901,26 +904,26 @@ function M.send_to_claude(opts)
     if data.type == "message_start" then
       -- Get input tokens from message.usage in message_start event
       if data.message and data.message.usage and data.message.usage.input_tokens then
-        current_usage.input_tokens = data.message.usage.input_tokens
+        state.current_usage.input_tokens = data.message.usage.input_tokens
       end
     end
     -- Track output tokens from usage field in any event
     if data.usage and data.usage.output_tokens then
-      current_usage.output_tokens = data.usage.output_tokens
+      state.current_usage.output_tokens = data.usage.output_tokens
     end
 
     -- Display final usage on message_stop
-    if data.type == "message_stop" and current_usage then
+    if data.type == "message_stop" and state.current_usage then
       vim.schedule(function()
         -- Update session totals
-        session_usage.input_tokens = session_usage.input_tokens + (current_usage.input_tokens or 0)
-        session_usage.output_tokens = session_usage.output_tokens + (current_usage.output_tokens or 0)
+        session_usage.input_tokens = session_usage.input_tokens + (state.current_usage.input_tokens or 0)
+        session_usage.output_tokens = session_usage.output_tokens + (state.current_usage.output_tokens or 0)
 
         -- Auto-write when response is complete
         auto_write_buffer()
 
         -- Format and display usage information using our custom notification
-        local usage_str = format_usage(current_usage, session_usage)
+        local usage_str = format_usage(state.current_usage, session_usage)
         if usage_str ~= "" then
           local notify_opts = vim.tbl_deep_extend("force", config.notify, {
             title = "Claude Usage",
@@ -928,7 +931,10 @@ function M.send_to_claude(opts)
           require("claudius.notify").show(usage_str, notify_opts)
         end
         -- Reset current usage for next request
-        current_usage = nil
+        state.current_usage = {
+          input_tokens = 0,
+          output_tokens = 0,
+        }
       end)
     end
 
@@ -1035,13 +1041,13 @@ function M.send_to_claude(opts)
   }
 
   -- Start job in its own process group
-  -- Reset usage tracking
-  current_usage = {
+  -- Reset usage tracking for this buffer
+  state.current_usage = {
     input_tokens = 0,
     output_tokens = 0,
   }
 
-  M.current_request = vim.fn.jobstart(cmd, {
+  state.current_request = vim.fn.jobstart(cmd, {
     detach = true, -- Put process in its own group
     on_stdout = function(_, data)
       if data then
