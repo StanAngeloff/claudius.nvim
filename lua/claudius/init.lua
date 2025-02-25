@@ -640,7 +640,7 @@ function M.cancel_request()
 
     -- Auto-write if enabled and we've received some content
     if state.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
-      auto_write_buffer()
+      auto_write_buffer(bufnr)
     end
 
     local msg = "Claudius: Request cancelled"
