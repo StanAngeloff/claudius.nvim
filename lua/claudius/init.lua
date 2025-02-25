@@ -700,7 +700,7 @@ local function start_loading_spinner(bufnr)
     frame = (frame % #spinner_frames) + 1
     local text = "@Assistant: " .. spinner_frames[frame] .. " Thinking..."
     local last_line = vim.api.nvim_buf_line_count(bufnr)
-    vim.cmd("undojoin")
+    M.buffer_cmd(bufnr, "undojoin")
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
   end, { ["repeat"] = -1 })
 
