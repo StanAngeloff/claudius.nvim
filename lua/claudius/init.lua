@@ -949,9 +949,16 @@ function M.send_to_claude(opts)
             M.cleanup_spinner(bufnr)
             last_line = vim.api.nvim_buf_line_count(bufnr)
 
-            -- Start with @Assistant: prefix
-            vim.cmd("undojoin")
-            vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant: " .. lines[1] })
+            -- Check if response starts with a code fence
+            if lines[1]:match("^```") then
+              -- Add a newline before the code fence
+              vim.cmd("undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant:", lines[1] })
+            else
+              -- Start with @Assistant: prefix as normal
+              vim.cmd("undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant: " .. lines[1] })
+            end
 
             -- Add remaining lines if any
             if #lines > 1 then
