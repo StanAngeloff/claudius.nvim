@@ -154,8 +154,8 @@ local default_config = {
   },
   model = "claude-3-7-sonnet-20250219", -- Default Claude model to use
   parameters = {
-    max_tokens = 4000,    -- Maximum tokens in response
-    temperature = 0.7,    -- Response creativity (0.0-1.0)
+    max_tokens = 4000, -- Maximum tokens in response
+    temperature = 0.7, -- Response creativity (0.0-1.0)
   },
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
