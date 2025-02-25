@@ -424,7 +424,7 @@ M.setup = function(opts)
 
       -- Set autowrite if configured
       if config.editing.auto_write then
-        vim.bo.autowrite = true
+        vim.opt_local.autowrite = true
       end
     end,
   })
