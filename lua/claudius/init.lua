@@ -160,6 +160,7 @@ local default_config = {
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
     disable_textwidth = true, -- Whether to disable textwidth in chat buffers
+    auto_write = false, -- Whether to automatically write the buffer after changes
   },
   logging = {
     enabled = false, -- Logging disabled by default
@@ -199,6 +200,14 @@ local function add_rulers(bufnr)
         })
       end
     end
+  end
+end
+
+-- Helper function to auto-write the buffer if enabled
+local function auto_write_buffer()
+  if config.editing.auto_write and vim.bo.modified then
+    log.debug("Auto-writing buffer")
+    vim.cmd("silent! write")
   end
 end
 
@@ -412,6 +421,11 @@ M.setup = function(opts)
       if config.editing.disable_textwidth then
         vim.bo.textwidth = 0
       end
+
+      -- Set autowrite if configured
+      if config.editing.auto_write then
+        vim.bo.autowrite = true
+      end
     end,
   })
 
@@ -617,6 +631,11 @@ function M.cancel_request()
       M.cleanup_spinner(bufnr)
     end
 
+    -- Auto-write if enabled and we've received some content
+    if M.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+      auto_write_buffer()
+    end
+
     local msg = "Claudius: Request cancelled"
     if config.logging.enabled then
       msg = msg .. ". See " .. config.logging.path .. " for details"
@@ -684,6 +703,9 @@ function M.send_to_claude(opts)
 
   log.info("Starting new Claude request")
   M.request_cancelled = false
+
+  -- Auto-write the buffer before sending if enabled
+  auto_write_buffer()
 
   -- Helper function to try getting API key from system keyring
   local function try_keyring()
@@ -814,6 +836,9 @@ function M.send_to_claude(opts)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
         M.current_request = nil
 
+        -- Auto-write on error if enabled
+        auto_write_buffer()
+
         local msg = "Claude API error"
         if error_data.error and error_data.error.message then
           msg = error_data.error.message
@@ -853,6 +878,9 @@ function M.send_to_claude(opts)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
         M.current_request = nil
 
+        -- Auto-write on error if enabled
+        auto_write_buffer()
+
         local msg = "Claude API error"
         if data.error and data.error.message then
           msg = data.error.message
@@ -884,6 +912,9 @@ function M.send_to_claude(opts)
         -- Update session totals
         session_usage.input_tokens = session_usage.input_tokens + (current_usage.input_tokens or 0)
         session_usage.output_tokens = session_usage.output_tokens + (current_usage.output_tokens or 0)
+
+        -- Auto-write when response is complete
+        auto_write_buffer()
 
         -- Format and display usage information using our custom notification
         local usage_str = format_usage(current_usage, session_usage)

@@ -70,6 +70,7 @@ require("claudius").setup({
     },
     editing = {
         disable_textwidth = true,  -- Whether to disable textwidth in chat buffers
+        auto_write = false,        -- Whether to automatically write the buffer after changes
     },
     pricing = {
         enabled = true,  -- Whether to show pricing information in notifications
