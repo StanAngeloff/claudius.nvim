@@ -869,7 +869,7 @@ function M.send_to_claude(opts)
     if json_str == "[DONE]" then
       vim.schedule(function()
         vim.fn.timer_stop(timer)
-        M.current_request = nil
+        state.current_request = nil
       end)
       return
     end
