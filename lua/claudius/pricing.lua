@@ -7,6 +7,10 @@ M.models = {
     input = 3.0, -- $3 per million input tokens
     output = 15.0, -- $15 per million output tokens
   },
+  ["claude-3-7-sonnet"] = {
+    input = 3.0, -- $3 per million input tokens
+    output = 15.0, -- $15 per million output tokens
+  },
 }
 
 -- Find the closest matching model name

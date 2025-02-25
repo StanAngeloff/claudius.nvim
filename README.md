@@ -37,7 +37,7 @@ The plugin works out of the box with sensible defaults, but you can customize va
 
 ```lua
 require("claudius").setup({
-    model = "claude-3-5-sonnet-20241022",  -- Claude model to use
+    model = "claude-3-7-sonnet-20250219",  -- Claude model to use
     parameters = {
         max_tokens = 4000,  -- Maximum tokens in response
         temperature = 0.7,  -- Response creativity (0.0-1.0)
