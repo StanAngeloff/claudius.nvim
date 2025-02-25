@@ -1076,6 +1076,9 @@ function M.send_to_claude(opts)
           end
           vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
 
+          -- Auto-write after adding the prompt if enabled
+          auto_write_buffer()
+
           -- Call the completion callback if provided
           if opts.on_complete then
             opts.on_complete()
