@@ -842,7 +842,7 @@ function M.send_to_claude(opts)
     if ok and error_data.type == "error" then
       vim.schedule(function()
         vim.fn.timer_stop(timer)
-        M.cleanup_spinner(vim.api.nvim_get_current_buf())
+        M.cleanup_spinner(bufnr)
         state.current_request = nil
 
         -- Auto-write on error if enabled
