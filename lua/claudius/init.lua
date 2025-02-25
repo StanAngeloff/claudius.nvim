@@ -333,7 +333,7 @@ M.setup = function(opts)
       add_rulers(ev.buf)
       -- Clear and reapply all signs
       vim.fn.sign_unplace("claudius_ns", { buffer = ev.buf })
-      M.parse_buffer() -- This will reapply signs
+      M.parse_buffer(ev.buf) -- This will reapply signs
     end,
   })
 
@@ -541,8 +541,8 @@ local function parse_message(lines, start_idx)
 end
 
 -- Parse the entire buffer into a sequence of messages
-function M.parse_buffer()
-  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+function M.parse_buffer(bufnr)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local messages = {}
   local i = 1
 
@@ -768,7 +768,7 @@ function M.send_to_claude(opts)
     return
   end
 
-  local messages = M.parse_buffer()
+  local messages = M.parse_buffer(bufnr)
   if #messages == 0 then
     vim.notify("Claudius: No messages found in buffer", vim.log.levels.WARN)
     return
