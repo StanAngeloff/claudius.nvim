@@ -683,7 +683,7 @@ local function start_loading_spinner(bufnr)
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "@Assistant: Thinking..." })
   end
 
-  state.spinner_timer = vim.fn.timer_start(100, function()
+  local timer = vim.fn.timer_start(100, function()
     if not state.current_request then
       return
     end
@@ -694,7 +694,8 @@ local function start_loading_spinner(bufnr)
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
   end, { ["repeat"] = -1 })
 
-  return state.spinner_timer
+  state.spinner_timer = timer
+  return timer
 end
 
 -- Handle the Claude interaction
@@ -787,7 +788,7 @@ function M.send_to_claude(opts)
   log.debug("Sending request to Claude API:")
   log.debug("Request body: " .. json_encode(request_body))
 
-  local spinner_timer = start_loading_spinner()
+  local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
   -- Format usage information for display with markdown
   local function format_usage(current, session)
