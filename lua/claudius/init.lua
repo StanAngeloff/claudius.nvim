@@ -724,7 +724,7 @@ function M.send_to_claude(opts)
   state.request_cancelled = false
 
   -- Auto-write the buffer before sending if enabled
-  auto_write_buffer()
+  auto_write_buffer(bufnr)
 
   -- Helper function to try getting API key from system keyring
   local function try_keyring()
