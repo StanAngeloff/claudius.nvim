@@ -976,7 +976,7 @@ function M.send_to_claude(opts)
               vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant:", lines[1] })
             else
               -- Start with @Assistant: prefix as normal
-              vim.cmd("undojoin")
+              M.buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant: " .. lines[1] })
             end
 
