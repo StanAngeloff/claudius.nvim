@@ -209,7 +209,7 @@ local function add_rulers(bufnr)
 end
 
 -- Helper function to auto-write the buffer if enabled
-local function auto_write_buffer()
+local function auto_write_buffer(bufnr)
   if config.editing.auto_write and vim.bo.modified then
     log.debug("Auto-writing buffer")
     M.buffer_cmd(bufnr, "silent! write")
@@ -856,7 +856,7 @@ function M.send_to_claude(opts)
         state.current_request = nil
 
         -- Auto-write on error if enabled
-        auto_write_buffer()
+        auto_write_buffer(bufnr)
 
         local msg = "Claude API error"
         if error_data.error and error_data.error.message then
@@ -898,7 +898,7 @@ function M.send_to_claude(opts)
         state.current_request = nil
 
         -- Auto-write on error if enabled
-        auto_write_buffer()
+        auto_write_buffer(bufnr)
 
         local msg = "Claude API error"
         if data.error and data.error.message then
@@ -933,7 +933,7 @@ function M.send_to_claude(opts)
         session_usage.output_tokens = session_usage.output_tokens + (state.current_usage.output_tokens or 0)
 
         -- Auto-write when response is complete
-        auto_write_buffer()
+        auto_write_buffer(bufnr)
 
         -- Format and display usage information using our custom notification
         local usage_str = format_usage(state.current_usage, session_usage)
@@ -1103,7 +1103,7 @@ function M.send_to_claude(opts)
           vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
 
           -- Auto-write after adding the prompt if enabled
-          auto_write_buffer()
+          auto_write_buffer(bufnr)
 
           -- Call the completion callback if provided
           if opts.on_complete then
