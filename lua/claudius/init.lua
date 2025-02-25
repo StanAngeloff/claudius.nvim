@@ -499,7 +499,7 @@ local function place_signs(bufnr, start_line, end_line, role)
 end
 
 -- Parse a single message from lines
-local function parse_message(lines, start_idx)
+local function parse_message(bufnr, lines, start_idx)
   local line = lines[start_idx]
   local msg_type = line:match("^@([%w]+):")
   if not msg_type then
@@ -535,7 +535,7 @@ local function parse_message(lines, start_idx)
   }
 
   -- Place signs for the message
-  place_signs(vim.api.nvim_get_current_buf(), result.start_line, result.end_line, msg_type)
+  place_signs(bufnr, result.start_line, result.end_line, msg_type)
 
   return result, i - 1
 end
@@ -547,7 +547,7 @@ function M.parse_buffer(bufnr)
   local i = 1
 
   while i <= #lines do
-    local msg, last_idx = parse_message(lines, i)
+    local msg, last_idx = parse_message(bufnr, lines, i)
     if msg then
       messages[#messages + 1] = msg
       i = last_idx + 1
