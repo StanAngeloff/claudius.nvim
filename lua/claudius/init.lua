@@ -1076,7 +1076,7 @@ function M.send_to_claude(opts)
         -- Clean up temporary file
         os.remove(tmp_file)
 
-        M.current_request = nil
+        state.current_request = nil
         vim.fn.timer_stop(spinner_timer)
 
         -- Only add the new prompt if the request wasn't cancelled and completed successfully
