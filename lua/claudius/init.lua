@@ -584,14 +584,17 @@ end
 
 -- Cancel ongoing request if any
 function M.cancel_request()
-  if M.current_request then
-    log.info("Cancelling request " .. tostring(M.current_request))
+  local bufnr = vim.api.nvim_get_current_buf()
+  local state = buffers.get_state(bufnr)
+
+  if state.current_request then
+    log.info("Cancelling request " .. tostring(state.current_request))
 
     -- Get the process ID
-    local pid = vim.fn.jobpid(M.current_request)
+    local pid = vim.fn.jobpid(state.current_request)
 
     -- Mark as cancelled
-    M.request_cancelled = true
+    state.request_cancelled = true
 
     if pid then
       -- Send SIGINT first for clean connection termination
@@ -609,14 +612,13 @@ function M.cancel_request()
       end, 500)
     else
       -- Fallback to jobstop if we couldn't get PID
-      vim.fn.jobstop(M.current_request)
-      M.current_request = nil
+      vim.fn.jobstop(state.current_request)
+      state.current_request = nil
     end
 
     state.current_request = nil
 
     -- Clean up the buffer
-    local bufnr = vim.api.nvim_get_current_buf()
     local last_line = vim.api.nvim_buf_line_count(bufnr)
     local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
 
