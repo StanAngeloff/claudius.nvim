@@ -4,11 +4,9 @@ local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
 local api_key = nil
 local log = {}
-local current_usage = {
-  input_tokens = 0,
-  output_tokens = 0,
-}
+local buffers = require("claudius.buffers")
 
+-- Session-wide usage tracking (intentionally kept global)
 local session_usage = {
   input_tokens = 0,
   output_tokens = 0,
@@ -23,9 +21,6 @@ local function json_encode(data)
   return vim.fn.json_encode(data)
 end
 
--- Track ongoing requests and their state
-M.current_request = nil
-M.request_cancelled = false
 
 -- Folding functions
 function M.get_fold_level(lnum)
@@ -648,6 +643,12 @@ end
 
 -- Clean up spinner and prepare for response
 M.cleanup_spinner = function(bufnr)
+  local state = buffers.get_state(bufnr)
+  if state.spinner_timer then
+    vim.fn.timer_stop(state.spinner_timer)
+    state.spinner_timer = nil
+  end
+
   -- Stop any existing rulers/virtual text
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
@@ -664,10 +665,10 @@ M.cleanup_spinner = function(bufnr)
 end
 
 -- Show loading spinner
-local function start_loading_spinner()
+local function start_loading_spinner(bufnr)
+  local state = buffers.get_state(bufnr)
   local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
   local frame = 1
-  local bufnr = vim.api.nvim_get_current_buf()
 
   -- Clear any existing virtual text
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
@@ -680,8 +681,8 @@ local function start_loading_spinner()
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "@Assistant: Thinking..." })
   end
 
-  return vim.fn.timer_start(100, function()
-    if not M.current_request then
+  state.spinner_timer = vim.fn.timer_start(100, function()
+    if not state.current_request then
       return
     end
     frame = (frame % #spinner_frames) + 1
@@ -690,6 +691,8 @@ local function start_loading_spinner()
     vim.cmd("undojoin")
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
   end, { ["repeat"] = -1 })
+
+  return state.spinner_timer
 end
 
 -- Handle the Claude interaction
