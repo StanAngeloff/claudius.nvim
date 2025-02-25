@@ -1097,12 +1097,18 @@ function M.send_to_claude(opts)
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
 
           -- Move cursor to after the colon and any whitespace
-          local line = vim.api.nvim_buf_get_lines(0, last_line + 1, last_line + 2, false)[1]
-          local col = line:find(":%s*") + 1 -- Find position after the colon
-          while line:sub(col, col) == " " do -- Skip any whitespace
-            col = col + 1
+          local lines = vim.api.nvim_buf_get_lines(bufnr, last_line + 1, last_line + 2, false)
+          if #lines > 0 then
+            local line = lines[1]
+            local col = line:find(":%s*") + 1 -- Find position after the colon
+            while line:sub(col, col) == " " do -- Skip any whitespace
+              col = col + 1
+            end
+            -- Only set cursor if we're still in the buffer
+            if vim.api.nvim_get_current_buf() == bufnr then
+              vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
+            end
           end
-          vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
 
           -- Auto-write after adding the prompt if enabled
           auto_write_buffer(bufnr)
