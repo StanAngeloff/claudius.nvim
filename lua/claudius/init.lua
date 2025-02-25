@@ -6,6 +6,16 @@ local api_key = nil
 local log = {}
 local buffers = require("claudius.buffers")
 
+-- Execute a command in the context of a specific buffer
+function M.buffer_cmd(bufnr, cmd)
+  local winid = vim.fn.bufwinid(bufnr)
+  if winid == -1 then
+    -- If buffer has no window, do nothing
+    return
+  end
+  vim.fn.win_execute(winid, 'noautocmd ' .. cmd)
+end
+
 -- Session-wide usage tracking (intentionally kept global)
 local session_usage = {
   input_tokens = 0,
@@ -202,7 +212,7 @@ end
 local function auto_write_buffer()
   if config.editing.auto_write and vim.bo.modified then
     log.debug("Auto-writing buffer")
-    vim.cmd("silent! write")
+    M.buffer_cmd(bufnr, "silent! write")
   end
 end
 
@@ -351,10 +361,10 @@ M.setup = function(opts)
   end, {})
 
   vim.api.nvim_create_user_command("ClaudiusSendAndInsert", function()
-    vim.cmd("stopinsert")
+    M.buffer_cmd(bufnr, "stopinsert")
     M.send_to_claude({
       on_complete = function()
-        vim.cmd("startinsert!")
+        M.buffer_cmd(bufnr, "startinsert!")
       end,
     })
   end, {})
@@ -962,7 +972,7 @@ function M.send_to_claude(opts)
             -- Check if response starts with a code fence
             if lines[1]:match("^```") then
               -- Add a newline before the code fence
-              vim.cmd("undojoin")
+              M.buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant:", lines[1] })
             else
               -- Start with @Assistant: prefix as normal
@@ -972,7 +982,7 @@ function M.send_to_claude(opts)
 
             -- Add remaining lines if any
             if #lines > 1 then
-              vim.cmd("undojoin")
+              M.buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, { unpack(lines, 2) })
             end
           else
@@ -981,7 +991,7 @@ function M.send_to_claude(opts)
 
             if #lines == 1 then
               -- Just append to the last line
-              vim.cmd("undojoin")
+              M.buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
             else
               -- First chunk goes to the end of the last line
@@ -989,7 +999,7 @@ function M.send_to_claude(opts)
               vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
 
               -- Remaining lines get added as new lines
-              vim.cmd("undojoin")
+              M.buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { unpack(lines, 2) })
             end
           end
