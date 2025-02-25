@@ -943,8 +943,6 @@ function M.send_to_claude(opts)
 
     if data.type == "content_block_delta" and data.delta and data.delta.text then
       vim.schedule(function()
-        local bufnr = vim.api.nvim_get_current_buf()
-
         -- Stop spinner on first content
         if not response_started then
           vim.fn.timer_stop(timer)
