@@ -1091,7 +1091,7 @@ function M.send_to_claude(opts)
         -- Only add the new prompt if the request wasn't cancelled and completed successfully
         if not state.request_cancelled and code == 0 and response_started then
           local last_line = vim.api.nvim_buf_line_count(bufnr)
-          vim.cmd("undojoin")
+          M.buffer_cmd(bufnr, "undojoin")
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
 
           -- Move cursor to after the colon and any whitespace
