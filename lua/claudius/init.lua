@@ -13,7 +13,7 @@ function M.buffer_cmd(bufnr, cmd)
     -- If buffer has no window, do nothing
     return
   end
-  vim.fn.win_execute(winid, 'noautocmd ' .. cmd)
+  vim.fn.win_execute(winid, "noautocmd " .. cmd)
 end
 
 -- Session-wide usage tracking (intentionally kept global)
@@ -30,7 +30,6 @@ end
 local function json_encode(data)
   return vim.fn.json_encode(data)
 end
-
 
 -- Folding functions
 function M.get_fold_level(lnum)
