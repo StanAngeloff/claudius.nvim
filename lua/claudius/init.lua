@@ -480,10 +480,10 @@ M.setup = function(opts)
         -- Insert mode mapping - send and return to insert mode
         if config.keymaps.insert.send then
           vim.keymap.set("i", config.keymaps.insert.send, function()
-            vim.cmd("stopinsert")
+            M.buffer_cmd(bufnr, "stopinsert")
             M.send_to_claude({
               on_complete = function()
-                vim.cmd("startinsert!")
+                M.buffer_cmd(bufnr, "startinsert!")
               end,
             })
           end, { buffer = true, desc = "Send to Claude and continue editing" })
@@ -995,7 +995,7 @@ function M.send_to_claude(opts)
               vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
             else
               -- First chunk goes to the end of the last line
-              vim.cmd("undojoin")
+              M.buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
 
               -- Remaining lines get added as new lines
