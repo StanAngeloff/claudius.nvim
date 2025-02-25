@@ -842,7 +842,7 @@ function M.send_to_claude(opts)
       vim.schedule(function()
         vim.fn.timer_stop(timer)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
-        M.current_request = nil
+        state.current_request = nil
 
         -- Auto-write on error if enabled
         auto_write_buffer()
@@ -884,7 +884,7 @@ function M.send_to_claude(opts)
       vim.schedule(function()
         vim.fn.timer_stop(timer)
         M.cleanup_spinner(vim.api.nvim_get_current_buf())
-        M.current_request = nil
+        state.current_request = nil
 
         -- Auto-write on error if enabled
         auto_write_buffer()
@@ -1080,7 +1080,7 @@ function M.send_to_claude(opts)
         vim.fn.timer_stop(spinner_timer)
 
         -- Only add the new prompt if the request wasn't cancelled and completed successfully
-        if not M.request_cancelled and code == 0 and response_started then
+        if not state.request_cancelled and code == 0 and response_started then
           local bufnr = vim.api.nvim_get_current_buf()
           local last_line = vim.api.nvim_buf_line_count(bufnr)
           vim.cmd("undojoin")
