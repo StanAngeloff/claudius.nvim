@@ -402,8 +402,8 @@ M.setup = function(opts)
   })
 
   -- Set up autocmd for the chat filetype
-  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
-    pattern = "*.chat",
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "FileType" }, {
+    pattern = { "*.chat", "chat" },
     callback = function(ev)
       set_syntax()
       add_rulers(ev.buf)
