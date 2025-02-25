@@ -361,6 +361,7 @@ M.setup = function(opts)
   end, {})
 
   vim.api.nvim_create_user_command("ClaudiusSendAndInsert", function()
+    local bufnr = vim.api.nvim_get_current_buf()
     M.buffer_cmd(bufnr, "stopinsert")
     M.send_to_claude({
       on_complete = function()
@@ -480,6 +481,7 @@ M.setup = function(opts)
         -- Insert mode mapping - send and return to insert mode
         if config.keymaps.insert.send then
           vim.keymap.set("i", config.keymaps.insert.send, function()
+            local bufnr = vim.api.nvim_get_current_buf()
             M.buffer_cmd(bufnr, "stopinsert")
             M.send_to_claude({
               on_complete = function()
