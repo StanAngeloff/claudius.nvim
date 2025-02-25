@@ -210,7 +210,7 @@ end
 
 -- Helper function to auto-write the buffer if enabled
 local function auto_write_buffer(bufnr)
-  if config.editing.auto_write and vim.bo.modified then
+  if config.editing.auto_write and vim.bo[bufnr].modified then
     log.debug("Auto-writing buffer")
     M.buffer_cmd(bufnr, "silent! write")
   end
