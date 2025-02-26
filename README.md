@@ -99,6 +99,65 @@ require("claudius").setup({
 })
 ```
 
+### Templating and Dynamic Content
+
+Chat files support two powerful features for dynamic content:
+
+1. Lua Frontmatter - Define variables and functions at the start of your chat file
+2. Expression Templates - Use `{{expressions}}` inside messages to evaluate Lua code
+
+#### Lua Frontmatter
+
+Start your chat file with a Lua code block between `---lua` markers:
+
+```
+---lua
+greeting = "Hello, World!"  -- Must be global (no local keyword)
+count = 42
+---
+
+@You: The greeting is: {{greeting}}
+@Assistant: The greeting mentioned is: "Hello, World!"
+
+@You: The count is: {{count}}
+@Assistant: The count is: 42
+```
+
+Variables defined in the frontmatter are available to all expression templates in the file. Note that variables must be global (do not use the `local` keyword).
+
+#### Expression Templates
+
+Use `{{expression}}` syntax inside any message to evaluate Lua code:
+
+```
+@You: Convert this to uppercase: {{string.upper("hello")}}
+@Assistant: The text "HELLO" is already in uppercase.
+
+@You: Calculate: {{math.floor(3.14159 * 2)}}
+@Assistant: You've provided the number 6
+```
+
+The expression environment is restricted to safe operations focused on string manipulation, basic math, and table operations. Available functions include:
+
+- String operations (upper, lower, sub, gsub, etc)
+- Table operations (concat, insert, remove, sort)
+- Math functions (abs, ceil, floor, max, min, etc)
+- UTF-8 support
+- Essential functions (assert, error, ipairs, pairs, etc)
+
+While you can define functions in the frontmatter, the focus is on simple templating rather than complex programming:
+
+```
+---lua
+function greet(name)
+    return string.format("Hello, %s!", name)
+end
+---
+
+@You: {{greet("Claude")}}
+@Assistant: Hello! It's nice to meet you.
+```
+
 ## Usage
 
 The plugin only works with files having the .chat extension. Create or open a .chat file and the plugin will automatically set up syntax highlighting and keybindings.
