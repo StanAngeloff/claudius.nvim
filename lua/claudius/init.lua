@@ -295,18 +295,8 @@ M.setup = function(opts)
     -- Enable Tree-sitter for the buffer
     vim.treesitter.start(bufnr, "markdown")
 
-    -- Define our custom syntax on top of markdown
-    vim.cmd([[
-      " Define the prefix matches
-      syntax match ChatSystemPrefix '^@System:' contained
-      syntax match ChatUserPrefix '^@You:' contained
-      syntax match ChatAssistantPrefix '^@Assistant:' contained
-
-      " Define regions that contain both prefixes and markdown
-      syntax region ChatSystem start='^@System:' end='\(^@\(You\|Assistant\):\)\@=\|\%$' contains=ChatSystemPrefix,@Markdown
-      syntax region ChatUser start='^@You:' end='\(^@\(System\|Assistant\):\)\@=\|\%$' contains=ChatUserPrefix,@Markdown
-      syntax region ChatAssistant start='^@Assistant:' end='\(^@\(System\|You\):\)\@=\|\%$' contains=ChatAssistantPrefix,@Markdown
-    ]])
+    -- Explicitly load our syntax file
+    vim.cmd('runtime! syntax/chat.vim')
 
     -- Link highlights to user config
     vim.cmd(string.format("highlight link ChatSystem %s", config.highlights.system))
