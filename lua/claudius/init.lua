@@ -785,11 +785,13 @@ function M.send_to_claude(opts)
   -- Execute frontmatter if present and get variables
   local template_vars = {}
   if frontmatter_code then
+    log.debug("Evaluating frontmatter code:\n" .. frontmatter_code)
     local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code)
     if not ok then
       vim.notify("Claudius: Frontmatter error - " .. result, vim.log.levels.ERROR)
       return
     end
+    log.debug("Frontmatter evaluation result:\n" .. vim.inspect(result))
     template_vars = result
   end
 

@@ -42,12 +42,7 @@ function M.execute(code)
     return {}
   end
 
-  local globals = eval.execute_safe(code)
-
-  -- Print globals for debugging
-  print("Frontmatter globals:", vim.inspect(globals))
-
-  return globals
+  return eval.execute_safe(code)
 end
 
 return M
