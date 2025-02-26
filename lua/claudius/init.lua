@@ -801,18 +801,18 @@ function M.send_to_claude(opts)
   local eval = require("claudius.eval")
   local env = vim.tbl_extend("force", eval.create_safe_env(), template_vars)
 
-  for _, msg in ipairs(formatted_messages) do
+  for i, msg in ipairs(formatted_messages) do
     -- Look for {{expression}} patterns
     msg.content = msg.content:gsub("{{(.-)}}", function(expr)
-      log.debug("Evaluating template expression: " .. expr)
+      log.debug(string.format("Evaluating template expression [msg %d]: %s", i, expr))
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
-        local err_msg = "Template error - " .. result
+        local err_msg = string.format("Template error [msg %d] - %s", i, result)
         log.error(err_msg)
         vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
       end
-      log.debug("Expression result: " .. tostring(result))
+      log.debug(string.format("Expression result [msg %d]: %s", i, tostring(result)))
       return tostring(result)
     end)
   end
