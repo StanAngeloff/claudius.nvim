@@ -807,7 +807,7 @@ function M.send_to_claude(opts)
       log.debug(string.format("Evaluating template expression [msg %d]: %s", i, expr))
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
-        local err_msg = string.format("Template error [msg %d] - %s", i, result)
+        local err_msg = string.format("Template error (message %d) - %s", i, result)
         log.error(err_msg)
         vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
