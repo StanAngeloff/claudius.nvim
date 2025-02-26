@@ -4,24 +4,61 @@ local M = {}
 -- Safe environment for executing Lua frontmatter
 local function create_safe_env()
   return {
-    -- Standard library modules
-    string = string,
-    table = table,
-    math = math,
-    -- Basic functions
+    -- String manipulation
+    string = {
+      byte = string.byte,
+      char = string.char,
+      find = string.find,
+      format = string.format,
+      gmatch = string.gmatch,
+      gsub = string.gsub,
+      len = string.len,
+      lower = string.lower,
+      match = string.match,
+      rep = string.rep,
+      reverse = string.reverse,
+      sub = string.sub,
+      upper = string.upper,
+    },
+
+    -- Table operations for data structuring
+    table = {
+      concat = table.concat,
+      insert = table.insert,
+      remove = table.remove,
+      sort = table.sort,
+      unpack = table.unpack,
+    },
+
+    -- Math for calculations in templates
+    math = {
+      abs = math.abs,
+      ceil = math.ceil,
+      floor = math.floor,
+      max = math.max,
+      min = math.min,
+      random = math.random,
+      randomseed = math.randomseed,
+      round = math.floor, -- common alias
+      pi = math.pi,
+    },
+
+    -- UTF-8 support for unicode string handling
+    utf8 = utf8,
+
+    -- Essential functions for template operation
     assert = assert,
     error = error,
     ipairs = ipairs,
-    next = next,
     pairs = pairs,
-    pcall = pcall,
     select = select,
     tonumber = tonumber,
     tostring = tostring,
     type = type,
-    unpack = unpack,
-    -- String conversion
     print = print,
+
+    -- Useful constants
+    _VERSION = _VERSION,
   }
 end
 
