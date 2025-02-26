@@ -64,7 +64,13 @@ function M.execute(code)
     return {}
   end
 
+  -- Create environment and store initial keys
   local env = create_safe_env()
+  local initial_keys = {}
+  for k in pairs(env) do
+    initial_keys[k] = true
+  end
+
   local chunk, err = load(code, "frontmatter", "t", env)
 
   if not chunk then
@@ -76,10 +82,10 @@ function M.execute(code)
     error("Failed to execute frontmatter: " .. err)
   end
 
-  -- Remove functions from the environment before printing
+  -- Collect only new keys that weren't in initial environment
   local globals = {}
   for k, v in pairs(env) do
-    if type(v) ~= "function" and k ~= "_ENV" then
+    if not initial_keys[k] then
       globals[k] = v
     end
   end
