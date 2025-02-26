@@ -490,11 +490,27 @@ local function place_signs(bufnr, start_line, end_line, role)
     return
   end
 
+  -- Skip frontmatter if present
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local frontmatter_offset = 0
+  if lines[1] and lines[1]:match("^```lua%s*$") then
+    -- Find end of frontmatter
+    for i = 2, #lines do
+      if lines[i]:match("^```%s*$") then
+        frontmatter_offset = i
+        break
+      end
+    end
+  end
+
   local sign_name = "claudius_" .. string.lower(role)
   local sign_config = config.signs[string.lower(role)]
   if sign_config and sign_config.hl ~= false then
     for lnum = start_line, end_line do
-      vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
+      -- Only place signs after frontmatter
+      if lnum > frontmatter_offset then
+        vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
+      end
     end
   end
 end
