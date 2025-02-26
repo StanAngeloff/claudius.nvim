@@ -782,13 +782,31 @@ function M.send_to_claude(opts)
     return
   end
 
-  -- Execute frontmatter if present
+  -- Execute frontmatter if present and get variables
+  local template_vars = {}
   if frontmatter_code then
-    local ok, err = pcall(require("claudius.frontmatter").execute, frontmatter_code)
+    local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code)
     if not ok then
-      vim.notify("Claudius: Frontmatter error - " .. err, vim.log.levels.ERROR)
+      vim.notify("Claudius: Frontmatter error - " .. result, vim.log.levels.ERROR)
       return
     end
+    template_vars = result
+  end
+
+  -- Process template expressions in messages
+  local safe_env = require("claudius.safe_env")
+  local env = vim.tbl_extend("force", safe_env.create_safe_env(), template_vars)
+
+  for _, msg in ipairs(formatted_messages) do
+    -- Look for {{expression}} patterns
+    msg.content = msg.content:gsub("{{(.-)}}}", function(expr)
+      local ok, result = pcall(safe_env.eval_expression, expr, env)
+      if not ok then
+        vim.notify("Claudius: Template error - " .. result, vim.log.levels.ERROR)
+        return "{{" .. expr .. "}}" -- Keep original on error
+      end
+      return tostring(result)
+    end)
   end
 
   local formatted_messages, system_message = format_messages(messages)

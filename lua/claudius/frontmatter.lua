@@ -1,66 +1,7 @@
 --- Frontmatter handling for Claudius chat files
 local M = {}
 
--- Safe environment for executing Lua frontmatter
-local function create_safe_env()
-  return {
-    -- String manipulation
-    string = {
-      byte = string.byte,
-      char = string.char,
-      find = string.find,
-      format = string.format,
-      gmatch = string.gmatch,
-      gsub = string.gsub,
-      len = string.len,
-      lower = string.lower,
-      match = string.match,
-      rep = string.rep,
-      reverse = string.reverse,
-      sub = string.sub,
-      upper = string.upper,
-    },
-
-    -- Table operations for data structuring
-    table = {
-      concat = table.concat,
-      insert = table.insert,
-      remove = table.remove,
-      sort = table.sort,
-      unpack = table.unpack,
-    },
-
-    -- Math for calculations in templates
-    math = {
-      abs = math.abs,
-      ceil = math.ceil,
-      floor = math.floor,
-      max = math.max,
-      min = math.min,
-      random = math.random,
-      randomseed = math.randomseed,
-      round = math.floor, -- common alias
-      pi = math.pi,
-    },
-
-    -- UTF-8 support for unicode string handling
-    utf8 = utf8,
-
-    -- Essential functions for template operation
-    assert = assert,
-    error = error,
-    ipairs = ipairs,
-    pairs = pairs,
-    select = select,
-    tonumber = tonumber,
-    tostring = tostring,
-    type = type,
-    print = print,
-
-    -- Useful constants
-    _VERSION = _VERSION,
-  }
-end
+local safe_env = require("claudius.safe_env")
 
 -- Parse frontmatter from lines
 function M.parse(lines)
@@ -101,31 +42,7 @@ function M.execute(code)
     return {}
   end
 
-  -- Create environment and store initial keys
-  local env = create_safe_env()
-  local initial_keys = {}
-  for k in pairs(env) do
-    initial_keys[k] = true
-  end
-
-  local chunk, err = load(code, "frontmatter", "t", env)
-
-  if not chunk then
-    error("Failed to load frontmatter: " .. err)
-  end
-
-  local ok, err = pcall(chunk)
-  if not ok then
-    error("Failed to execute frontmatter: " .. err)
-  end
-
-  -- Collect only new keys that weren't in initial environment
-  local globals = {}
-  for k, v in pairs(env) do
-    if not initial_keys[k] then
-      globals[k] = v
-    end
-  end
+  local globals = safe_env.execute_safe(code)
 
   -- Print globals for debugging
   print("Frontmatter globals:", vim.inspect(globals))
