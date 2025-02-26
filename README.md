@@ -108,20 +108,20 @@ Chat files support two powerful features for dynamic content:
 
 #### Lua Frontmatter
 
-Start your chat file with a Lua code block between `---lua` markers:
+Start your chat file with a Lua code block between ` ```lua ` and ` ``` ` markers:
 
-```
----lua
+````
+```lua
 greeting = "Hello, World!"  -- Must be global (no local keyword)
 count = 42
----
+```
 
 @You: The greeting is: {{greeting}}
 @Assistant: The greeting mentioned is: "Hello, World!"
 
 @You: The count is: {{count}}
 @Assistant: The count is: 42
-```
+````
 
 Variables defined in the frontmatter are available to all expression templates in the file. Note that variables must be global (do not use the `local` keyword).
 
@@ -147,16 +147,16 @@ The expression environment is restricted to safe operations focused on string ma
 
 While you can define functions in the frontmatter, the focus is on simple templating rather than complex programming:
 
-```
----lua
+````
+```lua
 function greet(name)
     return string.format("Hello, %s!", name)
 end
----
+```
 
 @You: {{greet("Claude")}}
 @Assistant: Hello! It's nice to meet you.
-```
+````
 
 ## Usage
 

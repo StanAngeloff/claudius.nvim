@@ -5,7 +5,7 @@ local eval = require("claudius.eval")
 
 -- Parse frontmatter from lines
 function M.parse(lines)
-  if not lines[1] or not lines[1]:match("^%-%-%-lua%s*$") then
+  if not lines[1] or not lines[1]:match("^```lua%s*$") then
     return nil, lines
   end
 
@@ -15,7 +15,7 @@ function M.parse(lines)
   local start_idx = 2
 
   for i = 2, #lines do
-    if lines[i]:match("^%-%-%-") then
+    if lines[i]:match("^```%s*$") then
       in_frontmatter = false
       start_idx = i + 1
       break
@@ -23,7 +23,7 @@ function M.parse(lines)
     table.insert(frontmatter, lines[i])
   end
 
-  -- If we never found the closing ---, treat everything as content
+  -- If we never found the closing ```, treat everything as content
   if in_frontmatter then
     return nil, lines
   end
