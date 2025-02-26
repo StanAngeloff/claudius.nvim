@@ -1,4 +1,4 @@
---- Safe environment and execution for Lua code in Claudius
+--- Safe environment and execution for Lua code in Claudius, where safe is a loose term.
 local M = {}
 
 -- Create a safe environment for executing Lua code

@@ -1,7 +1,7 @@
 --- Frontmatter handling for Claudius chat files
 local M = {}
 
-local safe_env = require("claudius.safe_env")
+local eval = require("claudius.eval")
 
 -- Parse frontmatter from lines
 function M.parse(lines)
@@ -42,7 +42,7 @@ function M.execute(code)
     return {}
   end
 
-  local globals = safe_env.execute_safe(code)
+  local globals = eval.execute_safe(code)
 
   -- Print globals for debugging
   print("Frontmatter globals:", vim.inspect(globals))
