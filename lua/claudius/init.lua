@@ -296,7 +296,7 @@ M.setup = function(opts)
     vim.treesitter.start(bufnr, "markdown")
 
     -- Explicitly load our syntax file
-    vim.cmd('runtime! syntax/chat.vim')
+    vim.cmd("runtime! syntax/chat.vim")
 
     -- Link highlights to user config
     vim.cmd(string.format("highlight link ChatSystem %s", config.highlights.system))
@@ -545,10 +545,17 @@ end
 function M.parse_buffer(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local messages = {}
-  local i = 1
 
-  while i <= #lines do
-    local msg, last_idx = parse_message(bufnr, lines, i)
+  -- Handle frontmatter if present
+  local frontmatter = require("claudius.frontmatter")
+  local fm_code, content = frontmatter.parse(lines)
+
+  -- If no frontmatter was found, use all lines as content
+  content = content or lines
+
+  local i = 1
+  while i <= #content do
+    local msg, last_idx = parse_message(bufnr, content, i)
     if msg then
       messages[#messages + 1] = msg
       i = last_idx + 1
@@ -557,7 +564,7 @@ function M.parse_buffer(bufnr)
     end
   end
 
-  return messages
+  return messages, fm_code
 end
 
 -- Format messages for Claude API
@@ -769,10 +776,19 @@ function M.send_to_claude(opts)
     return
   end
 
-  local messages = M.parse_buffer(bufnr)
+  local messages, frontmatter_code = M.parse_buffer(bufnr)
   if #messages == 0 then
     vim.notify("Claudius: No messages found in buffer", vim.log.levels.WARN)
     return
+  end
+
+  -- Execute frontmatter if present
+  if frontmatter_code then
+    local ok, err = pcall(require("claudius.frontmatter").execute, frontmatter_code)
+    if not ok then
+      vim.notify("Claudius: Frontmatter error - " .. err, vim.log.levels.ERROR)
+      return
+    end
   end
 
   local formatted_messages, system_message = format_messages(messages)
