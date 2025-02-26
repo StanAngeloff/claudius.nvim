@@ -803,12 +803,16 @@ function M.send_to_claude(opts)
 
   for _, msg in ipairs(formatted_messages) do
     -- Look for {{expression}} patterns
-    msg.content = msg.content:gsub("{{(.-)}}}", function(expr)
+    msg.content = msg.content:gsub("{{(.-)}}", function(expr)
+      log.debug("Evaluating template expression: " .. expr)
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
-        vim.notify("Claudius: Template error - " .. result, vim.log.levels.ERROR)
+        local err_msg = "Template error - " .. result
+        log.error(err_msg)
+        vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
       end
+      log.debug("Expression result: " .. tostring(result))
       return tostring(result)
     end)
   end
