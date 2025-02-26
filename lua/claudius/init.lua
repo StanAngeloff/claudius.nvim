@@ -550,12 +550,19 @@ function M.parse_buffer(bufnr)
   local frontmatter = require("claudius.frontmatter")
   local fm_code, content = frontmatter.parse(lines)
 
+  -- Calculate frontmatter offset for sign placement
+  local frontmatter_offset = 0
+  if fm_code then
+    -- Count lines in frontmatter (code + delimiters)
+    frontmatter_offset = #vim.split(fm_code, "\n", true) + 2
+  end
+
   -- If no frontmatter was found, use all lines as content
   content = content or lines
 
   local i = 1
   while i <= #content do
-    local msg, last_idx = parse_message(bufnr, content, i)
+    local msg, last_idx = parse_message(bufnr, content, i, frontmatter_offset)
     if msg then
       messages[#messages + 1] = msg
       i = last_idx + 1
