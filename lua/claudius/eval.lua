@@ -110,8 +110,6 @@ function M.eval_expression(expr, env)
   end
 
   return eval_result
-
-  return result
 end
 
 return M
