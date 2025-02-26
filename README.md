@@ -110,7 +110,7 @@ Chat files support two powerful features for dynamic content:
 
 Start your chat file with a Lua code block between ` ```lua ` and ` ``` ` markers:
 
-````
+````markdown
 ```lua
 greeting = "Hello, World!"  -- Must be global (no local keyword)
 count = 42
@@ -129,7 +129,7 @@ Variables defined in the frontmatter are available to all expression templates i
 
 Use `{{expression}}` syntax inside any message to evaluate Lua code:
 
-```
+```markdown
 @You: Convert this to uppercase: {{string.upper("hello")}}
 @Assistant: The text "HELLO" is already in uppercase.
 
@@ -147,7 +147,7 @@ The expression environment is restricted to safe operations focused on string ma
 
 While you can define functions in the frontmatter, the focus is on simple templating rather than complex programming:
 
-````
+````markdown
 ```lua
 function greet(name)
     return string.format("Hello, %s!", name)
@@ -226,13 +226,13 @@ vim.keymap.set('n', '<Leader>cp', '<cmd>ClaudiusPrevMessage<cr>')
 
 Start your conversation with a system message (optional):
 
-```
+```markdown
 @System: You are a helpful AI assistant.
 ```
 
 Then add your first message:
 
-```
+```markdown
 @You: Hello Claude!
 ```
 
