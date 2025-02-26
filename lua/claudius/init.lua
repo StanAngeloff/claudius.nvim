@@ -804,7 +804,7 @@ function M.send_to_claude(opts)
   for i, msg in ipairs(formatted_messages) do
     -- Look for {{expression}} patterns
     msg.content = msg.content:gsub("{{(.-)}}", function(expr)
-      log.debug(string.format("Evaluating template expression [msg %d]: %s", i, expr))
+      log.debug(string.format("Evaluating template expression (message %d): %s", i, expr))
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
         local err_msg = string.format("Template error (message %d) - %s", i, result)
@@ -812,7 +812,7 @@ function M.send_to_claude(opts)
         vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
       end
-      log.debug(string.format("Expression result [msg %d]: %s", i, tostring(result)))
+      log.debug(string.format("Expression result (message %d): %s", i, tostring(result)))
       return tostring(result)
     end)
   end
