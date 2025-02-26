@@ -793,6 +793,8 @@ function M.send_to_claude(opts)
     template_vars = result
   end
 
+  local formatted_messages, system_message = format_messages(messages)
+
   -- Process template expressions in messages
   local eval = require("claudius.eval")
   local env = vim.tbl_extend("force", eval.create_safe_env(), template_vars)
@@ -808,8 +810,6 @@ function M.send_to_claude(opts)
       return tostring(result)
     end)
   end
-
-  local formatted_messages, system_message = format_messages(messages)
   local request_body = {
     model = config.model,
     messages = formatted_messages,
