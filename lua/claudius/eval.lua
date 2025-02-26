@@ -73,12 +73,12 @@ function M.execute_safe(code, env)
 
   local chunk, err = load(code, "safe_env", "t", env)
   if not chunk then
-    error("Failed to load code: " .. err)
+    error("Claudius: Failed to load code: " .. err)
   end
 
   local ok, err = pcall(chunk)
   if not ok then
-    error("Failed to execute code: " .. err)
+    error("Claudius: Failed to execute code: " .. err)
   end
 
   -- Collect only new keys that weren't in initial environment
@@ -101,12 +101,12 @@ function M.eval_expression(expr, env)
 
   local chunk, err = load(expr, "expression", "t", env)
   if not chunk then
-    error("Failed to parse expression: " .. err)
+    error("Claudius: Failed to parse expression: " .. err)
   end
 
   local ok, result = pcall(chunk)
   if not ok then
-    error("Failed to evaluate expression: " .. result)
+    error("Claudius: Failed to evaluate expression: " .. result)
   end
 
   return result
