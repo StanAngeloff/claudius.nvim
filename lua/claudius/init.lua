@@ -831,7 +831,7 @@ function M.send_to_claude(opts)
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
-  -- Format usage information for display with markdown
+  -- Format usage information for display
   local function format_usage(current, session)
     local pricing = require("claudius.pricing")
     local lines = {}
