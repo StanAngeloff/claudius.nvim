@@ -1,6 +1,23 @@
 # Claudius 🤖
 
-A Neovim plugin providing a simple TUI for chatting with Claude, Anthropic's AI assistant. Claudius creates a natural chat-like interface right in your editor, with proper syntax highlighting and message folding.
+Transform Neovim into your AI coding companion with a native interface to Claude. Key features:
+
+🚀 **Instant Integration**
+- Chat with Claude directly in your editor - no context switching
+- Native Neovim feel with proper syntax highlighting and folding
+- Automatic API key management via system keyring
+
+⚡ **Power Features**
+- Dynamic Lua templates in your prompts - embed code evaluation results
+- Import/export compatibility with Claude Workbench
+- Real-time token usage and cost tracking
+- Message-based text objects and navigation
+
+🛠️ **Developer Experience**
+- Markdown rendering in responses
+- Code block syntax highlighting
+- Automatic buffer management
+- Customizable keymaps and styling
 
 <img src="assets/pretty_snap_2025_1_21_23_9.png" alt="A screenshot of Claudius in action" />
 
