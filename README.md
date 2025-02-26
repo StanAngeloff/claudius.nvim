@@ -2,25 +2,12 @@
 
 Transform Neovim into your AI conversation companion with a native interface to Claude. Key features:
 
-🚀 **Instant Integration**
-
-- Chat with Claude directly in your editor - no context switching
-- Native Neovim feel with proper syntax highlighting and folding
-- Automatic API key management via system keyring
-
-⚡ **Power Features**
-
-- Dynamic Lua templates in your prompts - embed code evaluation results
-- Import/export compatibility with Claude Workbench
-- Real-time token usage and cost tracking
-- Message-based text objects and navigation
-
-🛠️ **Developer Experience**
-
-- Markdown rendering in responses
-- Code block syntax highlighting
-- Automatic buffer management
-- Customizable keymaps and styling
+| 🚀 Instant Integration                                          | ⚡ Power Features                                                     | 🛠️ Developer Experience          |
+| --------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
+| Chat with Claude directly in your editor - no context switching | Dynamic Lua templates in your prompts - embed code evaluation results | Markdown rendering in responses  |
+| Native Neovim feel with proper syntax highlighting and folding  | Import/export compatibility with Claude Workbench                     | Code block syntax highlighting   |
+| Automatic API key management via system keyring                 | Real-time token usage and cost tracking                               | Automatic buffer management      |
+|                                                                 | Message-based text objects and navigation                             | Customizable keymaps and styling |
 
 <img src="assets/pretty_snap_2025_1_21_23_9.png" alt="A screenshot of Claudius in action" />
 
