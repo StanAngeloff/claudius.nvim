@@ -10,7 +10,6 @@ function M.new(opts)
   -- Claude-specific state
   provider.endpoint = "https://api.anthropic.com/v1/messages"
   provider.api_version = "2023-06-01"
-  provider.env_var_name = "ANTHROPIC_API_KEY"
   
   -- Set metatable to use Claude methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
@@ -20,6 +19,12 @@ end
 function M.try_keyring(self)
   -- Call the base implementation with Claude-specific parameters
   return require("claudius.provider.base").try_keyring(self, "anthropic", "api", nil)
+end
+
+-- Get API key from environment, keyring, or prompt
+function M.get_api_key(self)
+  -- Call the base implementation with Claude-specific environment variable
+  return require("claudius.provider.base").get_api_key(self, "ANTHROPIC_API_KEY")
 end
 
 
