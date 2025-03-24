@@ -113,8 +113,12 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- First try parsing the line directly as JSON for error responses
+  -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
+    -- This is not a standard SSE data line
+    log.warn("Unexpected response format: " .. line)
+    
+    -- Try parsing as a direct JSON error response
     local ok, error_data = pcall(vim.fn.json_decode, line)
     if ok and error_data.error then
       local msg = "OpenAI API error"
@@ -130,23 +134,36 @@ function M.process_response_line(self, line, callbacks)
       end
       return
     end
+    
+    -- If we can't parse it as an error, log and ignore
+    log.warn("Ignoring unrecognized response line")
     return
   end
 
-  -- Handle normal data events
+  -- Extract JSON from data: prefix
   local json_str = line:gsub("^data: ", "")
   local parse_ok, data = pcall(vim.fn.json_decode, json_str)
   if not parse_ok then
+    log.warn("Failed to parse JSON from response: " .. json_str)
+    return
+  end
+
+  -- Validate the response structure
+  if type(data) ~= "table" then
+    log.warn("Expected table in response, got: " .. type(data))
     return
   end
 
   -- Handle error responses
   if data.error then
+    local msg = "OpenAI API error"
+    if data.error and data.error.message then
+      msg = data.error.message
+    end
+    
+    log.error("API error in response: " .. msg)
+    
     if callbacks.on_error then
-      local msg = "OpenAI API error"
-      if data.error and data.error.message then
-        msg = data.error.message
-      end
       callbacks.on_error(msg)
     end
     return
@@ -154,47 +171,64 @@ function M.process_response_line(self, line, callbacks)
 
   -- Track usage information if available
   if data.usage then
-    if callbacks.on_usage and data.usage.prompt_tokens then
-      callbacks.on_usage({
-        type = "input",
-        tokens = data.usage.prompt_tokens,
-      })
-    end
-    if callbacks.on_usage and data.usage.completion_tokens then
-      callbacks.on_usage({
-        type = "output",
-        tokens = data.usage.completion_tokens,
-      })
+    if type(data.usage) ~= "table" then
+      log.warn("Expected usage to be a table, got: " .. type(data.usage))
+    else
+      if callbacks.on_usage and data.usage.prompt_tokens then
+        callbacks.on_usage({
+          type = "input",
+          tokens = data.usage.prompt_tokens,
+        })
+      end
+      if callbacks.on_usage and data.usage.completion_tokens then
+        callbacks.on_usage({
+          type = "output",
+          tokens = data.usage.completion_tokens,
+        })
+      end
     end
   end
 
   -- Handle content deltas
-  if data.choices and data.choices[1] and data.choices[1].delta then
-    local delta = data.choices[1].delta
+  if not data.choices then
+    log.warn("Expected 'choices' in response data, but not found")
+    return
+  end
+  
+  if not data.choices[1] then
+    log.warn("Expected at least one choice in response, but none found")
+    return
+  end
+  
+  if not data.choices[1].delta then
+    log.warn("Expected 'delta' in first choice, but not found")
+    return
+  end
+  
+  local delta = data.choices[1].delta
+  
+  -- Check if this is the end of the message
+  if delta.role == "assistant" and not delta.content then
+    -- This is just the role marker, skip it
+    log.debug("Received assistant role marker")
+    return
+  end
+  
+  -- Handle actual content
+  if delta.content then
+    log.debug("Content delta: " .. delta.content)
     
-    -- Check if this is the end of the message
-    if delta.role == "assistant" and not delta.content then
-      -- This is just the role marker, skip it
-      log.debug("Received assistant role marker")
-      return
+    if callbacks.on_content then
+      callbacks.on_content(delta.content)
     end
+  end
+  
+  -- Check if this is the finish_reason
+  if data.choices[1].finish_reason then
+    log.debug("Received finish_reason: " .. (data.choices[1].finish_reason or "nil"))
     
-    -- Handle actual content
-    if delta.content then
-      log.debug("Content delta: " .. delta.content)
-      
-      if callbacks.on_content then
-        callbacks.on_content(delta.content)
-      end
-    end
-    
-    -- Check if this is the finish_reason
-    if data.choices[1].finish_reason then
-      log.debug("Received finish_reason: " .. (data.choices[1].finish_reason or "nil"))
-      
-      if callbacks.on_message_complete then
-        callbacks.on_message_complete()
-      end
+    if callbacks.on_message_complete then
+      callbacks.on_message_complete()
     end
   end
 end
