@@ -778,8 +778,7 @@ function M.send_to_provider(opts)
   })
 
   -- Log the request details
-  log.debug("Provider: " .. config.provider)
-  log.debug("Model: " .. model)
+  log.debug("New request for " .. config.provider .. " to " .. model)
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
