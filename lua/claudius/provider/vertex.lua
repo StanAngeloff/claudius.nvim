@@ -230,6 +230,21 @@ function M.get_endpoint(self)
   return endpoint
 end
 
+-- Override prepare_curl_command to add raw output option
+function M.prepare_curl_command(self, tmp_file, headers, endpoint)
+  local cmd = require("claudius.provider.base").prepare_curl_command(self, tmp_file, headers, endpoint)
+  
+  -- Add raw output option for Vertex AI
+  table.insert(cmd, 2, "--raw")
+  
+  return cmd
+end
+
+-- Buffer to accumulate JSON response chunks
+local accumulated_json = ""
+local last_processed_length = 0
+local ignore_next_comma = false
+
 -- Process a response line from Vertex AI API
 function M.process_response_line(self, line, callbacks)
   -- Skip empty lines
@@ -237,7 +252,10 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- First try to parse the line as a JSON error response
+  -- Log the raw line for debugging
+  log.debug("Processing line: " .. line)
+
+  -- First try to parse the line as a direct JSON error response
   local ok, error_data = pcall(vim.fn.json_decode, line)
   if ok and type(error_data) == "table" and error_data.error then
     local msg = "Vertex AI API error"
@@ -254,34 +272,74 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Check for expected format: lines should start with "data: "
-  if not line:match("^data: ") then
-    -- This is not a standard SSE data line
-    log.error("Unexpected response format from Vertex AI: " .. line)
-
-    -- If we can't parse it as an error, log and ignore
-    log.error("Ignoring unrecognized response line")
-    return
-  end
-
-  -- Handle [DONE] message
-  if line == "data: [DONE]" then
-    log.debug("Received [DONE] message")
-
-    if callbacks.on_done then
-      callbacks.on_done()
+  -- Handle SSE format if present (for backward compatibility)
+  if line:match("^data: ") then
+    -- Extract JSON from data: prefix
+    local json_str = line:gsub("^data: ", "")
+    
+    -- Handle [DONE] message
+    if json_str == "[DONE]" then
+      log.debug("Received [DONE] message")
+      if callbacks.on_done then
+        callbacks.on_done()
+      end
+      return
     end
+    
+    -- Process the JSON string directly
+    local parse_ok, data = pcall(vim.fn.json_decode, json_str)
+    if parse_ok and type(data) == "table" then
+      self:process_response_object(data, callbacks)
+      return
+    end
+  end
+  
+  -- Handle raw JSON format (Vertex AI returns an array of response objects)
+  
+  -- Skip array brackets on their own lines
+  if line == "[" or line == "]" then
+    log.debug("Skipping array bracket")
     return
   end
-
-  -- Extract JSON from data: prefix
-  local json_str = line:gsub("^data: ", "")
-  local parse_ok, data = pcall(vim.fn.json_decode, json_str)
-  if not parse_ok then
-    log.error("Failed to parse JSON from response: " .. json_str)
+  
+  -- Handle standalone commas between objects
+  if line == "," then
+    log.debug("Found standalone comma, marking to ignore next comma")
+    ignore_next_comma = true
     return
   end
+  
+  -- Append the current line to our accumulated JSON
+  if ignore_next_comma and line:match("^%s*,") then
+    -- Remove leading comma if we just processed a standalone comma
+    accumulated_json = accumulated_json .. line:gsub("^%s*,", "")
+    ignore_next_comma = false
+  else
+    accumulated_json = accumulated_json .. line
+  end
+  
+  -- Try to parse the accumulated JSON
+  local parse_ok, data = pcall(vim.fn.json_decode, accumulated_json)
+  
+  if parse_ok and type(data) == "table" then
+    -- Successfully parsed a complete JSON object
+    log.debug("Successfully parsed complete JSON object")
+    
+    -- Process the response object
+    self:process_response_object(data, callbacks)
+    
+    -- Reset the accumulated JSON for the next object
+    accumulated_json = ""
+    last_processed_length = 0
+    ignore_next_comma = false
+  else
+    -- Not a complete JSON object yet, continue accumulating
+    log.debug("Incomplete JSON, continuing to accumulate")
+  end
+end
 
+-- Process a parsed response object
+function M.process_response_object(self, data, callbacks)
   -- Validate the response structure
   if type(data) ~= "table" then
     log.error("Expected table in response, got: " .. type(data))
@@ -344,6 +402,15 @@ function M.process_response_line(self, line, callbacks)
           end
         end
       end
+    end
+  end
+  
+  -- If this is the last response (with usage metadata and finish reason), signal done
+  if data.usageMetadata and data.candidates and #data.candidates > 0 and 
+     data.candidates[1].finishReason and data.candidates[1].finishReason ~= vim.NIL then
+    log.debug("Final response received, signaling done")
+    if callbacks.on_done then
+      callbacks.on_done()
     end
   end
 end
