@@ -238,7 +238,7 @@ end
 function M.prepare_curl_command(self, tmp_file, headers, endpoint)
   local cmd = require("claudius.provider.base").prepare_curl_command(self, tmp_file, headers, endpoint)
   
-  -- Add raw output option for Vertex AI to get the raw JSON response
+  -- Add raw output option for Vertex AI to get the raw SSE response
   table.insert(cmd, 2, "--raw")
   
   return cmd
@@ -246,30 +246,49 @@ end
 
 -- Initialize provider state
 function M.init(self)
-  -- Initialize state for JSON accumulation
-  self.accumulated_json = ""
-  self.in_array = false
+  -- Initialize state for SSE parsing
+  self.buffer = ""
+  self.current_data_size = nil
+  self.json_array_started = false
+  self.json_array_content = "["
 end
 
--- Check for unprocessed JSON at the end of a response
+-- Check for unprocessed data at the end of a response
 function M.check_unprocessed_json(self)
-  if self.accumulated_json and #self.accumulated_json > 0 then
-    -- We have accumulated JSON that wasn't processed
-    log.error("Unprocessed JSON at end of response: " .. self.accumulated_json)
+  if self.buffer and #self.buffer > 0 then
+    -- We have accumulated data that wasn't processed
+    log.debug("Unprocessed buffer data at end of response: " .. self.buffer)
     
-    -- Don't try to parse it, just log it for inspection
-    -- This indicates a bug in our JSON parsing logic
+    -- Reset the buffer
+    self.buffer = ""
+    self.current_data_size = nil
+  end
+  
+  -- If we started a JSON array but never finished it, try to process it
+  if self.json_array_started and self.json_array_content ~= "[" then
+    log.debug("Processing incomplete JSON array at end of response")
     
-    -- Reset the accumulated JSON
-    self.accumulated_json = ""
-    self.in_array = false
+    -- Close the array and try to parse it
+    local json_array = self.json_array_content .. "]"
+    local ok, data = pcall(vim.fn.json_decode, json_array)
+    if ok and type(data) == "table" then
+      log.debug("Successfully parsed final JSON array with " .. #data .. " objects")
+      -- We don't have callbacks here, so we can't process the data
+      -- Just log it for debugging
+    else
+      log.error("Failed to parse final JSON array: " .. json_array)
+    end
+    
+    -- Reset the JSON array state
+    self.json_array_started = false
+    self.json_array_content = "["
   end
 end
 
--- Process a response line from Vertex AI API
+-- Process a response line from Vertex AI API (SSE format)
 function M.process_response_line(self, line, callbacks)
   -- Initialize state if not already done
-  if self.accumulated_json == nil then
+  if self.buffer == nil then
     self:init()
   end
 
@@ -278,8 +297,12 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Log the raw line for debugging
-  log.debug("Processing line: " .. line)
+  -- Log the raw line for debugging (truncate if too long)
+  if #line > 100 then
+    log.debug("Processing SSE line: " .. line:sub(1, 100) .. "... (" .. #line .. " bytes)")
+  else
+    log.debug("Processing SSE line: " .. line)
+  end
 
   -- First try to parse the line as a direct JSON error response
   local ok, error_data = pcall(vim.fn.json_decode, line)
@@ -297,100 +320,138 @@ function M.process_response_line(self, line, callbacks)
     end
     return
   end
-  
-  -- Handle raw JSON format (Vertex AI returns an array of response objects)
-  
-  -- Check if we're starting an array
-  if line == "[" or line:match("^%[%s*{") then
-    log.debug("Starting JSON array")
-    self.accumulated_json = line
-    self.in_array = true
+
+  -- Append the current line to our buffer
+  self.buffer = self.buffer .. line
+
+  -- Process the buffer as SSE data
+  self:process_sse_buffer(callbacks)
+end
+
+-- Process the SSE buffer
+function M.process_sse_buffer(self, callbacks)
+  -- Process as much of the buffer as we can
+  while #self.buffer > 0 do
+    -- If we don't have a data size yet, try to parse it
+    if not self.current_data_size then
+      -- Look for a hexadecimal number followed by \r
+      local hex_size = self.buffer:match("^([0-9a-fA-F]+)\r")
+      if not hex_size then
+        -- Not enough data yet, wait for more
+        return
+      end
+
+      -- Convert hex to decimal
+      self.current_data_size = tonumber(hex_size, 16)
+      log.debug("Found SSE data chunk size: " .. hex_size .. " (" .. self.current_data_size .. " bytes)")
+
+      -- Remove the size and \r from the buffer
+      self.buffer = self.buffer:sub(#hex_size + 2)
+    end
+
+    -- Check if we have enough data in the buffer
+    if #self.buffer < self.current_data_size + 1 then
+      -- Not enough data yet, wait for more
+      return
+    end
+
+    -- Extract the data chunk
+    local data_chunk = self.buffer:sub(1, self.current_data_size)
+    
+    -- The chunk should be followed by \r
+    if self.buffer:sub(self.current_data_size + 1, self.current_data_size + 1) ~= "\r" then
+      log.error("SSE data chunk not followed by \\r, found: " .. 
+                self.buffer:sub(self.current_data_size + 1, self.current_data_size + 1))
+    end
+
+    -- Remove the data chunk and \r from the buffer
+    self.buffer = self.buffer:sub(self.current_data_size + 2)
+    
+    -- Reset the data size for the next chunk
+    self.current_data_size = nil
+
+    -- Process the data chunk
+    self:process_data_chunk(data_chunk, callbacks)
+  end
+end
+
+-- Process a single data chunk from the SSE stream
+function M.process_data_chunk(self, data_chunk, callbacks)
+  -- Skip empty chunks
+  if not data_chunk or data_chunk == "" then
     return
   end
-  
-  -- Check if we're ending an array
-  if line == "]" then
+
+  -- Log the data chunk for debugging (truncate if too long)
+  if #data_chunk > 100 then
+    log.debug("Processing data chunk: " .. data_chunk:sub(1, 100) .. "... (" .. #data_chunk .. " bytes)")
+  else
+    log.debug("Processing data chunk: " .. data_chunk)
+  end
+
+  -- Check if this is the start of a JSON array
+  if data_chunk == "[" then
+    log.debug("Starting JSON array")
+    self.json_array_started = true
+    self.json_array_content = "["
+    return
+  end
+
+  -- Check if this is the end of a JSON array
+  if data_chunk == "]" then
     log.debug("Ending JSON array")
-    self.accumulated_json = self.accumulated_json .. "]"
-    self.in_array = false
+    self.json_array_content = self.json_array_content .. "]"
     
     -- Try to parse the complete array
-    local parse_ok, data_array = pcall(vim.fn.json_decode, self.accumulated_json)
-    if parse_ok and type(data_array) == "table" then
+    local ok, data_array = pcall(vim.fn.json_decode, self.json_array_content)
+    if ok and type(data_array) == "table" then
       log.debug("Successfully parsed complete JSON array with " .. #data_array .. " objects")
       
       -- Process each object in the array
       for _, data in ipairs(data_array) do
         self:process_response_object(data, callbacks)
       end
-      
-      -- Reset the accumulated JSON
-      self.accumulated_json = ""
     else
-      log.error("Failed to parse JSON array: " .. self.accumulated_json)
+      log.error("Failed to parse JSON array: " .. self.json_array_content)
+    end
+    
+    -- Reset the JSON array state
+    self.json_array_started = false
+    self.json_array_content = "["
+    return
+  end
+
+  -- Check if this is a comma (separator between JSON objects)
+  if data_chunk == "," then
+    log.debug("Found JSON object separator")
+    if self.json_array_started then
+      self.json_array_content = self.json_array_content .. ","
     end
     return
   end
-  
-  -- Handle comma at the beginning of a line when we only have accumulated "["
-  if self.accumulated_json == "[" and line:match("^%s*,") then
-    -- Skip the comma as we're starting a new object in the array
-    line = line:gsub("^%s*,", "")
-    log.debug("Skipping leading comma in JSON array")
-  end
-  
-  -- Append the current line to our accumulated JSON
-  self.accumulated_json = self.accumulated_json .. line
-  
-  -- Try multiple parsing approaches:
-  -- 1. Parse as a complete object/array
-  local parse_ok, data = pcall(vim.fn.json_decode, self.accumulated_json)
-  
-  -- 2. If we're in an array and parsing failed, try closing the array and parsing
-  local array_parse_ok, array_data
-  if not parse_ok then
-    if self.in_array then
-      -- Try adding a closing bracket
-      array_parse_ok, array_data = pcall(vim.fn.json_decode, self.accumulated_json .. "]")
-    elseif self.accumulated_json:match("^%[") then
-      -- If it starts with [ but in_array wasn't set, try it anyway
-      self.in_array = true
-      array_parse_ok, array_data = pcall(vim.fn.json_decode, self.accumulated_json .. "]")
-    end
-  end
-  
-  if parse_ok and type(data) == "table" then
-    -- Successfully parsed a complete JSON object
-    log.debug("Successfully parsed complete JSON object")
+
+  -- Try to parse the chunk as a JSON object
+  local ok, data = pcall(vim.fn.json_decode, data_chunk)
+  if ok and type(data) == "table" then
+    -- Successfully parsed a JSON object
+    log.debug("Successfully parsed JSON object")
     
-    if vim.tbl_islist(data) then
-      -- If it's an array, process each object
-      log.debug("Parsed a JSON array with " .. #data .. " objects")
-      for _, obj in ipairs(data) do
-        self:process_response_object(obj, callbacks)
+    -- If we're building a JSON array, add this object to it
+    if self.json_array_started then
+      -- If the array content is just "[", we don't need a comma
+      if self.json_array_content == "[" then
+        self.json_array_content = self.json_array_content .. data_chunk
+      else
+        -- Otherwise, we need to add the object with its leading comma
+        self.json_array_content = self.json_array_content .. "," .. data_chunk
       end
-    else
-      -- Process single object
-      self:process_response_object(data, callbacks)
     end
     
-    -- Reset the accumulated JSON for the next object
-    self.accumulated_json = ""
-    
-  elseif array_parse_ok and type(array_data) == "table" and vim.tbl_islist(array_data) then
-    -- Successfully parsed a partial array by adding closing bracket
-    log.debug("Successfully parsed partial JSON array with " .. #array_data .. " objects")
-    
-    -- Process each complete object in the array
-    for _, obj in ipairs(array_data) do
-      self:process_response_object(obj, callbacks)
-    end
-    
-    -- Keep the opening bracket for the next objects
-    self.accumulated_json = "["
+    -- Process the object
+    self:process_response_object(data, callbacks)
   else
-    -- Not a complete JSON object yet, continue accumulating
-    log.debug("Incomplete JSON, continuing to accumulate")
+    -- Not a valid JSON object, log it
+    log.error("Failed to parse JSON object: " .. data_chunk)
   end
 end
 
