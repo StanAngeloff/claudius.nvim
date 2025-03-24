@@ -4,6 +4,46 @@ local base = require("claudius.provider.base")
 local log = require("claudius.logging")
 local M = {}
 
+-- Utility function to generate access token from service account JSON
+local function generate_access_token(service_account_json)
+  -- Create a temporary file with the service account JSON
+  local tmp_file = os.tmpname()
+  local f = io.open(tmp_file, "w")
+  if not f then
+    return nil, "Failed to create temporary file for service account"
+  end
+  f:write(service_account_json)
+  f:close()
+
+  -- Use gcloud to generate an access token
+  local cmd = string.format("GOOGLE_APPLICATION_CREDENTIALS=%s gcloud auth print-access-token 2>/dev/null", tmp_file)
+  local handle = io.popen(cmd)
+  local token = nil
+  local err = nil
+  
+  if handle then
+    token = handle:read("*a")
+    local success, _, code = handle:close()
+    
+    -- Clean up the temporary file
+    os.remove(tmp_file)
+    
+    if success and token and #token > 0 then
+      -- Trim whitespace
+      token = token:gsub("%s+$", "")
+      return token
+    else
+      err = "Failed to generate access token (exit code: " .. tostring(code) .. ")"
+    end
+  else
+    -- Clean up the temporary file
+    os.remove(tmp_file)
+    err = "Failed to execute gcloud command"
+  end
+  
+  return nil, err
+end
+
 -- Create a new Google Vertex AI provider instance
 function M.new(opts)
   local provider = base.new(opts)
@@ -25,15 +65,46 @@ function M.new(opts)
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
 end
 
--- Get API key from environment, keyring, or prompt
+-- Get access token from environment, keyring, or prompt
 function M.get_api_key(self)
-  -- Call the base implementation with Vertex AI-specific parameters
-  return require("claudius.provider.base").get_api_key(self, {
-    env_var_name = "VERTEX_API_KEY",
+  -- First try to get token from environment variable
+  local token = os.getenv("VERTEX_AI_ACCESS_TOKEN")
+  if token and #token > 0 then
+    self.state.api_key = token
+    return token
+  end
+  
+  -- Try to get service account JSON from keyring
+  local service_account_json = require("claudius.provider.base").get_api_key(self, {
+    env_var_name = "VERTEX_SERVICE_ACCOUNT",
     keyring_service_name = "vertex",
     keyring_key_name = "api",
     keyring_project_id = self.project_id,
   })
+  
+  -- If we have service account JSON, try to generate an access token
+  if service_account_json and service_account_json:match("service_account") then
+    log.debug("Found service account JSON, attempting to generate access token")
+    
+    local token, err = generate_access_token(service_account_json)
+    if token then
+      log.debug("Successfully generated access token from service account")
+      self.state.api_key = token
+      return token
+    else
+      log.error("Failed to generate access token: " .. (err or "unknown error"))
+      error("Vertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts. " ..
+            "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable. Error: " .. (err or "unknown error"))
+    end
+  end
+  
+  -- If we have something but it's not a service account JSON, it might be a direct token
+  if service_account_json and #service_account_json > 0 then
+    self.state.api_key = service_account_json
+    return service_account_json
+  end
+  
+  return nil
 end
 
 -- Format messages for Vertex AI API
@@ -110,9 +181,13 @@ end
 
 -- Get request headers for Vertex AI API
 function M.get_request_headers(self)
-  local api_key = self:get_api_key()
+  local access_token = self:get_api_key()
+  if not access_token then
+    error("No Vertex AI access token available. Please set up a service account or provide an access token.")
+  end
+  
   return {
-    "x-goog-api-key: " .. api_key,
+    "Authorization: Bearer " .. access_token,
     "Content-Type: application/json",
   }
 end
@@ -144,27 +219,27 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
+  -- First try to parse the line as a JSON error response
+  local ok, error_data = pcall(vim.fn.json_decode, line)
+  if ok and type(error_data) == "table" and error_data.error then
+    local msg = "Vertex AI API error"
+    if error_data.error and error_data.error.message then
+      msg = error_data.error.message
+    end
+
+    -- Log the error
+    log.error("API error: " .. msg)
+
+    if callbacks.on_error then
+      callbacks.on_error(msg)
+    end
+    return
+  end
+
   -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
     -- This is not a standard SSE data line
     log.error("Unexpected response format from Vertex AI: " .. line)
-
-    -- Try parsing as a direct JSON error response
-    local ok, error_data = pcall(vim.fn.json_decode, line)
-    if ok and error_data.error then
-      local msg = "Vertex AI API error"
-      if error_data.error and error_data.error.message then
-        msg = error_data.error.message
-      end
-
-      -- Log the error
-      log.error("API error: " .. msg)
-
-      if callbacks.on_error then
-        callbacks.on_error(msg)
-      end
-      return
-    end
 
     -- If we can't parse it as an error, log and ignore
     log.error("Ignoring unrecognized response line")

@@ -84,6 +84,16 @@ M.vertex_models = {
   "codechat-bison",
 }
 
+-- Authentication notes for providers
+M.auth_notes = {
+  vertex = [[
+Vertex AI requires OAuth2 authentication. You can:
+1. Set VERTEX_AI_ACCESS_TOKEN environment variable with a valid access token
+2. Store a service account JSON in the keyring (requires gcloud CLI)
+3. Set VERTEX_SERVICE_ACCOUNT environment variable with the service account JSON
+]]
+}
+
 -- Default parameters for all providers
 M.parameters = {
   max_tokens = 4000,
