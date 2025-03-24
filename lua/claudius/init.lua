@@ -764,7 +764,9 @@ function M.send_to_provider(opts)
     temperature = config.parameters.temperature,
   })
 
-  -- Log the request body as JSON
+  -- Log the request details
+  log.debug("Provider: " .. config.provider)
+  log.debug("Model: " .. model)
   log.debug("Request body: " .. json_encode(request_body))
 
   local spinner_timer = start_loading_spinner(bufnr)
