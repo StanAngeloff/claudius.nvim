@@ -716,7 +716,7 @@ function M.send_to_provider(opts)
     if auth_notes then
       -- Show a more detailed alert with the auth notes
       require("claudius.notify").alert(
-        tostring(api_key_error) .. "\n\n" .. auth_notes,
+        tostring(api_key_error) .. auth_notes,
         { title = "Claudius - " .. config.provider .. " Authentication Error" }
       )
     else

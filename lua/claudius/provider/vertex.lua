@@ -106,9 +106,13 @@ function M.get_api_key(self)
       return token
     else
       log.error("Failed to generate access token: " .. (err or "unknown error"))
-      error("Vertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n" ..
-            "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable.\n\n" ..
-            "Error: " .. (err or "unknown error"))
+      if err then
+        error(err .. "\n\n---\n\nVertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n" ..
+              "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable.")
+      else
+        error("Vertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n" ..
+              "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable.")
+      end
     end
   end
   
