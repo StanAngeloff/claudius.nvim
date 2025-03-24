@@ -242,8 +242,7 @@ end
 
 -- Buffer to accumulate JSON response chunks
 local accumulated_json = ""
-local last_processed_length = 0
-local ignore_next_comma = false
+local in_array = false
 
 -- Process a response line from Vertex AI API
 function M.process_response_line(self, line, callbacks)
@@ -296,42 +295,80 @@ function M.process_response_line(self, line, callbacks)
   
   -- Handle raw JSON format (Vertex AI returns an array of response objects)
   
-  -- Skip array brackets on their own lines
-  if line == "[" or line == "]" then
-    log.debug("Skipping array bracket")
+  -- Check if we're starting an array
+  if line == "[" then
+    log.debug("Starting JSON array")
+    accumulated_json = "["
+    in_array = true
     return
   end
   
-  -- Handle standalone commas between objects
-  if line == "," then
-    log.debug("Found standalone comma, marking to ignore next comma")
-    ignore_next_comma = true
+  -- Check if we're ending an array
+  if line == "]" then
+    log.debug("Ending JSON array")
+    accumulated_json = accumulated_json .. "]"
+    in_array = false
+    
+    -- Try to parse the complete array
+    local parse_ok, data_array = pcall(vim.fn.json_decode, accumulated_json)
+    if parse_ok and type(data_array) == "table" then
+      log.debug("Successfully parsed complete JSON array with " .. #data_array .. " objects")
+      
+      -- Process each object in the array
+      for _, data in ipairs(data_array) do
+        self:process_response_object(data, callbacks)
+      end
+      
+      -- Reset the accumulated JSON
+      accumulated_json = ""
+    else
+      log.error("Failed to parse JSON array: " .. accumulated_json)
+    end
     return
   end
   
   -- Append the current line to our accumulated JSON
-  if ignore_next_comma and line:match("^%s*,") then
-    -- Remove leading comma if we just processed a standalone comma
-    accumulated_json = accumulated_json .. line:gsub("^%s*,", "")
-    ignore_next_comma = false
-  else
-    accumulated_json = accumulated_json .. line
-  end
+  accumulated_json = accumulated_json .. line
   
-  -- Try to parse the accumulated JSON
+  -- Try two parsing approaches:
+  -- 1. Parse as a complete object/array
   local parse_ok, data = pcall(vim.fn.json_decode, accumulated_json)
+  
+  -- 2. If we're in an array and parsing failed, try closing the array and parsing
+  local array_parse_ok, array_data
+  if not parse_ok and in_array then
+    array_parse_ok, array_data = pcall(vim.fn.json_decode, accumulated_json .. "]")
+  end
   
   if parse_ok and type(data) == "table" then
     -- Successfully parsed a complete JSON object
     log.debug("Successfully parsed complete JSON object")
     
-    -- Process the response object
-    self:process_response_object(data, callbacks)
+    if vim.tbl_islist(data) then
+      -- If it's an array, process each object
+      log.debug("Parsed a JSON array with " .. #data .. " objects")
+      for _, obj in ipairs(data) do
+        self:process_response_object(obj, callbacks)
+      end
+    else
+      -- Process single object
+      self:process_response_object(data, callbacks)
+    end
     
     -- Reset the accumulated JSON for the next object
     accumulated_json = ""
-    last_processed_length = 0
-    ignore_next_comma = false
+    
+  elseif array_parse_ok and type(array_data) == "table" and vim.tbl_islist(array_data) then
+    -- Successfully parsed a partial array by adding closing bracket
+    log.debug("Successfully parsed partial JSON array with " .. #array_data .. " objects")
+    
+    -- Process each complete object in the array
+    for _, obj in ipairs(array_data) do
+      self:process_response_object(obj, callbacks)
+    end
+    
+    -- Keep the opening bracket for the next objects
+    accumulated_json = "["
   else
     -- Not a complete JSON object yet, continue accumulating
     log.debug("Incomplete JSON, continuing to accumulate")
