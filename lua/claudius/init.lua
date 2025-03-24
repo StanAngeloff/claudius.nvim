@@ -229,6 +229,9 @@ M.setup = function(opts)
     -- Default to Claude if not specified
     provider = require("claudius.provider.claude").new(config)
   end
+  
+  -- Make logging functions available to the provider
+  vim.g.claudius_log = log
 
   -- Setup logging
   local function write_log(level, msg)
@@ -770,8 +773,7 @@ function M.send_to_claude(opts)
     temperature = config.parameters.temperature,
   })
 
-  -- Log the outgoing request as JSON
-  log.debug("Sending request to Claude API:")
+  -- Log the request body as JSON
   log.debug("Request body: " .. json_encode(request_body))
 
   local spinner_timer = start_loading_spinner(bufnr)
