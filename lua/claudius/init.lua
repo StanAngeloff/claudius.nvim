@@ -163,8 +163,7 @@ local default_config = {
     temperature = nil, -- Will use default if nil
     vertex = {
       project_id = nil, -- Google Cloud project ID
-      location = "europe-central2-aiplatform", -- Google Cloud region
-      endpoint_id = nil, -- Vertex AI endpoint ID
+      location = "us-central1", -- Google Cloud region
     },
   },
   text_object = "m", -- Default text object key, set to false to disable
