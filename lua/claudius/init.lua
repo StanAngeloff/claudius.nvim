@@ -220,7 +220,7 @@ M.setup = function(opts)
   -- Merge user config with defaults
   opts = opts or {}
   config = vim.tbl_deep_extend("force", default_config, opts)
-  
+
   -- Initialize provider (currently only Claude is supported)
   provider = require("claudius.provider.claude").new(config)
 
@@ -577,7 +577,6 @@ function M.parse_buffer(bufnr)
   return messages, fm_code
 end
 
-
 -- Cancel ongoing request if any
 function M.cancel_request()
   local bufnr = vim.api.nvim_get_current_buf()
@@ -588,11 +587,11 @@ function M.cancel_request()
 
     -- Mark as cancelled
     state.request_cancelled = true
-    
+
     -- Use provider to cancel the request
     if provider:cancel_request(state.current_request) then
       state.current_request = nil
-      
+
       -- Clean up the buffer
       local last_line = vim.api.nvim_buf_line_count(bufnr)
       local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
@@ -757,12 +756,12 @@ function M.send_to_claude(opts)
       return tostring(result)
     end)
   end
-  
+
   -- Create request body
   local request_body = provider:create_request_body(formatted_messages, system_message, {
     model = config.model,
     max_tokens = config.parameters.max_tokens,
-    temperature = config.parameters.temperature
+    temperature = config.parameters.temperature,
   })
 
   -- Log the outgoing request as JSON
@@ -771,7 +770,7 @@ function M.send_to_claude(opts)
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
-  
+
   -- Format usage information for display
   local function format_usage(current, session)
     local pricing = require("claudius.pricing")
@@ -829,11 +828,11 @@ function M.send_to_claude(opts)
     on_data = function(line)
       log.debug("Received: " .. line)
     end,
-    
+
     on_stderr = function(line)
       log.error("stderr: " .. line)
     end,
-    
+
     on_error = function(msg)
       vim.schedule(function()
         vim.fn.timer_stop(spinner_timer)
@@ -850,14 +849,14 @@ function M.send_to_claude(opts)
         vim.notify(notify_msg, vim.log.levels.ERROR)
       end)
     end,
-    
+
     on_done = function()
       vim.schedule(function()
         vim.fn.timer_stop(spinner_timer)
         state.current_request = nil
       end)
     end,
-    
+
     on_usage = function(usage_data)
       if usage_data.type == "input" then
         state.current_usage.input_tokens = usage_data.tokens
@@ -865,7 +864,7 @@ function M.send_to_claude(opts)
         state.current_usage.output_tokens = usage_data.tokens
       end
     end,
-    
+
     on_message_complete = function()
       vim.schedule(function()
         -- Update session totals
@@ -890,7 +889,7 @@ function M.send_to_claude(opts)
         }
       end)
     end,
-    
+
     on_content = function(text)
       vim.schedule(function()
         -- Stop spinner on first content
@@ -948,7 +947,7 @@ function M.send_to_claude(opts)
         end
       end)
     end,
-    
+
     on_complete = function(code)
       log.info("Request completed with exit code: " .. tostring(code))
       vim.schedule(function()
@@ -984,7 +983,7 @@ function M.send_to_claude(opts)
           end
         end
       end)
-    end
+    end,
   }
 
   -- Send the request using the provider

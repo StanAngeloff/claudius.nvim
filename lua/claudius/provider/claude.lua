@@ -6,11 +6,11 @@ local M = {}
 -- Create a new Claude provider instance
 function M.new(opts)
   local provider = base.new(opts)
-  
+
   -- Claude-specific state
   provider.endpoint = "https://api.anthropic.com/v1/messages"
   provider.api_version = "2023-06-01"
-  
+
   -- Set metatable to use Claude methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
 end
@@ -21,10 +21,9 @@ function M.get_api_key(self)
   return require("claudius.provider.base").get_api_key(self, {
     env_var_name = "ANTHROPIC_API_KEY",
     keyring_service_name = "anthropic",
-    keyring_key_name = "api"
+    keyring_key_name = "api",
   })
 end
-
 
 -- Format messages for Claude API
 function M.format_messages(self, messages, system_message)
@@ -54,7 +53,7 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
     temperature = opts.temperature or self.options.parameters.temperature,
     stream = true,
   }
-  
+
   return request_body
 end
 
@@ -64,7 +63,7 @@ function M.get_request_headers(self)
   return {
     "x-api-key: " .. api_key,
     "anthropic-version: " .. self.api_version,
-    "content-type: application/json"
+    "content-type: application/json",
   }
 end
 
@@ -125,18 +124,18 @@ function M.process_response_line(self, line, callbacks)
       if callbacks.on_usage then
         callbacks.on_usage({
           type = "input",
-          tokens = data.message.usage.input_tokens
+          tokens = data.message.usage.input_tokens,
         })
       end
     end
   end
-  
+
   -- Track output tokens from usage field in any event
   if data.usage and data.usage.output_tokens then
     if callbacks.on_usage then
       callbacks.on_usage({
         type = "output",
-        tokens = data.usage.output_tokens
+        tokens = data.usage.output_tokens,
       })
     end
   end
