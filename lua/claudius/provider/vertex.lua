@@ -73,6 +73,10 @@ function M.new(opts)
   
   -- Set the API version
   provider.api_version = "v1"
+  
+  -- Initialize JSON state
+  provider.accumulated_json = ""
+  provider.in_array = false
 
   -- Set metatable to use Vertex AI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
@@ -246,6 +250,11 @@ local in_array = false
 
 -- Process a response line from Vertex AI API
 function M.process_response_line(self, line, callbacks)
+  -- Initialize state if not already done
+  if self.accumulated_json == nil then
+    self:init()
+  end
+
   -- Skip empty lines
   if not line or line == "" then
     return
@@ -276,19 +285,19 @@ function M.process_response_line(self, line, callbacks)
   -- Check if we're starting an array
   if line == "[" or line:match("^%[%s*{") then
     log.debug("Starting JSON array")
-    accumulated_json = line
-    in_array = true
+    self.accumulated_json = line
+    self.in_array = true
     return
   end
   
   -- Check if we're ending an array
   if line == "]" then
     log.debug("Ending JSON array")
-    accumulated_json = accumulated_json .. "]"
-    in_array = false
+    self.accumulated_json = self.accumulated_json .. "]"
+    self.in_array = false
     
     -- Try to parse the complete array
-    local parse_ok, data_array = pcall(vim.fn.json_decode, accumulated_json)
+    local parse_ok, data_array = pcall(vim.fn.json_decode, self.accumulated_json)
     if parse_ok and type(data_array) == "table" then
       log.debug("Successfully parsed complete JSON array with " .. #data_array .. " objects")
       
@@ -298,30 +307,30 @@ function M.process_response_line(self, line, callbacks)
       end
       
       -- Reset the accumulated JSON
-      accumulated_json = ""
+      self.accumulated_json = ""
     else
-      log.error("Failed to parse JSON array: " .. accumulated_json)
+      log.error("Failed to parse JSON array: " .. self.accumulated_json)
     end
     return
   end
   
   -- Append the current line to our accumulated JSON
-  accumulated_json = accumulated_json .. line
+  self.accumulated_json = self.accumulated_json .. line
   
   -- Try multiple parsing approaches:
   -- 1. Parse as a complete object/array
-  local parse_ok, data = pcall(vim.fn.json_decode, accumulated_json)
+  local parse_ok, data = pcall(vim.fn.json_decode, self.accumulated_json)
   
   -- 2. If we're in an array and parsing failed, try closing the array and parsing
   local array_parse_ok, array_data
   if not parse_ok then
-    if in_array then
+    if self.in_array then
       -- Try adding a closing bracket
-      array_parse_ok, array_data = pcall(vim.fn.json_decode, accumulated_json .. "]")
-    elseif accumulated_json:match("^%[") then
+      array_parse_ok, array_data = pcall(vim.fn.json_decode, self.accumulated_json .. "]")
+    elseif self.accumulated_json:match("^%[") then
       -- If it starts with [ but in_array wasn't set, try it anyway
-      in_array = true
-      array_parse_ok, array_data = pcall(vim.fn.json_decode, accumulated_json .. "]")
+      self.in_array = true
+      array_parse_ok, array_data = pcall(vim.fn.json_decode, self.accumulated_json .. "]")
     end
   end
   
@@ -341,7 +350,7 @@ function M.process_response_line(self, line, callbacks)
     end
     
     -- Reset the accumulated JSON for the next object
-    accumulated_json = ""
+    self.accumulated_json = ""
     
   elseif array_parse_ok and type(array_data) == "table" and vim.tbl_islist(array_data) then
     -- Successfully parsed a partial array by adding closing bracket
@@ -353,7 +362,7 @@ function M.process_response_line(self, line, callbacks)
     end
     
     -- Keep the opening bracket for the next objects
-    accumulated_json = "["
+    self.accumulated_json = "["
   else
     -- Not a complete JSON object yet, continue accumulating
     log.debug("Incomplete JSON, continuing to accumulate")
