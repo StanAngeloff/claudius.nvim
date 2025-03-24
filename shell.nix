@@ -27,7 +27,7 @@ pkgs.mkShell {
       runtimeInputs = [ aider-chat.withPlaywright ];
       text = ''
         aider \
-          --model anthropic/claude-3-5-sonnet-20241022 \
+          --model anthropic/claude-3-7-sonnet-20250219 \
             README.md lua/**/*.lua syntax/*.vim
       '';
     })
