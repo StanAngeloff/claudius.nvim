@@ -16,24 +16,37 @@ local function generate_access_token(service_account_json)
   f:close()
 
   -- Use gcloud to generate an access token
-  local cmd = string.format("GOOGLE_APPLICATION_CREDENTIALS=%s gcloud auth print-access-token 2>/dev/null", tmp_file)
+  -- Capture both stdout and stderr for better error reporting
+  local cmd = string.format("GOOGLE_APPLICATION_CREDENTIALS=%s gcloud auth print-access-token 2>&1", tmp_file)
   local handle = io.popen(cmd)
+  local output = nil
   local token = nil
   local err = nil
   
   if handle then
-    token = handle:read("*a")
+    output = handle:read("*a")
     local success, _, code = handle:close()
     
     -- Clean up the temporary file
     os.remove(tmp_file)
     
-    if success and token and #token > 0 then
-      -- Trim whitespace
-      token = token:gsub("%s+$", "")
-      return token
+    if success and output and #output > 0 then
+      -- Check if the output looks like a token (no error messages)
+      if not output:match("ERROR:") and not output:match("Command .* not found") then
+        -- Trim whitespace
+        token = output:gsub("%s+$", "")
+        return token
+      else
+        -- This is an error message from gcloud
+        err = "gcloud error: " .. output
+        log.debug("gcloud command output: " .. output)
+      end
     else
       err = "Failed to generate access token (exit code: " .. tostring(code) .. ")"
+      if output and #output > 0 then
+        err = err .. "\nOutput: " .. output
+        log.debug("gcloud command output: " .. output)
+      end
     end
   else
     -- Clean up the temporary file
