@@ -161,11 +161,11 @@ local default_config = {
   parameters = {
     max_tokens = nil, -- Will use default if nil
     temperature = nil, -- Will use default if nil
-  },
-  vertex = {
-    project_id = nil, -- Google Cloud project ID
-    location = "europe-central2-aiplatform", -- Google Cloud region
-    endpoint_id = nil, -- Vertex AI endpoint ID
+    vertex = {
+      project_id = nil, -- Google Cloud project ID
+      location = "europe-central2-aiplatform", -- Google Cloud region
+      endpoint_id = nil, -- Vertex AI endpoint ID
+    },
   },
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
