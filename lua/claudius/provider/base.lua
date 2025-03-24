@@ -75,8 +75,8 @@ function M.get_endpoint(self)
   -- To be implemented by specific providers
 end
 
--- Create temporary file for request body
-function M.create_temp_file(self, request_body)
+-- Create temporary file for request body (local helper function)
+local function create_temp_file(request_body)
   -- Create temporary file for request body
   local tmp_file = os.tmpname()
   -- Handle both Unix and Windows paths
@@ -138,7 +138,7 @@ function M.send_request(self, request_body, callbacks)
   end
   
   -- Create temporary file for request body
-  local tmp_file, err = self:create_temp_file(request_body)
+  local tmp_file, err = create_temp_file(request_body)
   if not tmp_file then
     if callbacks.on_error then
       callbacks.on_error(err or "Failed to create temporary file")
