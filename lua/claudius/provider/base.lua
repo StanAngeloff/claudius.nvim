@@ -164,9 +164,14 @@ function M.send_request(self, request_body, callbacks)
       if data then
         for _, line in ipairs(data) do
           if line and #line > 0 then
+            -- Log the raw response line
+            log.debug("Response: " .. line)
+            
             if callbacks.on_data then
-              self:process_response_line(line, callbacks)
+              callbacks.on_data(line)
             end
+            
+            self:process_response_line(line, callbacks)
           end
         end
       end
@@ -175,6 +180,9 @@ function M.send_request(self, request_body, callbacks)
       if data then
         for _, line in ipairs(data) do
           if line and #line > 0 then
+            -- Log stderr output
+            log.error("stderr: " .. line)
+            
             if callbacks.on_stderr then
               callbacks.on_stderr(line)
             end
@@ -185,6 +193,9 @@ function M.send_request(self, request_body, callbacks)
     on_exit = function(_, code)
       -- Clean up temporary file
       os.remove(tmp_file)
+      
+      -- Log exit code
+      log.info("Request completed with exit code: " .. tostring(code))
 
       if callbacks.on_complete then
         callbacks.on_complete(code)

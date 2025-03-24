@@ -105,6 +105,8 @@ function M.process_response_line(self, line, callbacks)
 
   -- Handle [DONE] message
   if line == "data: [DONE]" then
+    log.debug("Received [DONE] message")
+    
     if callbacks.on_done then
       callbacks.on_done()
     end
@@ -115,11 +117,15 @@ function M.process_response_line(self, line, callbacks)
   if not line:match("^data: ") then
     local ok, error_data = pcall(vim.fn.json_decode, line)
     if ok and error_data.error then
+      local msg = "OpenAI API error"
+      if error_data.error and error_data.error.message then
+        msg = error_data.error.message
+      end
+      
+      -- Log the error
+      log.error("API error: " .. msg)
+      
       if callbacks.on_error then
-        local msg = "OpenAI API error"
-        if error_data.error and error_data.error.message then
-          msg = error_data.error.message
-        end
         callbacks.on_error(msg)
       end
       return
@@ -169,11 +175,14 @@ function M.process_response_line(self, line, callbacks)
     -- Check if this is the end of the message
     if delta.role == "assistant" and not delta.content then
       -- This is just the role marker, skip it
+      log.debug("Received assistant role marker")
       return
     end
     
     -- Handle actual content
     if delta.content then
+      log.debug("Content delta: " .. delta.content)
+      
       if callbacks.on_content then
         callbacks.on_content(delta.content)
       end
@@ -181,6 +190,8 @@ function M.process_response_line(self, line, callbacks)
     
     -- Check if this is the finish_reason
     if data.choices[1].finish_reason then
+      log.debug("Received finish_reason: " .. (data.choices[1].finish_reason or "nil"))
+      
       if callbacks.on_message_complete then
         callbacks.on_message_complete()
       end

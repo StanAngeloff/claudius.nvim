@@ -78,11 +78,15 @@ function M.process_response_line(self, line, callbacks)
   -- First try parsing the line directly as JSON for error responses
   local ok, error_data = pcall(vim.fn.json_decode, line)
   if ok and error_data.type == "error" then
+    local msg = "Claude API error"
+    if error_data.error and error_data.error.message then
+      msg = error_data.error.message
+    end
+    
+    -- Log the error
+    log.error("API error: " .. msg)
+    
     if callbacks.on_error then
-      local msg = "Claude API error"
-      if error_data.error and error_data.error.message then
-        msg = error_data.error.message
-      end
       callbacks.on_error(msg)
     end
     return
@@ -150,6 +154,8 @@ function M.process_response_line(self, line, callbacks)
 
   -- Handle content blocks
   if data.type == "content_block_delta" and data.delta and data.delta.text then
+    log.debug("Content delta: " .. data.delta.text)
+    
     if callbacks.on_content then
       callbacks.on_content(data.delta.text)
     end
