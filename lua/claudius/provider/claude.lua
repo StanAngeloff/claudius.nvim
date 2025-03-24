@@ -17,7 +17,8 @@ end
 
 -- Try to get API key from system keyring
 function M.try_keyring(self)
-  return self:try_keyring("anthropic", "api", nil)
+  -- Call the base implementation with Claude-specific parameters
+  return require("claudius.provider.base").try_keyring(self, "anthropic", "api", nil)
 end
 
 -- Get API key from environment, keyring, or prompt
