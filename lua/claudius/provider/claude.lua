@@ -221,6 +221,12 @@ function M.process_response_line(self, line, callbacks)
     if callbacks.on_message_complete then
       callbacks.on_message_complete()
     end
+    
+    -- Also trigger on_done to ensure we clean up properly
+    -- This is important when Claude returns no new content
+    if callbacks.on_done then
+      callbacks.on_done()
+    end
   end
 
   -- Handle content_block_start event

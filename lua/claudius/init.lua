@@ -864,8 +864,42 @@ function M.send_to_provider(opts)
 
     on_done = function()
       vim.schedule(function()
-        vim.fn.timer_stop(spinner_timer)
+        if spinner_timer then
+          vim.fn.timer_stop(spinner_timer)
+        end
         state.current_request = nil
+        
+        -- Clean up spinner if response never started
+        if not response_started then
+          M.cleanup_spinner(bufnr)
+          
+          -- Auto-write if enabled
+          auto_write_buffer(bufnr)
+          
+          -- Add new prompt if needed
+          local last_line = vim.api.nvim_buf_line_count(bufnr)
+          M.buffer_cmd(bufnr, "undojoin")
+          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
+          
+          -- Move cursor to after the colon and any whitespace
+          local lines = vim.api.nvim_buf_get_lines(bufnr, last_line + 1, last_line + 2, false)
+          if #lines > 0 then
+            local line = lines[1]
+            local col = line:find(":%s*") + 1 -- Find position after the colon
+            while line:sub(col, col) == " " do -- Skip any whitespace
+              col = col + 1
+            end
+            -- Only set cursor if we're still in the buffer
+            if vim.api.nvim_get_current_buf() == bufnr then
+              vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
+            end
+          end
+          
+          -- Call the completion callback if provided
+          if opts.on_complete then
+            opts.on_complete()
+          end
+        end
       end)
     end,
 
