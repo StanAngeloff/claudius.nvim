@@ -12,6 +12,44 @@ M.models = {
     input = 3.0, -- $3 per million input tokens
     output = 15.0, -- $15 per million output tokens
   },
+  
+  -- Vertex AI models (Gemini)
+  ["gemini-2.0-flash-001"] = {
+    input = 0.10,  -- $0.10 per million input tokens (text/image/video)
+    output = 0.40, -- $0.40 per million output tokens
+  },
+  ["gemini-2.0-flash-lite-001"] = {
+    input = 0.075, -- $0.075 per million input tokens
+    output = 0.30, -- $0.30 per million output tokens
+  },
+  ["gemini-1.5-pro-001"] = {
+    input = 1.25,  -- $1.25 per million input tokens (standard context <= 128k)
+    output = 5.00, -- $5.00 per million output tokens (standard context <= 128k)
+  },
+  ["gemini-1.5-flash-001"] = {
+    input = 0.075, -- $0.075 per million input tokens (standard context <= 128k)
+    output = 0.30, -- $0.30 per million output tokens (standard context <= 128k)
+  },
+  ["gemini-1.5-flash-8b-001"] = {
+    input = 0.0375, -- $0.0375 per million input tokens (standard context <= 128k)
+    output = 0.15,  -- $0.15 per million output tokens (standard context <= 128k)
+  },
+  ["gemini-1.0-pro-001"] = {
+    input = 0.00125, -- $0.00125 per million input tokens
+    output = 0.00375, -- $0.00375 per million output tokens
+  },
+  ["gemini-1.0-pro-vision-001"] = {
+    input = 0.00125, -- $0.00125 per million input tokens
+    output = 0.00375, -- $0.00375 per million output tokens
+  },
+  ["gemini-1.0-ultra-001"] = {
+    input = 0.01875, -- $0.01875 per million input tokens
+    output = 0.0563, -- $0.0563 per million output tokens
+  },
+  ["gemini-1.0-ultra-vision-001"] = {
+    input = 0.01875, -- $0.01875 per million input tokens
+    output = 0.0563, -- $0.0563 per million output tokens
+  },
 
   -- OpenAI models
   ["gpt-4.5-preview"] = {

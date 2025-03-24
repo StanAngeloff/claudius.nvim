@@ -6,7 +6,7 @@ local M = {}
 M.models = {
   claude = "claude-3-7-sonnet-20250219",
   openai = "gpt-4o",
-  vertex = "gemini-1.5-pro",
+  vertex = "gemini-2.0-flash-001",
 }
 
 -- Available OpenAI models
@@ -63,13 +63,18 @@ M.openai_models = {
 
 -- Available Google Vertex AI models
 M.vertex_models = {
-  -- Gemini models
-  "gemini-1.5-pro",
-  "gemini-1.5-flash",
-  "gemini-1.0-pro",
-  "gemini-1.0-pro-vision",
-  "gemini-1.0-ultra",
-  "gemini-1.0-ultra-vision",
+  -- Gemini 2.0 models
+  "gemini-2.0-flash-001",
+  "gemini-2.0-flash-lite-001",
+  -- Gemini 1.5 models
+  "gemini-1.5-pro-001",
+  "gemini-1.5-flash-001",
+  "gemini-1.5-flash-8b-001",
+  -- Gemini 1.0 models
+  "gemini-1.0-pro-001",
+  "gemini-1.0-pro-vision-001",
+  "gemini-1.0-ultra-001",
+  "gemini-1.0-ultra-vision-001",
   -- PaLM models
   "text-bison",
   "chat-bison",
@@ -101,6 +106,7 @@ function M.is_provider_model(model_name, provider_name)
       or model_name:match("^text%-bison") ~= nil
       or model_name:match("^chat%-bison") ~= nil
       or model_name:match("^codechat%-bison") ~= nil
+      or model_name:match("^text%-embedding") ~= nil
   end
   return false
 end
