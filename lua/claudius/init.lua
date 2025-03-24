@@ -1,10 +1,10 @@
 --- Claudius plugin core functionality
---- Provides chat interface and Claude API integration
+--- Provides chat interface and API integration
 local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
-local api_key = nil
 local log = {}
 local buffers = require("claudius.buffers")
+local provider = nil
 
 -- Execute a command in the context of a specific buffer
 function M.buffer_cmd(bufnr, cmd)
@@ -16,7 +16,7 @@ function M.buffer_cmd(bufnr, cmd)
   vim.fn.win_execute(winid, "noautocmd " .. cmd)
 end
 
--- Session-wide usage tracking (intentionally kept global)
+-- Session-wide usage tracking
 local session_usage = {
   input_tokens = 0,
   output_tokens = 0,
@@ -220,6 +220,9 @@ M.setup = function(opts)
   -- Merge user config with defaults
   opts = opts or {}
   config = vim.tbl_deep_extend("force", default_config, opts)
+  
+  -- Initialize provider (currently only Claude is supported)
+  provider = require("claudius.provider.claude").new(config)
 
   -- Setup logging
   local function write_log(level, msg)
@@ -574,28 +577,6 @@ function M.parse_buffer(bufnr)
   return messages, fm_code
 end
 
--- Format messages for Claude API
-local function format_messages(messages)
-  local formatted = {}
-  local system_message = nil
-
-  for _, msg in ipairs(messages) do
-    if msg.type == MSG_TYPE.SYSTEM then
-      system_message = msg.content:gsub("%s+$", "")
-    else
-      local role = msg.type == MSG_TYPE.USER and "user" or msg.type == MSG_TYPE.ASSISTANT and "assistant" or nil
-
-      if role then
-        table.insert(formatted, {
-          role = role,
-          content = msg.content:gsub("%s+$", ""),
-        })
-      end
-    end
-  end
-
-  return formatted, system_message
-end
 
 -- Cancel ongoing request if any
 function M.cancel_request()
@@ -605,54 +586,34 @@ function M.cancel_request()
   if state.current_request then
     log.info("Cancelling request " .. tostring(state.current_request))
 
-    -- Get the process ID
-    local pid = vim.fn.jobpid(state.current_request)
-
     -- Mark as cancelled
     state.request_cancelled = true
-
-    if pid then
-      -- Send SIGINT first for clean connection termination
-      vim.fn.system("kill -INT " .. pid)
-      log.info("Sent SIGINT to curl process " .. pid)
-
-      -- Give curl a moment to cleanup, then force kill if still running
-      vim.defer_fn(function()
-        if state.current_request then
-          vim.fn.jobstop(state.current_request)
-          vim.fn.system("kill -KILL " .. pid)
-          log.info("Sent SIGKILL to curl process " .. pid)
-          state.current_request = nil
-        end
-      end, 500)
-    else
-      -- Fallback to jobstop if we couldn't get PID
-      vim.fn.jobstop(state.current_request)
+    
+    -- Use provider to cancel the request
+    if provider:cancel_request(state.current_request) then
       state.current_request = nil
+      
+      -- Clean up the buffer
+      local last_line = vim.api.nvim_buf_line_count(bufnr)
+      local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
+
+      -- If we're still showing the thinking message, remove it
+      if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+        log.debug("Cleaning up thinking message")
+        M.cleanup_spinner(bufnr)
+      end
+
+      -- Auto-write if enabled and we've received some content
+      if state.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+        auto_write_buffer(bufnr)
+      end
+
+      local msg = "Claudius: Request cancelled"
+      if config.logging.enabled then
+        msg = msg .. ". See " .. config.logging.path .. " for details"
+      end
+      vim.notify(msg, vim.log.levels.INFO)
     end
-
-    state.current_request = nil
-
-    -- Clean up the buffer
-    local last_line = vim.api.nvim_buf_line_count(bufnr)
-    local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
-
-    -- If we're still showing the thinking message, remove it
-    if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
-      log.debug("Cleaning up thinking message")
-      M.cleanup_spinner(bufnr)
-    end
-
-    -- Auto-write if enabled and we've received some content
-    if state.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
-      auto_write_buffer(bufnr)
-    end
-
-    local msg = "Claudius: Request cancelled"
-    if config.logging.enabled then
-      msg = msg .. ". See " .. config.logging.path .. " for details"
-    end
-    vim.notify(msg, vim.log.levels.INFO)
   else
     log.debug("Cancel request called but no current request found")
   end
@@ -731,35 +692,8 @@ function M.send_to_claude(opts)
   -- Auto-write the buffer before sending if enabled
   auto_write_buffer(bufnr)
 
-  -- Helper function to try getting API key from system keyring
-  local function try_keyring()
-    if vim.fn.has("linux") == 1 then
-      local handle = io.popen("secret-tool lookup service anthropic key api 2>/dev/null")
-      if handle then
-        local result = handle:read("*a")
-        handle:close()
-        if result and #result > 0 then
-          log.info("API key retrieved from system keyring")
-          return result:gsub("%s+$", "") -- Trim whitespace
-        end
-      end
-    end
-    return nil
-  end
-
-  -- Try environment variable first
-  api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-  if api_key then
-    log.info("API key found in environment variable")
-  end
-
-  -- Try system keyring if no env var
-  if not api_key then
-    api_key = try_keyring()
-  end
-
-  -- If still no API key, prompt for it
-  if not api_key then
+  -- Check if we need to prompt for API key
+  if not provider:get_api_key() then
     log.info("No API key found in environment or keyring, prompting user")
     vim.ui.input({
       prompt = "Enter your Anthropic API key: ",
@@ -769,7 +703,7 @@ function M.send_to_claude(opts)
       relative = "editor",
     }, function(input)
       if input then
-        api_key = input
+        provider.state.api_key = input
         log.info("API key set via prompt")
         -- Continue with the Claude request immediately
         M.send_to_claude()
@@ -802,7 +736,7 @@ function M.send_to_claude(opts)
     template_vars = result
   end
 
-  local formatted_messages, system_message = format_messages(messages)
+  local formatted_messages, system_message = provider:format_messages(messages, nil)
 
   -- Process template expressions in messages
   local eval = require("claudius.eval")
@@ -823,14 +757,13 @@ function M.send_to_claude(opts)
       return tostring(result)
     end)
   end
-  local request_body = {
+  
+  -- Create request body
+  local request_body = provider:create_request_body(formatted_messages, system_message, {
     model = config.model,
-    messages = formatted_messages,
-    system = system_message,
     max_tokens = config.parameters.max_tokens,
-    temperature = config.parameters.temperature,
-    stream = true,
-  }
+    temperature = config.parameters.temperature
+  })
 
   -- Log the outgoing request as JSON
   log.debug("Sending request to Claude API:")
@@ -838,6 +771,7 @@ function M.send_to_claude(opts)
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
+  
   -- Format usage information for display
   local function format_usage(current, session)
     local pricing = require("claudius.pricing")
@@ -884,87 +818,55 @@ function M.send_to_claude(opts)
     return table.concat(lines, "\n")
   end
 
-  local function handle_response_line(line, timer)
-    -- First try parsing the line directly as JSON for error responses
-    local ok, error_data = pcall(json_decode, line)
-    if ok and error_data.type == "error" then
+  -- Reset usage tracking for this buffer
+  state.current_usage = {
+    input_tokens = 0,
+    output_tokens = 0,
+  }
+
+  -- Set up callbacks for the provider
+  local callbacks = {
+    on_data = function(line)
+      log.debug("Received: " .. line)
+    end,
+    
+    on_stderr = function(line)
+      log.error("stderr: " .. line)
+    end,
+    
+    on_error = function(msg)
       vim.schedule(function()
-        vim.fn.timer_stop(timer)
+        vim.fn.timer_stop(spinner_timer)
         M.cleanup_spinner(bufnr)
         state.current_request = nil
 
         -- Auto-write on error if enabled
         auto_write_buffer(bufnr)
 
-        local msg = "Claude API error"
-        if error_data.error and error_data.error.message then
-          msg = error_data.error.message
-        end
         local notify_msg = "Claudius: " .. msg
         if config.logging and config.logging.enabled then
           notify_msg = notify_msg .. ". See " .. config.logging.path .. " for details"
         end
         vim.notify(notify_msg, vim.log.levels.ERROR)
       end)
-      return
-    end
-
-    -- Otherwise handle normal event stream format
-    if not line:match("^data: ") then
-      return
-    end
-
-    local json_str = line:gsub("^data: ", "")
-    if json_str == "[DONE]" then
+    end,
+    
+    on_done = function()
       vim.schedule(function()
-        vim.fn.timer_stop(timer)
+        vim.fn.timer_stop(spinner_timer)
         state.current_request = nil
       end)
-      return
-    end
-
-    local parse_ok, data = pcall(json_decode, json_str)
-    if not parse_ok then
-      return
-    end
-
-    -- Handle error responses
-    if data.type == "error" then
-      vim.schedule(function()
-        vim.fn.timer_stop(timer)
-        M.cleanup_spinner(bufnr)
-        state.current_request = nil
-
-        -- Auto-write on error if enabled
-        auto_write_buffer(bufnr)
-
-        local msg = "Claude API error"
-        if data.error and data.error.message then
-          msg = data.error.message
-        end
-        local notify_msg = "Claudius: " .. msg
-        if config.logging and config.logging.enabled then
-          notify_msg = notify_msg .. ". See " .. config.logging.path .. " for details"
-        end
-        vim.notify(notify_msg, vim.log.levels.ERROR)
-      end)
-      return
-    end
-
-    -- Track usage information from all events
-    if data.type == "message_start" then
-      -- Get input tokens from message.usage in message_start event
-      if data.message and data.message.usage and data.message.usage.input_tokens then
-        state.current_usage.input_tokens = data.message.usage.input_tokens
+    end,
+    
+    on_usage = function(usage_data)
+      if usage_data.type == "input" then
+        state.current_usage.input_tokens = usage_data.tokens
+      elseif usage_data.type == "output" then
+        state.current_usage.output_tokens = usage_data.tokens
       end
-    end
-    -- Track output tokens from usage field in any event
-    if data.usage and data.usage.output_tokens then
-      state.current_usage.output_tokens = data.usage.output_tokens
-    end
-
-    -- Display final usage on message_stop
-    if data.type == "message_stop" and state.current_usage then
+    end,
+    
+    on_message_complete = function()
       vim.schedule(function()
         -- Update session totals
         session_usage.input_tokens = session_usage.input_tokens + (state.current_usage.input_tokens or 0)
@@ -987,17 +889,17 @@ function M.send_to_claude(opts)
           output_tokens = 0,
         }
       end)
-    end
-
-    if data.type == "content_block_delta" and data.delta and data.delta.text then
+    end,
+    
+    on_content = function(text)
       vim.schedule(function()
         -- Stop spinner on first content
         if not response_started then
-          vim.fn.timer_stop(timer)
+          vim.fn.timer_stop(spinner_timer)
         end
 
         -- Split content into lines
-        local lines = vim.split(data.delta.text, "\n", { plain = true })
+        local lines = vim.split(text, "\n", { plain = true })
 
         if #lines > 0 then
           local last_line = vim.api.nvim_buf_line_count(bufnr)
@@ -1045,84 +947,11 @@ function M.send_to_claude(opts)
           response_started = true
         end
       end)
-    end
-  end
-
-  -- Create temporary file for request body with claudius prefix
-  local tmp_file = os.tmpname()
-  -- Handle both Unix and Windows paths
-  local tmp_dir = tmp_file:match("^(.+)[/\\]")
-  local tmp_name = tmp_file:match("[/\\]([^/\\]+)$")
-  -- Use the same separator that was in the original path
-  local sep = tmp_file:match("[/\\]")
-  tmp_file = tmp_dir .. sep .. "claudius_" .. tmp_name
-  local f = io.open(tmp_file, "w")
-  if not f then
-    vim.notify("Claudius: Failed to create temporary file", vim.log.levels.ERROR)
-    return
-  end
-  f:write(json_encode(request_body))
-  f:close()
-
-  -- Prepare curl command with proper timeouts and signal handling
-  local cmd = {
-    "curl",
-    "-N", -- disable buffering
-    "-s", -- silent mode
-    "--connect-timeout",
-    "10", -- connection timeout
-    "--max-time",
-    "120", -- maximum time allowed
-    "--retry",
-    "0", -- disable retries
-    "--http1.1", -- force HTTP/1.1 for better interrupt handling
-    "-H",
-    "Connection: close", -- request connection close
-    "-H",
-    "x-api-key: " .. api_key,
-    "-H",
-    "anthropic-version: 2023-06-01",
-    "-H",
-    "content-type: application/json",
-    "-d",
-    "@" .. tmp_file,
-    "https://api.anthropic.com/v1/messages",
-  }
-
-  -- Start job in its own process group
-  -- Reset usage tracking for this buffer
-  state.current_usage = {
-    input_tokens = 0,
-    output_tokens = 0,
-  }
-
-  state.current_request = vim.fn.jobstart(cmd, {
-    detach = true, -- Put process in its own group
-    on_stdout = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line and #line > 0 then
-            log.debug("Received: " .. line)
-            handle_response_line(line, spinner_timer)
-          end
-        end
-      end
     end,
-    on_stderr = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line and #line > 0 then
-            log.error("stderr: " .. line)
-          end
-        end
-      end
-    end,
-    on_exit = function(_, code)
+    
+    on_complete = function(code)
       log.info("Request completed with exit code: " .. tostring(code))
       vim.schedule(function()
-        -- Clean up temporary file
-        os.remove(tmp_file)
-
         state.current_request = nil
         vim.fn.timer_stop(spinner_timer)
 
@@ -1155,8 +984,11 @@ function M.send_to_claude(opts)
           end
         end
       end)
-    end,
-  })
+    end
+  }
+
+  -- Send the request using the provider
+  state.current_request = provider:send_request(request_body, callbacks)
 end
 
 return M
