@@ -75,6 +75,11 @@ end
 
 -- Process a response line from Claude API
 function M.process_response_line(self, line, callbacks)
+  -- Skip empty lines
+  if not line or line == "" then
+    return
+  end
+
   -- First try parsing the line directly as JSON for error responses
   local ok, error_data = pcall(vim.fn.json_decode, line)
   if ok and error_data.type == "error" then
@@ -92,31 +97,68 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Otherwise handle normal event stream format
+  -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
+    -- This is not a standard SSE data line
+    log.warn("Unexpected response format from Claude API: " .. line)
+    
+    -- Try parsing as a direct JSON error response again (more thorough check)
+    local parse_ok, error_json = pcall(vim.fn.json_decode, line)
+    if parse_ok and type(error_json) == "table" and error_json.error then
+      local msg = "Claude API error"
+      if error_json.error.message then
+        msg = error_json.error.message
+      end
+      
+      log.error("API error in unexpected format: " .. msg)
+      
+      if callbacks.on_error then
+        callbacks.on_error(msg)
+      end
+      return
+    end
+    
+    -- If we can't parse it as an error, log and ignore
+    log.warn("Ignoring unrecognized Claude API response line")
     return
   end
 
+  -- Extract JSON from data: prefix
   local json_str = line:gsub("^data: ", "")
+  
+  -- Handle [DONE] message
   if json_str == "[DONE]" then
+    log.debug("Received [DONE] message from Claude API")
+    
     if callbacks.on_done then
       callbacks.on_done()
     end
     return
   end
 
+  -- Parse the JSON data
   local parse_ok, data = pcall(vim.fn.json_decode, json_str)
   if not parse_ok then
+    log.warn("Failed to parse JSON from Claude API response: " .. json_str)
+    return
+  end
+
+  -- Validate the response structure
+  if type(data) ~= "table" then
+    log.warn("Expected table in Claude API response, got: " .. type(data))
     return
   end
 
   -- Handle error responses
   if data.type == "error" then
+    local msg = "Claude API error"
+    if data.error and data.error.message then
+      msg = data.error.message
+    end
+    
+    log.error("API error in response: " .. msg)
+    
     if callbacks.on_error then
-      local msg = "Claude API error"
-      if data.error and data.error.message then
-        msg = data.error.message
-      end
       callbacks.on_error(msg)
     end
     return
@@ -124,6 +166,7 @@ function M.process_response_line(self, line, callbacks)
 
   -- Track usage information
   if data.type == "message_start" then
+    log.debug("Received message_start event")
     -- Get input tokens from message.usage in message_start event
     if data.message and data.message.usage and data.message.usage.input_tokens then
       if callbacks.on_usage then
@@ -132,6 +175,8 @@ function M.process_response_line(self, line, callbacks)
           tokens = data.message.usage.input_tokens,
         })
       end
+    else
+      log.warn("Expected usage information in message_start event but not found")
     end
   end
 
@@ -147,18 +192,25 @@ function M.process_response_line(self, line, callbacks)
 
   -- Handle message_stop event
   if data.type == "message_stop" then
+    log.debug("Received message_stop event")
     if callbacks.on_message_complete then
       callbacks.on_message_complete()
     end
   end
 
   -- Handle content blocks
-  if data.type == "content_block_delta" and data.delta and data.delta.text then
-    log.debug("Content delta: " .. data.delta.text)
-    
-    if callbacks.on_content then
-      callbacks.on_content(data.delta.text)
+  if data.type == "content_block_delta" then
+    if data.delta and data.delta.text then
+      log.debug("Content delta: " .. data.delta.text)
+      
+      if callbacks.on_content then
+        callbacks.on_content(data.delta.text)
+      end
+    else
+      log.warn("Received content_block_delta without expected text field")
     end
+  elseif data.type and data.type ~= "message_start" and data.type ~= "message_stop" then
+    log.warn("Received unknown event type from Claude API: " .. data.type)
   end
 end
 
