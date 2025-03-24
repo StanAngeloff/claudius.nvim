@@ -156,7 +156,8 @@ local default_config = {
   pricing = {
     enabled = true, -- Whether to show pricing information in notifications
   },
-  model = "claude-3-7-sonnet-20250219", -- Default Claude model to use
+  provider = "claude", -- Default provider: "claude" or "openai"
+  model = "claude-3-7-sonnet-20250219", -- Default model to use
   parameters = {
     max_tokens = 4000, -- Maximum tokens in response
     temperature = 0.7, -- Response creativity (0.0-1.0)
@@ -221,8 +222,13 @@ M.setup = function(opts)
   opts = opts or {}
   config = vim.tbl_deep_extend("force", default_config, opts)
 
-  -- Initialize provider (currently only Claude is supported)
-  provider = require("claudius.provider.claude").new(config)
+  -- Initialize provider based on config
+  if config.provider == "openai" then
+    provider = require("claudius.provider.openai").new(config)
+  else
+    -- Default to Claude if not specified
+    provider = require("claudius.provider.claude").new(config)
+  end
 
   -- Setup logging
   local function write_log(level, msg)

@@ -1,8 +1,9 @@
 --- Claudius pricing functionality
 local M = {}
 
--- Pricing information for Claude models (USD per million tokens)
+-- Pricing information for models (USD per million tokens)
 M.models = {
+  -- Claude models
   ["claude-3-5-sonnet"] = {
     input = 3.0, -- $3 per million input tokens
     output = 15.0, -- $15 per million output tokens
@@ -10,6 +11,24 @@ M.models = {
   ["claude-3-7-sonnet"] = {
     input = 3.0, -- $3 per million input tokens
     output = 15.0, -- $15 per million output tokens
+  },
+  
+  -- OpenAI models
+  ["gpt-4o"] = {
+    input = 5.0, -- $5 per million input tokens
+    output = 15.0, -- $15 per million output tokens
+  },
+  ["gpt-4-turbo"] = {
+    input = 10.0, -- $10 per million input tokens
+    output = 30.0, -- $30 per million output tokens
+  },
+  ["gpt-4"] = {
+    input = 30.0, -- $30 per million input tokens
+    output = 60.0, -- $60 per million output tokens
+  },
+  ["gpt-3.5-turbo"] = {
+    input = 0.5, -- $0.5 per million input tokens
+    output = 1.5, -- $1.5 per million output tokens
   },
 }
 

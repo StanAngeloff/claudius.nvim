@@ -15,16 +15,26 @@ Transform Neovim into your AI conversation companion with a native interface to 
 
 Claudius requires:
 
-- An Anthropic API key (via ANTHROPIC_API_KEY environment variable, or manual input prompt)
+- An API key for your chosen provider:
+  - Anthropic API key (via ANTHROPIC_API_KEY environment variable)
+  - OpenAI API key (via OPENAI_API_KEY environment variable)
 - Neovim with Tree-sitter support (required for core functionality)
 - Tree-sitter markdown parser (required for message formatting and syntax highlighting)
 
 Optional Features:
 
 - On Linux systems with libsecret installed, your API key can be stored and retrieved from the system keyring:
+  
+  For Anthropic:
   ```bash
   secret-tool store --label="Anthropic API Key" service anthropic key api
   ```
+  
+  For OpenAI:
+  ```bash
+  secret-tool store --label="OpenAI API Key" service openai key api
+  ```
+  
   This will securely prompt for your API key and store it in the system keyring.
 
 ## Installation
@@ -44,7 +54,9 @@ The plugin works out of the box with sensible defaults, but you can customize va
 
 ```lua
 require("claudius").setup({
-    model = "claude-3-7-sonnet-20250219",  -- Claude model to use
+    provider = "claude",  -- AI provider: "claude" or "openai"
+    model = "claude-3-7-sonnet-20250219",  -- Model to use
+    -- For OpenAI, use models like "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"
     parameters = {
         max_tokens = 4000,  -- Maximum tokens in response
         temperature = 0.7,  -- Response creativity (0.0-1.0)
