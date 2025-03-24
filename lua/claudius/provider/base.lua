@@ -36,20 +36,20 @@ local function try_keyring(service, key_name)
 end
 
 -- Get API key from environment, keyring, or prompt
-function M.get_api_key(self, env_var_name, service_name, key_name)
+function M.get_api_key(self, opts)
   -- Return cached key if we have it
   if self.state.api_key then
     return self.state.api_key
   end
   
   -- Try environment variable if provided
-  if env_var_name then
-    self.state.api_key = os.getenv(env_var_name)
+  if opts and opts.env_var_name then
+    self.state.api_key = os.getenv(opts.env_var_name)
   end
   
   -- Try system keyring if no env var and service/key names are provided
-  if not self.state.api_key and service_name and key_name then
-    self.state.api_key = try_keyring(service_name, key_name)
+  if not self.state.api_key and opts and opts.service_name and opts.key_name then
+    self.state.api_key = try_keyring(opts.service_name, opts.key_name)
   end
   
   return self.state.api_key

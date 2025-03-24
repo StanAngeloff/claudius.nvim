@@ -18,7 +18,11 @@ end
 -- Get API key from environment, keyring, or prompt
 function M.get_api_key(self)
   -- Call the base implementation with Claude-specific parameters
-  return require("claudius.provider.base").get_api_key(self, "ANTHROPIC_API_KEY", "anthropic", "api")
+  return require("claudius.provider.base").get_api_key(self, {
+    env_var_name = "ANTHROPIC_API_KEY",
+    service_name = "anthropic",
+    key_name = "api"
+  })
 end
 
 
