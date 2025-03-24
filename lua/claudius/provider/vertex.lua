@@ -347,6 +347,24 @@ function M.process_sse_buffer(self, callbacks)
 
       -- Remove the size and \r from the buffer
       self.buffer = self.buffer:sub(#hex_size + 2)
+      
+      -- If we're in the middle of an array, try to parse what we have so far
+      if self.json_array_started and self.json_array_content ~= "[" then
+        -- Try to parse the array with a closing bracket
+        local temp_array = self.json_array_content .. "]"
+        local ok, data_array = pcall(vim.fn.json_decode, temp_array)
+        if ok and type(data_array) == "table" then
+          log.debug("Successfully parsed partial JSON array with " .. #data_array .. " objects")
+          
+          -- Process each object in the array
+          for _, data in ipairs(data_array) do
+            self:process_response_object(data, callbacks)
+          end
+          
+          -- Keep the opening bracket for the next objects
+          self.json_array_content = "["
+        end
+      end
     end
 
     -- Check if we have enough data in the buffer
@@ -426,6 +444,21 @@ function M.process_data_chunk(self, data_chunk, callbacks)
     log.debug("Found JSON object separator")
     if self.json_array_started then
       self.json_array_content = self.json_array_content .. ","
+      
+      -- Try to parse what we have so far by adding a closing bracket
+      local temp_array = self.json_array_content .. "]"
+      local ok, data_array = pcall(vim.fn.json_decode, temp_array)
+      if ok and type(data_array) == "table" and #data_array > 0 then
+        log.debug("Successfully parsed partial JSON array with " .. #data_array .. " objects after comma")
+        
+        -- Process each object in the array
+        for _, data in ipairs(data_array) do
+          self:process_response_object(data, callbacks)
+        end
+        
+        -- Keep the opening bracket and the comma for the next object
+        self.json_array_content = "["
+      end
     end
     return
   end
@@ -443,12 +476,15 @@ function M.process_data_chunk(self, data_chunk, callbacks)
         self.json_array_content = self.json_array_content .. data_chunk
       else
         -- Otherwise, we need to add the object with its leading comma
-        self.json_array_content = self.json_array_content .. "," .. data_chunk
+        self.json_array_content = self.json_array_content .. data_chunk
       end
+      
+      -- Process the object immediately
+      self:process_response_object(data, callbacks)
+    else
+      -- Process the object
+      self:process_response_object(data, callbacks)
     end
-    
-    -- Process the object
-    self:process_response_object(data, callbacks)
   else
     -- Not a valid JSON object, log it
     log.error("Failed to parse JSON object: " .. data_chunk)
