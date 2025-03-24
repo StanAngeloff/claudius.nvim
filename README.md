@@ -55,11 +55,12 @@ The plugin works out of the box with sensible defaults, but you can customize va
 ```lua
 require("claudius").setup({
     provider = "claude",  -- AI provider: "claude" or "openai"
-    model = "claude-3-7-sonnet-20250219",  -- Model to use
-    -- For OpenAI, use models like "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"
+    model = nil,  -- Uses provider defaults if nil
+    -- Claude default: "claude-3-7-sonnet-20250219"
+    -- OpenAI default: "gpt-4o"
     parameters = {
-        max_tokens = 4000,  -- Maximum tokens in response
-        temperature = 0.7,  -- Response creativity (0.0-1.0)
+        max_tokens = nil,  -- Default: 4000
+        temperature = nil,  -- Default: 0.7
     },
     highlights = {
         system = "Special",    -- highlight group for system messages

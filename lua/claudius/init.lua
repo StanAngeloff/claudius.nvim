@@ -157,10 +157,10 @@ local default_config = {
     enabled = true, -- Whether to show pricing information in notifications
   },
   provider = "claude", -- Default provider: "claude" or "openai"
-  model = "claude-3-7-sonnet-20250219", -- Default model to use
+  model = nil, -- Will use provider-specific default if nil
   parameters = {
-    max_tokens = 4000, -- Maximum tokens in response
-    temperature = 0.7, -- Response creativity (0.0-1.0)
+    max_tokens = nil, -- Will use default if nil
+    temperature = nil, -- Will use default if nil
   },
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
@@ -223,6 +223,22 @@ M.setup = function(opts)
   config = vim.tbl_deep_extend("force", default_config, opts)
 
   -- Initialize provider based on config
+  local provider_defaults = require("claudius.provider.defaults")
+  
+  -- Set default model if not specified
+  if not config.model then
+    config.model = provider_defaults.get_model(config.provider)
+  end
+  
+  -- Set default parameters if not specified
+  if not config.parameters.max_tokens then
+    config.parameters.max_tokens = provider_defaults.parameters.max_tokens
+  end
+  
+  if not config.parameters.temperature then
+    config.parameters.temperature = provider_defaults.parameters.temperature
+  end
+  
   if config.provider == "openai" then
     provider = require("claudius.provider.openai").new(config)
   else
@@ -747,15 +763,12 @@ function M.send_to_provider(opts)
   end
 
   -- Create request body with provider-specific model
-  local model = config.model
-  -- If using OpenAI provider with a Claude model, switch to a default OpenAI model
-  if config.provider == "openai" and model:match("^claude") then
-    log.info("Switching from Claude model to default OpenAI model gpt-4o")
-    model = "gpt-4o"
-  -- If using Claude provider with an OpenAI model, switch to a default Claude model
-  elseif config.provider == "claude" and model:match("^gpt") then
-    log.info("Switching from OpenAI model to default Claude model claude-3-7-sonnet-20250219")
-    model = "claude-3-7-sonnet-20250219"
+  local provider_defaults = require("claudius.provider.defaults")
+  local model = provider_defaults.get_appropriate_model(config.model, config.provider)
+  
+  -- Log if we had to switch models
+  if model ~= config.model then
+    log.info("Switching from " .. config.model .. " to " .. model .. " for " .. config.provider .. " provider")
   end
   
   local request_body = provider:create_request_body(formatted_messages, system_message, {
