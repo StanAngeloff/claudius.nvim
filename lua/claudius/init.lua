@@ -780,7 +780,6 @@ function M.send_to_provider(opts)
   -- Log the request details
   log.debug("Provider: " .. config.provider)
   log.debug("Model: " .. model)
-  log.debug("Request body: " .. json_encode(request_body))
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false

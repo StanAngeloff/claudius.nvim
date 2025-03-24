@@ -98,6 +98,44 @@ local function create_temp_file(request_body)
   return tmp_file
 end
 
+-- Redact sensitive information from headers
+local function redact_sensitive_header(header)
+  -- Check if header contains sensitive information (API keys, tokens)
+  if header:match("^Authorization:") or header:lower():match("%-key:") or header:lower():match("key:") then
+    -- Extract the header name
+    local header_name = header:match("^([^:]+):")
+    if header_name then
+      return header_name .. ": REDACTED"
+    end
+  end
+  return header
+end
+
+-- Escape shell arguments properly
+local function escape_shell_arg(arg)
+  -- Basic shell escaping for arguments
+  if arg:match("[%s'\"]") then
+    -- If it contains spaces, quotes, etc., wrap in double quotes and escape internal double quotes
+    return '"' .. arg:gsub('"', '\\"') .. '"'
+  end
+  return arg
+end
+
+-- Format curl command for logging
+local function format_curl_command_for_log(cmd)
+  local result = {}
+  for i, arg in ipairs(cmd) do
+    if i > 1 and cmd[i-1] == "-H" then
+      -- This is a header, redact sensitive information
+      table.insert(result, escape_shell_arg(redact_sensitive_header(arg)))
+    else
+      -- Regular argument
+      table.insert(result, escape_shell_arg(arg))
+    end
+  end
+  return table.concat(result, " ")
+end
+
 -- Prepare curl command with common options
 function M.prepare_curl_command(self, tmp_file, headers, endpoint)
   local cmd = {
@@ -151,11 +189,20 @@ function M.send_request(self, request_body, callbacks)
   local headers = self:get_request_headers()
   local endpoint = self:get_endpoint()
 
-  -- Log the API request
-  log.debug("Sending request to API endpoint: " .. endpoint)
-
   -- Prepare curl command
   local cmd = self:prepare_curl_command(tmp_file, headers, endpoint)
+  
+  -- Log the API request with detailed information
+  log.debug("Sending request to API endpoint: " .. endpoint)
+  
+  -- Log the curl command (with sensitive information redacted)
+  local curl_cmd_log = format_curl_command_for_log(cmd)
+  -- Replace the temporary file path with @request.json for easier reproduction
+  curl_cmd_log = curl_cmd_log:gsub(vim.fn.escape(tmp_file, "%-%."), "request.json")
+  log.debug("Equivalent curl command: " .. curl_cmd_log)
+  
+  -- Log the request body for debugging
+  log.debug("Request body: " .. vim.fn.json_encode(request_body))
 
   -- Start job
   local job_id = vim.fn.jobstart(cmd, {
