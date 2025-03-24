@@ -15,16 +15,10 @@ function M.new(opts)
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
 end
 
--- Try to get API key from system keyring
-function M.try_keyring(self)
-  -- Call the base implementation with Claude-specific parameters
-  return require("claudius.provider.base").try_keyring(self, "anthropic", "api", nil)
-end
-
 -- Get API key from environment, keyring, or prompt
 function M.get_api_key(self)
-  -- Call the base implementation with Claude-specific environment variable
-  return require("claudius.provider.base").get_api_key(self, "ANTHROPIC_API_KEY")
+  -- Call the base implementation with Claude-specific parameters
+  return require("claudius.provider.base").get_api_key(self, "ANTHROPIC_API_KEY", "anthropic", "api")
 end
 
 
