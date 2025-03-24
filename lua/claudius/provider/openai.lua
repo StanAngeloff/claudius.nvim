@@ -77,6 +77,9 @@ function M.create_request_body(self, formatted_messages, _, opts)
     max_tokens = opts.max_tokens or self.options.parameters.max_tokens,
     temperature = opts.temperature or self.options.parameters.temperature,
     stream = true,
+    stream_options = {
+      include_usage = true -- Request usage information in the final chunk
+    }
   }
 
   return request_body
@@ -111,6 +114,38 @@ function M.process_response_line(self, line, callbacks)
       callbacks.on_done()
     end
     return
+  end
+  
+  -- Handle final chunk with usage information (empty choices array with usage data)
+  if line:match("^data: ") then
+    local json_str = line:gsub("^data: ", "")
+    local ok, data = pcall(vim.fn.json_decode, json_str)
+    
+    if ok and data and data.choices and #data.choices == 0 and data.usage then
+      log.debug("Received final chunk with usage information")
+      
+      -- Process usage information
+      if type(data.usage) == "table" then
+        if callbacks.on_usage and data.usage.prompt_tokens then
+          callbacks.on_usage({
+            type = "input",
+            tokens = data.usage.prompt_tokens,
+          })
+        end
+        if callbacks.on_usage and data.usage.completion_tokens then
+          callbacks.on_usage({
+            type = "output",
+            tokens = data.usage.completion_tokens,
+          })
+        end
+        
+        -- Signal message completion
+        if callbacks.on_message_complete then
+          callbacks.on_message_complete()
+        end
+      end
+      return
+    end
   end
 
   -- Check for expected format: lines should start with "data: "
@@ -169,25 +204,7 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Track usage information if available
-  if data.usage then
-    if type(data.usage) ~= "table" then
-      log.warn("Expected usage to be a table, got: " .. type(data.usage))
-    else
-      if callbacks.on_usage and data.usage.prompt_tokens then
-        callbacks.on_usage({
-          type = "input",
-          tokens = data.usage.prompt_tokens,
-        })
-      end
-      if callbacks.on_usage and data.usage.completion_tokens then
-        callbacks.on_usage({
-          type = "output",
-          tokens = data.usage.completion_tokens,
-        })
-      end
-    end
-  end
+  -- Note: Usage information is now handled in the final chunk with empty choices array
 
   -- Handle content deltas
   if not data.choices then
