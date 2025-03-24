@@ -246,11 +246,11 @@ end
 
 -- Initialize provider state
 function M.init(self)
-  -- Initialize state for SSE parsing
+  -- Initialize state for chunked transfer encoding parsing
   self.buffer = ""
-  self.current_data_size = nil
-  self.json_array_started = false
-  self.json_array_content = "["
+  self.current_chunk_size = nil
+  self.in_json_array = false
+  self.partial_json = nil
 end
 
 -- Check for unprocessed data at the end of a response
@@ -261,31 +261,20 @@ function M.check_unprocessed_json(self)
     
     -- Reset the buffer
     self.buffer = ""
-    self.current_data_size = nil
+    self.current_chunk_size = nil
   end
   
-  -- If we started a JSON array but never finished it, try to process it
-  if self.json_array_started and self.json_array_content ~= "[" then
-    log.debug("Processing incomplete JSON array at end of response")
-    
-    -- Close the array and try to parse it
-    local json_array = self.json_array_content .. "]"
-    local ok, data = pcall(vim.fn.json_decode, json_array)
-    if ok and type(data) == "table" then
-      log.debug("Successfully parsed final JSON array with " .. #data .. " objects")
-      -- We don't have callbacks here, so we can't process the data
-      -- Just log it for debugging
-    else
-      log.error("Failed to parse final JSON array: " .. json_array)
-    end
-    
-    -- Reset the JSON array state
-    self.json_array_started = false
-    self.json_array_content = "["
+  -- If we have partial JSON, log it
+  if self.partial_json then
+    log.debug("Unprocessed partial JSON at end of response: " .. self.partial_json)
+    self.partial_json = nil
   end
+  
+  -- Reset array state
+  self.in_json_array = false
 end
 
--- Process a response line from Vertex AI API (SSE format)
+-- Process a response line from Vertex AI API (chunked transfer encoding)
 function M.process_response_line(self, line, callbacks)
   -- Initialize state if not already done
   if self.buffer == nil then
@@ -299,9 +288,9 @@ function M.process_response_line(self, line, callbacks)
 
   -- Log the raw line for debugging (truncate if too long)
   if #line > 100 then
-    log.debug("Processing SSE line: " .. line:sub(1, 100) .. "... (" .. #line .. " bytes)")
+    log.debug("Processing chunk line: " .. line:sub(1, 100) .. "... (" .. #line .. " bytes)")
   else
-    log.debug("Processing SSE line: " .. line)
+    log.debug("Processing chunk line: " .. line)
   end
 
   -- First try to parse the line as a direct JSON error response
@@ -324,76 +313,72 @@ function M.process_response_line(self, line, callbacks)
   -- Append the current line to our buffer
   self.buffer = self.buffer .. line
 
-  -- Process the buffer as SSE data
-  self:process_sse_buffer(callbacks)
+  -- Process the buffer as chunked transfer encoding data
+  self:process_chunked_buffer(callbacks)
 end
 
--- Process the SSE buffer
-function M.process_sse_buffer(self, callbacks)
+-- Process the chunked transfer encoding buffer
+function M.process_chunked_buffer(self, callbacks)
   -- Process as much of the buffer as we can
   while #self.buffer > 0 do
-    -- If we don't have a data size yet, try to parse it
-    if not self.current_data_size then
-      -- Look for a hexadecimal number followed by \r
-      local hex_size = self.buffer:match("^([0-9a-fA-F]+)\r")
+    -- If we don't have a chunk size yet, try to parse it
+    if not self.current_chunk_size then
+      -- Look for a hexadecimal number followed by \r\n
+      local hex_size = self.buffer:match("^([0-9a-fA-F]+)\r\n")
       if not hex_size then
         -- Not enough data yet, wait for more
         return
       end
 
       -- Convert hex to decimal
-      self.current_data_size = tonumber(hex_size, 16)
-      log.debug("Found SSE data chunk size: " .. hex_size .. " (" .. self.current_data_size .. " bytes)")
+      self.current_chunk_size = tonumber(hex_size, 16)
+      log.debug("Found chunk size: " .. hex_size .. " (" .. self.current_chunk_size .. " bytes)")
 
-      -- Remove the size and \r from the buffer
-      self.buffer = self.buffer:sub(#hex_size + 2)
+      -- Remove the size and \r\n from the buffer
+      self.buffer = self.buffer:sub(#hex_size + 3)
       
-      -- If we're in the middle of an array, try to parse what we have so far
-      if self.json_array_started and self.json_array_content ~= "[" then
-        -- Try to parse the array with a closing bracket
-        local temp_array = self.json_array_content .. "]"
-        local ok, data_array = pcall(vim.fn.json_decode, temp_array)
-        if ok and type(data_array) == "table" then
-          log.debug("Successfully parsed partial JSON array with " .. #data_array .. " objects")
-          
-          -- Process each object in the array
-          for _, data in ipairs(data_array) do
-            self:process_response_object(data, callbacks)
-          end
-          
-          -- Keep the opening bracket for the next objects
-          self.json_array_content = "["
+      -- Check for end of response (chunk size 0)
+      if self.current_chunk_size == 0 then
+        log.debug("End of chunked response")
+        self.buffer = self.buffer:sub(3) -- Skip the final \r\n
+        self.current_chunk_size = nil
+        
+        -- Signal completion if we have callbacks
+        if callbacks.on_done then
+          callbacks.on_done()
         end
+        
+        return
       end
     end
 
-    -- Check if we have enough data in the buffer
-    if #self.buffer < self.current_data_size + 1 then
+    -- Check if we have enough data in the buffer (chunk + \r\n)
+    if #self.buffer < self.current_chunk_size + 2 then
       -- Not enough data yet, wait for more
       return
     end
 
     -- Extract the data chunk
-    local data_chunk = self.buffer:sub(1, self.current_data_size)
+    local data_chunk = self.buffer:sub(1, self.current_chunk_size)
     
-    -- The chunk should be followed by \r
-    if self.buffer:sub(self.current_data_size + 1, self.current_data_size + 1) ~= "\r" then
-      log.error("SSE data chunk not followed by \\r, found: " .. 
-                self.buffer:sub(self.current_data_size + 1, self.current_data_size + 1))
+    -- The chunk should be followed by \r\n
+    if self.buffer:sub(self.current_chunk_size + 1, self.current_chunk_size + 2) ~= "\r\n" then
+      log.error("Chunk not followed by \\r\\n, found: " .. 
+                self.buffer:sub(self.current_chunk_size + 1, self.current_chunk_size + 2))
     end
 
-    -- Remove the data chunk and \r from the buffer
-    self.buffer = self.buffer:sub(self.current_data_size + 2)
+    -- Remove the data chunk and \r\n from the buffer
+    self.buffer = self.buffer:sub(self.current_chunk_size + 3)
     
-    -- Reset the data size for the next chunk
-    self.current_data_size = nil
+    -- Reset the chunk size for the next chunk
+    self.current_chunk_size = nil
 
     -- Process the data chunk
     self:process_data_chunk(data_chunk, callbacks)
   end
 end
 
--- Process a single data chunk from the SSE stream
+-- Process a single data chunk from the chunked stream
 function M.process_data_chunk(self, data_chunk, callbacks)
   -- Skip empty chunks
   if not data_chunk or data_chunk == "" then
@@ -407,59 +392,20 @@ function M.process_data_chunk(self, data_chunk, callbacks)
     log.debug("Processing data chunk: " .. data_chunk)
   end
 
-  -- Check if this is the start of a JSON array
+  -- Handle JSON array markers and elements
   if data_chunk == "[" then
+    -- Start of JSON array
     log.debug("Starting JSON array")
-    self.json_array_started = true
-    self.json_array_content = "["
+    self.in_json_array = true
     return
-  end
-
-  -- Check if this is the end of a JSON array
-  if data_chunk == "]" then
+  elseif data_chunk == "]" then
+    -- End of JSON array
     log.debug("Ending JSON array")
-    self.json_array_content = self.json_array_content .. "]"
-    
-    -- Try to parse the complete array
-    local ok, data_array = pcall(vim.fn.json_decode, self.json_array_content)
-    if ok and type(data_array) == "table" then
-      log.debug("Successfully parsed complete JSON array with " .. #data_array .. " objects")
-      
-      -- Process each object in the array
-      for _, data in ipairs(data_array) do
-        self:process_response_object(data, callbacks)
-      end
-    else
-      log.error("Failed to parse JSON array: " .. self.json_array_content)
-    end
-    
-    -- Reset the JSON array state
-    self.json_array_started = false
-    self.json_array_content = "["
+    self.in_json_array = false
     return
-  end
-
-  -- Check if this is a comma (separator between JSON objects)
-  if data_chunk == "," then
-    log.debug("Found JSON object separator")
-    if self.json_array_started then
-      self.json_array_content = self.json_array_content .. ","
-      
-      -- Try to parse what we have so far by adding a closing bracket
-      local temp_array = self.json_array_content .. "]"
-      local ok, data_array = pcall(vim.fn.json_decode, temp_array)
-      if ok and type(data_array) == "table" and #data_array > 0 then
-        log.debug("Successfully parsed partial JSON array with " .. #data_array .. " objects after comma")
-        
-        -- Process each object in the array
-        for _, data in ipairs(data_array) do
-          self:process_response_object(data, callbacks)
-        end
-        
-        -- Keep the opening bracket and the comma for the next object
-        self.json_array_content = "["
-      end
-    end
+  elseif data_chunk == "," then
+    -- Comma separator between array elements
+    log.debug("Found JSON array element separator")
     return
   end
 
@@ -469,25 +415,13 @@ function M.process_data_chunk(self, data_chunk, callbacks)
     -- Successfully parsed a JSON object
     log.debug("Successfully parsed JSON object")
     
-    -- If we're building a JSON array, add this object to it
-    if self.json_array_started then
-      -- If the array content is just "[", we don't need a comma
-      if self.json_array_content == "[" then
-        self.json_array_content = self.json_array_content .. data_chunk
-      else
-        -- Otherwise, we need to add the object with its leading comma
-        self.json_array_content = self.json_array_content .. data_chunk
-      end
-      
-      -- Process the object immediately
-      self:process_response_object(data, callbacks)
-    else
-      -- Process the object
-      self:process_response_object(data, callbacks)
-    end
+    -- Process the object
+    self:process_response_object(data, callbacks)
   else
-    -- Not a valid JSON object, log it
-    log.error("Failed to parse JSON object: " .. data_chunk)
+    -- Not a valid JSON object, might be a partial object
+    -- Just log it for now - we can't do much with partial JSON
+    log.debug("Received non-JSON or partial JSON: " .. data_chunk)
+    self.partial_json = data_chunk
   end
 end
 
@@ -516,17 +450,34 @@ function M.process_response_object(self, data, callbacks)
 
   -- Handle usage information
   if data.usageMetadata then
+    log.debug("Received usage metadata: " .. vim.inspect(data.usageMetadata))
+    
     if callbacks.on_usage and data.usageMetadata.promptTokenCount then
       callbacks.on_usage({
         type = "input",
         tokens = data.usageMetadata.promptTokenCount,
       })
     end
+    
     if callbacks.on_usage and data.usageMetadata.candidatesTokenCount then
       callbacks.on_usage({
         type = "output",
         tokens = data.usageMetadata.candidatesTokenCount,
       })
+    end
+    
+    -- If we have usage metadata and a finish reason, this is the final response
+    if data.candidates and #data.candidates > 0 and 
+       data.candidates[1].finishReason and 
+       data.candidates[1].finishReason ~= vim.NIL and 
+       data.candidates[1].finishReason ~= nil then
+      
+      log.debug("Final response with usage metadata received")
+      
+      -- Signal message completion
+      if callbacks.on_message_complete then
+        callbacks.on_message_complete()
+      end
     end
   end
 
@@ -535,8 +486,11 @@ function M.process_response_object(self, data, callbacks)
     local candidate = data.candidates[1]
     
     -- Check for finish reason
-    if candidate.finishReason and candidate.finishReason ~= vim.NIL and candidate.finishReason ~= nil then
-      log.debug("Received finish_reason: " .. tostring(candidate.finishReason))
+    if candidate.finishReason and 
+       candidate.finishReason ~= vim.NIL and 
+       candidate.finishReason ~= nil then
+      
+      log.debug("Received finish reason: " .. tostring(candidate.finishReason))
       
       -- Signal message completion if this is the final chunk
       if callbacks.on_message_complete then
@@ -545,7 +499,10 @@ function M.process_response_object(self, data, callbacks)
     end
     
     -- Process content
-    if candidate.content and candidate.content.parts and #candidate.content.parts > 0 then
+    if candidate.content and 
+       candidate.content.parts and 
+       #candidate.content.parts > 0 then
+      
       for _, part in ipairs(candidate.content.parts) do
         if part.text then
           log.debug("Content text: " .. part.text)
@@ -555,15 +512,6 @@ function M.process_response_object(self, data, callbacks)
           end
         end
       end
-    end
-  end
-  
-  -- If this is the last response (with usage metadata and finish reason), signal done
-  if data.usageMetadata and data.candidates and #data.candidates > 0 and 
-     data.candidates[1].finishReason and data.candidates[1].finishReason ~= vim.NIL then
-    log.debug("Final response received, signaling done")
-    if callbacks.on_done then
-      callbacks.on_done()
     end
   end
 end
