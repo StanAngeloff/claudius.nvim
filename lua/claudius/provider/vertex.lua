@@ -332,6 +332,13 @@ function M.process_response_line(self, line, callbacks)
     return
   end
   
+  -- Handle comma at the beginning of a line when we only have accumulated "["
+  if self.accumulated_json == "[" and line:match("^%s*,") then
+    -- Skip the comma as we're starting a new object in the array
+    line = line:gsub("^%s*,", "")
+    log.debug("Skipping leading comma in JSON array")
+  end
+  
   -- Append the current line to our accumulated JSON
   self.accumulated_json = self.accumulated_json .. line
   
