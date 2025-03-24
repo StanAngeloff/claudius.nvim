@@ -16,7 +16,7 @@ function M.new(opts)
   -- Set provider properties with defaults
   provider.project_id = vertex_params.project_id or params.project_id
   provider.location = vertex_params.location or params.location or "us-central1"
-  provider.model = opts.model or "gemini-1.5-flash-001"
+  provider.model = opts.model or require("claudius.provider.defaults").get_model("vertex")
   
   -- Set the API version
   provider.api_version = "v1"
