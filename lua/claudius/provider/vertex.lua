@@ -66,9 +66,7 @@ function M.format_messages(self, messages, system_message)
     if role then
       table.insert(formatted, {
         role = role,
-        parts = {
-          { text = msg.content:gsub("%s+$", "") }
-        }
+        content = msg.content:gsub("%s+$", "")
       })
     end
   end
@@ -78,8 +76,19 @@ end
 
 -- Create request body for Vertex AI API
 function M.create_request_body(self, formatted_messages, system_message, opts)
+  -- Convert formatted_messages to Vertex AI format
+  local contents = {}
+  for _, msg in ipairs(formatted_messages) do
+    table.insert(contents, {
+      role = msg.role,
+      parts = {
+        { text = msg.content }
+      }
+    })
+  end
+
   local request_body = {
-    contents = formatted_messages,
+    contents = contents,
     model = opts.model or self.model,
     generationConfig = {
       maxOutputTokens = opts.max_tokens or self.options.parameters.max_tokens,
