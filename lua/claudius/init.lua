@@ -794,7 +794,7 @@ function M.send_to_provider(opts)
         and pricing.calculate_cost(config.model, current.input_tokens, current.output_tokens)
       table.insert(lines, "Request:")
       -- Add model and provider information
-      table.insert(lines, string.format("  Model:  %s (%s)", config.model, config.provider))
+      table.insert(lines, string.format("  Model:  `%s` (%s)", config.model, config.provider))
       if current_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", current.input_tokens or 0, current_cost.input))
         table.insert(

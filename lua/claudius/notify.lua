@@ -119,8 +119,8 @@ local function create_notification(msg, opts)
   -- Set window options
   vim.api.nvim_win_set_option(win_id, "wrap", true)
   vim.api.nvim_win_set_option(win_id, "winblend", 15)
-  vim.api.nvim_win_set_option(win_id, "conceallevel", 2)
-  vim.api.nvim_win_set_option(win_id, "concealcursor", "nc")
+  vim.api.nvim_win_set_option(win_id, "conceallevel", 3)
+  vim.api.nvim_win_set_option(win_id, "concealcursor", "nvic")
 
   -- Create notification object first
   local notification = {
