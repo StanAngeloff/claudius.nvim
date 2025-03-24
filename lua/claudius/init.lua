@@ -746,9 +746,20 @@ function M.send_to_provider(opts)
     end)
   end
 
-  -- Create request body
+  -- Create request body with provider-specific model
+  local model = config.model
+  -- If using OpenAI provider with a Claude model, switch to a default OpenAI model
+  if config.provider == "openai" and model:match("^claude") then
+    log.info("Switching from Claude model to default OpenAI model gpt-4o")
+    model = "gpt-4o"
+  -- If using Claude provider with an OpenAI model, switch to a default Claude model
+  elseif config.provider == "claude" and model:match("^gpt") then
+    log.info("Switching from OpenAI model to default Claude model claude-3-7-sonnet-20250219")
+    model = "claude-3-7-sonnet-20250219"
+  end
+  
   local request_body = provider:create_request_body(formatted_messages, system_message, {
-    model = config.model,
+    model = model,
     max_tokens = config.parameters.max_tokens,
     temperature = config.parameters.temperature,
   })
@@ -814,7 +825,7 @@ function M.send_to_provider(opts)
   -- Set up callbacks for the provider
   local callbacks = {
     on_data = function(line)
-      log.debug("Received: " .. line)
+      -- Don't log here as it's already logged in process_response_line
     end,
 
     on_stderr = function(line)

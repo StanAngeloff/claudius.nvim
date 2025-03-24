@@ -171,6 +171,7 @@ function M.send_request(self, request_body, callbacks)
               callbacks.on_data(line)
             end
             
+            -- Process the response line (without duplicate logging)
             self:process_response_line(line, callbacks)
           end
         end
