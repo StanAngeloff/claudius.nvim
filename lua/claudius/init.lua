@@ -436,7 +436,7 @@ M.setup = function(opts)
     end,
   })
 
-  -- Set up the mappings for Claude interaction if enabled
+  -- Set up the mappings for Claudius interaction if enabled
   if config.keymaps.enabled then
     vim.api.nvim_create_autocmd("FileType", {
       pattern = "chat",
@@ -453,7 +453,7 @@ M.setup = function(opts)
             "n",
             config.keymaps.normal.cancel,
             M.cancel_request,
-            { buffer = true, desc = "Cancel Claude Request" }
+            { buffer = true, desc = "Cancel Claudius Request" }
           )
         end
 
@@ -713,8 +713,8 @@ function M.send_to_provider(opts)
       if input then
         provider.state.api_key = input
         log.info("API key set via prompt")
-        -- Continue with the Claude request immediately
-        M.send_to_claude()
+        -- Continue with the Claudius request immediately
+        M.send_to_provider()
       else
         log.error("API key prompt cancelled")
         vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
