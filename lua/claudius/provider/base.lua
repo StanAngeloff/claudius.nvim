@@ -125,7 +125,7 @@ end
 local function format_curl_command_for_log(cmd)
   local result = {}
   for i, arg in ipairs(cmd) do
-    if i > 1 and cmd[i-1] == "-H" then
+    if i > 1 and cmd[i - 1] == "-H" then
       -- This is a header, redact sensitive information
       table.insert(result, escape_shell_arg(redact_sensitive_header(arg)))
     else
@@ -191,16 +191,16 @@ function M.send_request(self, request_body, callbacks)
 
   -- Prepare curl command
   local cmd = self:prepare_curl_command(tmp_file, headers, endpoint)
-  
+
   -- Log the API request with detailed information
   log.debug("Sending request to API endpoint: " .. endpoint)
-  
+
   -- Log the curl command (with sensitive information redacted)
   local curl_cmd_log = format_curl_command_for_log(cmd)
   -- Replace the temporary file path with @request.json for easier reproduction
   curl_cmd_log = curl_cmd_log:gsub(vim.fn.escape(tmp_file, "%-%."), "request.json")
   log.debug("Running command: " .. curl_cmd_log)
-  
+
   -- Log the request body for debugging
   log.debug("@request.json <<< " .. vim.fn.json_encode(request_body))
 
@@ -213,11 +213,11 @@ function M.send_request(self, request_body, callbacks)
           if line and #line > 0 then
             -- Log the raw response line
             log.debug("Response: " .. line)
-            
+
             if callbacks.on_data then
               callbacks.on_data(line)
             end
-            
+
             -- Process the response line (without duplicate logging)
             self:process_response_line(line, callbacks)
           end
@@ -230,7 +230,7 @@ function M.send_request(self, request_body, callbacks)
           if line and #line > 0 then
             -- Log stderr output
             log.error("stderr: " .. line)
-            
+
             if callbacks.on_stderr then
               callbacks.on_stderr(line)
             end
@@ -241,7 +241,7 @@ function M.send_request(self, request_body, callbacks)
     on_exit = function(_, code)
       -- Clean up temporary file
       os.remove(tmp_file)
-      
+
       -- Log exit code
       log.info("Request completed with exit code: " .. tostring(code))
 

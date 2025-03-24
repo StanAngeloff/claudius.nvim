@@ -29,7 +29,7 @@ end
 -- Format messages for OpenAI API
 function M.format_messages(self, messages, system_message)
   local formatted = {}
-  
+
   -- Add system message if provided
   if system_message then
     table.insert(formatted, {
@@ -78,8 +78,8 @@ function M.create_request_body(self, formatted_messages, _, opts)
     temperature = opts.temperature or self.options.parameters.temperature,
     stream = true,
     stream_options = {
-      include_usage = true -- Request usage information in the final chunk
-    }
+      include_usage = true, -- Request usage information in the final chunk
+    },
   }
 
   return request_body
@@ -109,21 +109,21 @@ function M.process_response_line(self, line, callbacks)
   -- Handle [DONE] message
   if line == "data: [DONE]" then
     log.debug("Received [DONE] message")
-    
+
     if callbacks.on_done then
       callbacks.on_done()
     end
     return
   end
-  
+
   -- Handle final chunk with usage information (empty choices array with usage data)
   if line:match("^data: ") then
     local json_str = line:gsub("^data: ", "")
     local ok, data = pcall(vim.fn.json_decode, json_str)
-    
+
     if ok and data and data.choices and #data.choices == 0 and data.usage then
       log.debug("Received final chunk with usage information")
-      
+
       -- Process usage information
       if type(data.usage) == "table" then
         if callbacks.on_usage and data.usage.prompt_tokens then
@@ -138,7 +138,7 @@ function M.process_response_line(self, line, callbacks)
             tokens = data.usage.completion_tokens,
           })
         end
-        
+
         -- Signal message completion (this is the only place we should call it)
         if callbacks.on_message_complete then
           callbacks.on_message_complete()
@@ -152,7 +152,7 @@ function M.process_response_line(self, line, callbacks)
   if not line:match("^data: ") then
     -- This is not a standard SSE data line
     log.error("Unexpected response format: " .. line)
-    
+
     -- Try parsing as a direct JSON error response
     local ok, error_data = pcall(vim.fn.json_decode, line)
     if ok and error_data.error then
@@ -160,16 +160,16 @@ function M.process_response_line(self, line, callbacks)
       if error_data.error and error_data.error.message then
         msg = error_data.error.message
       end
-      
+
       -- Log the error
       log.error("API error: " .. msg)
-      
+
       if callbacks.on_error then
         callbacks.on_error(msg)
       end
       return
     end
-    
+
     -- If we can't parse it as an error, log and ignore
     log.error("Ignoring unrecognized response line")
     return
@@ -195,9 +195,9 @@ function M.process_response_line(self, line, callbacks)
     if data.error and data.error.message then
       msg = data.error.message
     end
-    
+
     log.error("API error in response: " .. msg)
-    
+
     if callbacks.on_error then
       callbacks.on_error(msg)
     end
@@ -211,37 +211,41 @@ function M.process_response_line(self, line, callbacks)
     log.error("Expected 'choices' in response data, but not found")
     return
   end
-  
+
   if not data.choices[1] then
     log.error("Expected at least one choice in response, but none found")
     return
   end
-  
+
   if not data.choices[1].delta then
     log.error("Expected 'delta' in first choice, but not found")
     return
   end
-  
+
   local delta = data.choices[1].delta
-  
+
   -- Check if this is the end of the message
   if delta.role == "assistant" and not delta.content then
     -- This is just the role marker, skip it
     log.debug("Received assistant role marker")
     return
   end
-  
+
   -- Handle actual content
   if delta.content then
     log.debug("Content delta: " .. delta.content)
-    
+
     if callbacks.on_content then
       callbacks.on_content(delta.content)
     end
   end
-  
+
   -- Check if this is the finish_reason (only if it has a meaningful value, not null)
-  if data.choices[1].finish_reason and data.choices[1].finish_reason ~= vim.NIL and data.choices[1].finish_reason ~= nil then
+  if
+    data.choices[1].finish_reason
+    and data.choices[1].finish_reason ~= vim.NIL
+    and data.choices[1].finish_reason ~= nil
+  then
     log.debug("Received finish_reason: " .. tostring(data.choices[1].finish_reason))
     -- We'll let the final chunk with usage information trigger on_message_complete
   end

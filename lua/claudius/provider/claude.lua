@@ -87,10 +87,10 @@ function M.process_response_line(self, line, callbacks)
     if error_data.error and error_data.error.message then
       msg = error_data.error.message
     end
-    
+
     -- Log the error
     log.error("API error: " .. msg)
-    
+
     if callbacks.on_error then
       callbacks.on_error(msg)
     end
@@ -101,7 +101,7 @@ function M.process_response_line(self, line, callbacks)
   if not (line:match("^event: ") or line:match("^data: ")) then
     -- This is not a standard SSE line
     log.error("Unexpected response format from Claude API: " .. line)
-    
+
     -- Try parsing as a direct JSON error response again (more thorough check)
     local parse_ok, error_json = pcall(vim.fn.json_decode, line)
     if parse_ok and type(error_json) == "table" and error_json.error then
@@ -109,15 +109,15 @@ function M.process_response_line(self, line, callbacks)
       if error_json.error.message then
         msg = error_json.error.message
       end
-      
+
       log.error("API error in unexpected format: " .. msg)
-      
+
       if callbacks.on_error then
         callbacks.on_error(msg)
       end
       return
     end
-    
+
     -- If we can't parse it as an error, log and ignore
     log.error("Ignoring unrecognized Claude API response line: " .. line)
     return
@@ -132,11 +132,11 @@ function M.process_response_line(self, line, callbacks)
 
   -- Extract JSON from data: prefix
   local json_str = line:gsub("^data: ", "")
-  
+
   -- Handle [DONE] message
   if json_str == "[DONE]" then
     log.debug("Received [DONE] message from Claude API")
-    
+
     if callbacks.on_done then
       callbacks.on_done()
     end
@@ -162,9 +162,9 @@ function M.process_response_line(self, line, callbacks)
     if data.error and data.error.message then
       msg = data.error.message
     end
-    
+
     log.error("API error in response: " .. msg)
-    
+
     if callbacks.on_error then
       callbacks.on_error(msg)
     end
@@ -221,7 +221,7 @@ function M.process_response_line(self, line, callbacks)
     if callbacks.on_message_complete then
       callbacks.on_message_complete()
     end
-    
+
     -- Also trigger on_done to ensure we clean up properly
     -- This is important when Claude returns no new content
     if callbacks.on_done then
@@ -248,7 +248,7 @@ function M.process_response_line(self, line, callbacks)
 
     if data.delta.type == "text_delta" and data.delta.text then
       log.debug("Content text delta: " .. data.delta.text)
-      
+
       if callbacks.on_content then
         callbacks.on_content(data.delta.text)
       end
@@ -264,14 +264,17 @@ function M.process_response_line(self, line, callbacks)
     else
       log.error("Received content_block_delta with unknown delta type: " .. tostring(data.delta.type))
     end
-  elseif data.type and not (
-    data.type == "message_start" or 
-    data.type == "message_stop" or 
-    data.type == "message_delta" or
-    data.type == "content_block_start" or
-    data.type == "content_block_stop" or
-    data.type == "ping"
-  ) then
+  elseif
+    data.type
+    and not (
+      data.type == "message_start"
+      or data.type == "message_stop"
+      or data.type == "message_delta"
+      or data.type == "content_block_start"
+      or data.type == "content_block_stop"
+      or data.type == "ping"
+    )
+  then
     log.error("Received unknown event type from Claude API: " .. data.type)
   end
 end

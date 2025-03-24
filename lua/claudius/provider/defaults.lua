@@ -40,7 +40,7 @@ M.openai_models = {
   "computer-use-preview",
   "computer-use-preview-2025-03-11",
   "chatgpt-4o-latest",
-  
+
   -- Other models
   "gpt-4-turbo",
   "gpt-4-turbo-2024-04-09",
@@ -76,10 +76,10 @@ function M.is_provider_model(model_name, provider_name)
   if provider_name == "claude" then
     return model_name:match("^claude") ~= nil
   elseif provider_name == "openai" then
-    return model_name:match("^gpt") ~= nil 
-        or model_name:match("^o%d") ~= nil
-        or model_name:match("^chatgpt") ~= nil
-        or model_name:match("^computer%-use") ~= nil
+    return model_name:match("^gpt") ~= nil
+      or model_name:match("^o%d") ~= nil
+      or model_name:match("^chatgpt") ~= nil
+      or model_name:match("^computer%-use") ~= nil
   end
   return false
 end
@@ -90,7 +90,7 @@ function M.get_appropriate_model(model_name, provider_name)
   if M.is_provider_model(model_name, provider_name) then
     return model_name
   end
-  
+
   -- Otherwise, return the default model for the provider
   return M.get_model(provider_name)
 end

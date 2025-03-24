@@ -224,21 +224,21 @@ M.setup = function(opts)
 
   -- Initialize provider based on config
   local provider_defaults = require("claudius.provider.defaults")
-  
+
   -- Set default model if not specified
   if not config.model then
     config.model = provider_defaults.get_model(config.provider)
   end
-  
+
   -- Set default parameters if not specified
   if not config.parameters.max_tokens then
     config.parameters.max_tokens = provider_defaults.parameters.max_tokens
   end
-  
+
   if not config.parameters.temperature then
     config.parameters.temperature = provider_defaults.parameters.temperature
   end
-  
+
   if config.provider == "openai" then
     provider = require("claudius.provider.openai").new(config)
   else
@@ -251,7 +251,7 @@ M.setup = function(opts)
     enabled = config.logging.enabled,
     path = config.logging.path,
   })
-  
+
   -- Helper function to toggle logging
   local function toggle_logging(enable)
     if enable == nil then
@@ -765,12 +765,12 @@ function M.send_to_provider(opts)
   -- Create request body with provider-specific model
   local provider_defaults = require("claudius.provider.defaults")
   local model = provider_defaults.get_appropriate_model(config.model, config.provider)
-  
+
   -- Log if we had to switch models
   if model ~= config.model then
     log.info("Switching from " .. config.model .. " to " .. model .. " for " .. config.provider .. " provider")
   end
-  
+
   local request_body = provider:create_request_body(formatted_messages, system_message, {
     model = model,
     max_tokens = config.parameters.max_tokens,
@@ -870,19 +870,19 @@ function M.send_to_provider(opts)
           vim.fn.timer_stop(spinner_timer)
         end
         state.current_request = nil
-        
+
         -- Clean up spinner if response never started
         if not response_started then
           M.cleanup_spinner(bufnr)
-          
+
           -- Auto-write if enabled
           auto_write_buffer(bufnr)
-          
+
           -- Add new prompt if needed
           local last_line = vim.api.nvim_buf_line_count(bufnr)
           M.buffer_cmd(bufnr, "undojoin")
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
-          
+
           -- Move cursor to after the colon and any whitespace
           local lines = vim.api.nvim_buf_get_lines(bufnr, last_line + 1, last_line + 2, false)
           if #lines > 0 then
@@ -896,7 +896,7 @@ function M.send_to_provider(opts)
               vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
             end
           end
-          
+
           -- Call the completion callback if provided
           if opts.on_complete then
             opts.on_complete()

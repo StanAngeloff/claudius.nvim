@@ -13,7 +13,7 @@ local function write_log(level, msg)
   if not config.enabled then
     return
   end
-  
+
   local f = io.open(config.path, "a")
   if f then
     f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [" .. level .. "] " .. msg .. "\n")

@@ -24,17 +24,19 @@ Claudius requires:
 Optional Features:
 
 - On Linux systems with libsecret installed, your API key can be stored and retrieved from the system keyring:
-  
+
   For Anthropic:
+
   ```bash
   secret-tool store --label="Anthropic API Key" service anthropic key api
   ```
-  
+
   For OpenAI:
+
   ```bash
   secret-tool store --label="OpenAI API Key" service openai key api
   ```
-  
+
   This will securely prompt for your API key and store it in the system keyring.
 
 ## Installation

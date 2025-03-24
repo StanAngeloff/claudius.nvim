@@ -12,7 +12,7 @@ M.models = {
     input = 3.0, -- $3 per million input tokens
     output = 15.0, -- $15 per million output tokens
   },
-  
+
   -- OpenAI models
   ["gpt-4.5-preview"] = {
     input = 75.0, -- $75 per million input tokens
