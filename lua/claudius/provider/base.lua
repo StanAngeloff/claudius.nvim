@@ -199,10 +199,10 @@ function M.send_request(self, request_body, callbacks)
   local curl_cmd_log = format_curl_command_for_log(cmd)
   -- Replace the temporary file path with @request.json for easier reproduction
   curl_cmd_log = curl_cmd_log:gsub(vim.fn.escape(tmp_file, "%-%."), "request.json")
-  log.debug("Equivalent curl command: " .. curl_cmd_log)
+  log.debug("Running command: " .. curl_cmd_log)
   
   -- Log the request body for debugging
-  log.debug("Request body: " .. vim.fn.json_encode(request_body))
+  log.debug("@request.json <<< " .. vim.fn.json_encode(request_body))
 
   -- Start job
   local job_id = vim.fn.jobstart(cmd, {
