@@ -234,7 +234,7 @@ end
 function M.prepare_curl_command(self, tmp_file, headers, endpoint)
   local cmd = require("claudius.provider.base").prepare_curl_command(self, tmp_file, headers, endpoint)
   
-  -- Add raw output option for Vertex AI
+  -- Add raw output option for Vertex AI to get the raw JSON response
   table.insert(cmd, 2, "--raw")
   
   return cmd
@@ -269,28 +269,6 @@ function M.process_response_line(self, line, callbacks)
       callbacks.on_error(msg)
     end
     return
-  end
-
-  -- Handle SSE format if present (for backward compatibility)
-  if line:match("^data: ") then
-    -- Extract JSON from data: prefix
-    local json_str = line:gsub("^data: ", "")
-    
-    -- Handle [DONE] message
-    if json_str == "[DONE]" then
-      log.debug("Received [DONE] message")
-      if callbacks.on_done then
-        callbacks.on_done()
-      end
-      return
-    end
-    
-    -- Process the JSON string directly
-    local parse_ok, data = pcall(vim.fn.json_decode, json_str)
-    if parse_ok and type(data) == "table" then
-      self:process_response_object(data, callbacks)
-      return
-    end
   end
   
   -- Handle raw JSON format (Vertex AI returns an array of response objects)
