@@ -87,6 +87,8 @@ M.vertex_models = {
 -- Authentication notes for providers
 M.auth_notes = {
   vertex = [[
+
+
 ---
 
 ## Authentication Options
