@@ -10,6 +10,7 @@ function M.new(opts)
   -- Claude-specific state
   provider.endpoint = "https://api.anthropic.com/v1/messages"
   provider.api_version = "2023-06-01"
+  provider.env_var_name = "ANTHROPIC_API_KEY"
   
   -- Set metatable to use Claude methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
@@ -21,23 +22,6 @@ function M.try_keyring(self)
   return require("claudius.provider.base").try_keyring(self, "anthropic", "api", nil)
 end
 
--- Get API key from environment, keyring, or prompt
-function M.get_api_key(self)
-  -- Return cached key if we have it
-  if self.state.api_key then
-    return self.state.api_key
-  end
-  
-  -- Try environment variable first
-  self.state.api_key = os.getenv("ANTHROPIC_API_KEY")
-  
-  -- Try system keyring if no env var
-  if not self.state.api_key then
-    self.state.api_key = self:try_keyring()
-  end
-  
-  return self.state.api_key
-end
 
 -- Format messages for Claude API
 function M.format_messages(self, messages, system_message)
