@@ -21,9 +21,21 @@ function M.init(self)
 end
 
 -- Try to get API key from system keyring (local helper function)
-local function try_keyring(service_name, key_name)
+local function try_keyring(service_name, key_name, project_id)
   if vim.fn.has("linux") == 1 then
-    local cmd = string.format("secret-tool lookup service %s key %s 2>/dev/null", service_name, key_name)
+    local cmd
+    if project_id then
+      -- Include project_id in the lookup if provided
+      cmd = string.format(
+        "secret-tool lookup service %s key %s project_id %s 2>/dev/null",
+        service_name,
+        key_name,
+        project_id
+      )
+    else
+      cmd = string.format("secret-tool lookup service %s key %s 2>/dev/null", service_name, key_name)
+    end
+
     local handle = io.popen(cmd)
     if handle then
       local result = handle:read("*a")
@@ -50,7 +62,18 @@ function M.get_api_key(self, opts)
 
   -- Try system keyring if no env var and service/key names are provided
   if not self.state.api_key and opts and opts.keyring_service_name and opts.keyring_key_name then
-    self.state.api_key = try_keyring(opts.keyring_service_name, opts.keyring_key_name)
+    -- First try with project_id if provided
+    if opts.keyring_project_id then
+      self.state.api_key = try_keyring(opts.keyring_service_name, opts.keyring_key_name, opts.keyring_project_id)
+      if self.state.api_key then
+        log.debug("Retrieved API key from keyring with project ID: " .. opts.keyring_project_id)
+      end
+    end
+
+    -- Fall back to generic lookup if project-specific key wasn't found
+    if not self.state.api_key then
+      self.state.api_key = try_keyring(opts.keyring_service_name, opts.keyring_key_name)
+    end
   end
 
   return self.state.api_key

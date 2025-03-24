@@ -24,6 +24,7 @@ function M.get_api_key(self)
     env_var_name = "VERTEX_API_KEY",
     keyring_service_name = "vertex",
     keyring_key_name = "api",
+    keyring_project_id = self.project_id,
   })
 end
 
@@ -46,7 +47,7 @@ function M.get_endpoint(self)
     self.location,
     self.endpoint_id
   )
-  
+
   log.debug("Using Vertex AI endpoint: " .. endpoint)
   return endpoint
 end
