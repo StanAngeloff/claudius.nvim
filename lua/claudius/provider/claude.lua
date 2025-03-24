@@ -20,8 +20,8 @@ function M.get_api_key(self)
   -- Call the base implementation with Claude-specific parameters
   return require("claudius.provider.base").get_api_key(self, {
     env_var_name = "ANTHROPIC_API_KEY",
-    service_name = "anthropic",
-    key_name = "api"
+    keyring_service_name = "anthropic",
+    keyring_key_name = "api"
   })
 end
 

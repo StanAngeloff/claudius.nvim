@@ -20,9 +20,9 @@ function M.init(self)
 end
 
 -- Try to get API key from system keyring (local helper function)
-local function try_keyring(service, key_name)
+local function try_keyring(service_name, key_name)
   if vim.fn.has("linux") == 1 then
-    local cmd = string.format("secret-tool lookup service %s key %s 2>/dev/null", service, key_name)
+    local cmd = string.format("secret-tool lookup service %s key %s 2>/dev/null", service_name, key_name)
     local handle = io.popen(cmd)
     if handle then
       local result = handle:read("*a")
@@ -48,8 +48,8 @@ function M.get_api_key(self, opts)
   end
   
   -- Try system keyring if no env var and service/key names are provided
-  if not self.state.api_key and opts and opts.service_name and opts.key_name then
-    self.state.api_key = try_keyring(opts.service_name, opts.key_name)
+  if not self.state.api_key and opts and opts.keyring_service_name and opts.keyring_key_name then
+    self.state.api_key = try_keyring(opts.keyring_service_name, opts.keyring_key_name)
   end
   
   return self.state.api_key
