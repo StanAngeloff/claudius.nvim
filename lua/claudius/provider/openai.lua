@@ -139,7 +139,7 @@ function M.process_response_line(self, line, callbacks)
           })
         end
         
-        -- Signal message completion
+        -- Signal message completion (this is the only place we should call it)
         if callbacks.on_message_complete then
           callbacks.on_message_complete()
         end
@@ -243,10 +243,7 @@ function M.process_response_line(self, line, callbacks)
   -- Check if this is the finish_reason (only if it has a meaningful value, not null)
   if data.choices[1].finish_reason and data.choices[1].finish_reason ~= vim.NIL and data.choices[1].finish_reason ~= nil then
     log.debug("Received finish_reason: " .. tostring(data.choices[1].finish_reason))
-    
-    if callbacks.on_message_complete then
-      callbacks.on_message_complete()
-    end
+    -- We'll let the final chunk with usage information trigger on_message_complete
   end
 end
 
