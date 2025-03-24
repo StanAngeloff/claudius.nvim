@@ -244,9 +244,27 @@ function M.prepare_curl_command(self, tmp_file, headers, endpoint)
   return cmd
 end
 
--- Buffer to accumulate JSON response chunks
-local accumulated_json = ""
-local in_array = false
+-- Initialize provider state
+function M.init(self)
+  -- Initialize state for JSON accumulation
+  self.accumulated_json = ""
+  self.in_array = false
+end
+
+-- Check for unprocessed JSON at the end of a response
+function M.check_unprocessed_json(self)
+  if self.accumulated_json and #self.accumulated_json > 0 then
+    -- We have accumulated JSON that wasn't processed
+    log.error("Unprocessed JSON at end of response: " .. self.accumulated_json)
+    
+    -- Don't try to parse it, just log it for inspection
+    -- This indicates a bug in our JSON parsing logic
+    
+    -- Reset the accumulated JSON
+    self.accumulated_json = ""
+    self.in_array = false
+  end
+end
 
 -- Process a response line from Vertex AI API
 function M.process_response_line(self, line, callbacks)
