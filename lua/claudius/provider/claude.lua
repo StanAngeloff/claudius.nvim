@@ -17,17 +17,7 @@ end
 
 -- Try to get API key from system keyring
 function M.try_keyring(self)
-  if vim.fn.has("linux") == 1 then
-    local handle = io.popen("secret-tool lookup service anthropic key api 2>/dev/null")
-    if handle then
-      local result = handle:read("*a")
-      handle:close()
-      if result and #result > 0 then
-        return result:gsub("%s+$", "") -- Trim whitespace
-      end
-    end
-  end
-  return nil
+  return self:try_keyring("anthropic", "api", nil)
 end
 
 -- Get API key from environment, keyring, or prompt

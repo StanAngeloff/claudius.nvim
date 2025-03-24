@@ -19,6 +19,22 @@ function M.init(self)
   -- To be implemented by specific providers
 end
 
+-- Try to get API key from system keyring
+function M.try_keyring(self, service, key_name, key_type)
+  if vim.fn.has("linux") == 1 then
+    local cmd = string.format("secret-tool lookup service %s key %s 2>/dev/null", service, key_name)
+    local handle = io.popen(cmd)
+    if handle then
+      local result = handle:read("*a")
+      handle:close()
+      if result and #result > 0 then
+        return result:gsub("%s+$", "") -- Trim whitespace
+      end
+    end
+  end
+  return nil
+end
+
 -- Get API key (to be implemented by specific providers)
 function M.get_api_key(self)
   -- To be implemented by specific providers
