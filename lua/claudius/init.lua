@@ -713,15 +713,17 @@ function M.send_to_provider(opts)
     local provider_defaults = require("claudius.provider.defaults")
     local auth_notes = provider_defaults.auth_notes and provider_defaults.auth_notes[config.provider]
       
-    local error_msg = "Claudius: Authentication error - " .. tostring(api_key_error)
     if auth_notes then
-      -- Show a more detailed notification with the auth notes
-      require("claudius.notify").show(
-        "## Authentication Error\n\n" .. tostring(api_key_error) .. "\n\n" .. auth_notes,
-        { title = "Claudius - " .. config.provider .. " Authentication" }
+      -- Show a more detailed alert with the auth notes
+      require("claudius.notify").alert(
+        tostring(api_key_error) .. "\n\n" .. auth_notes,
+        { title = "Claudius - " .. config.provider .. " Authentication Error" }
       )
     else
-      vim.notify(error_msg, vim.log.levels.ERROR)
+      require("claudius.notify").alert(
+        tostring(api_key_error),
+        { title = "Claudius - Authentication Error" }
+      )
     end
     return
   end
