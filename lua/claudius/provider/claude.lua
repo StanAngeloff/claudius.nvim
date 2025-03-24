@@ -80,88 +80,19 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
   return request_body
 end
 
--- Send request to Claude API
-function M.send_request(self, request_body, callbacks)
+-- Get request headers for Claude API
+function M.get_request_headers(self)
   local api_key = self:get_api_key()
-  if not api_key then
-    if callbacks.on_error then
-      callbacks.on_error("No API key available")
-    end
-    return nil
-  end
-  
-  -- Create temporary file for request body
-  local tmp_file = os.tmpname()
-  -- Handle both Unix and Windows paths
-  local tmp_dir = tmp_file:match("^(.+)[/\\]")
-  local tmp_name = tmp_file:match("[/\\]([^/\\]+)$")
-  -- Use the same separator that was in the original path
-  local sep = tmp_file:match("[/\\]")
-  tmp_file = tmp_dir .. sep .. "claudius_" .. tmp_name
-  
-  local f = io.open(tmp_file, "w")
-  if not f then
-    if callbacks.on_error then
-      callbacks.on_error("Failed to create temporary file")
-    end
-    return nil
-  end
-  f:write(vim.fn.json_encode(request_body))
-  f:close()
-
-  -- Prepare curl command
-  local cmd = {
-    "curl",
-    "-N", -- disable buffering
-    "-s", -- silent mode
-    "--connect-timeout", "10", -- connection timeout
-    "--max-time", "120", -- maximum time allowed
-    "--retry", "0", -- disable retries
-    "--http1.1", -- force HTTP/1.1 for better interrupt handling
-    "-H", "Connection: close", -- request connection close
-    "-H", "x-api-key: " .. api_key,
-    "-H", "anthropic-version: " .. self.api_version,
-    "-H", "content-type: application/json",
-    "-d", "@" .. tmp_file,
-    self.endpoint,
+  return {
+    "x-api-key: " .. api_key,
+    "anthropic-version: " .. self.api_version,
+    "content-type: application/json"
   }
+end
 
-  -- Start job
-  local job_id = vim.fn.jobstart(cmd, {
-    detach = true, -- Put process in its own group
-    on_stdout = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line and #line > 0 then
-            if callbacks.on_data then
-              self:process_response_line(line, callbacks)
-            end
-          end
-        end
-      end
-    end,
-    on_stderr = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line and #line > 0 then
-            if callbacks.on_stderr then
-              callbacks.on_stderr(line)
-            end
-          end
-        end
-      end
-    end,
-    on_exit = function(_, code)
-      -- Clean up temporary file
-      os.remove(tmp_file)
-      
-      if callbacks.on_complete then
-        callbacks.on_complete(code)
-      end
-    end,
-  })
-  
-  return job_id
+-- Get API endpoint
+function M.get_endpoint(self)
+  return self.endpoint
 end
 
 -- Process a response line from Claude API
@@ -245,29 +176,6 @@ function M.process_response_line(self, line, callbacks)
       callbacks.on_content(data.delta.text)
     end
   end
-end
-
--- Cancel an ongoing request
-function M.cancel_request(self, job_id)
-  if not job_id then
-    return false
-  end
-  
-  -- Get the process ID
-  local pid = vim.fn.jobpid(job_id)
-  
-  -- Send SIGINT first for clean connection termination
-  if pid then
-    vim.fn.system("kill -INT " .. pid)
-    
-    -- Give curl a moment to cleanup, then force kill if still running
-    self:delayed_terminate(pid, job_id)
-  else
-    -- Fallback to jobstop if we couldn't get PID
-    vim.fn.jobstop(job_id)
-  end
-  
-  return true
 end
 
 return M
