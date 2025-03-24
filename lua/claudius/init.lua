@@ -156,11 +156,16 @@ local default_config = {
   pricing = {
     enabled = true, -- Whether to show pricing information in notifications
   },
-  provider = "claude", -- Default provider: "claude" or "openai"
+  provider = "claude", -- Default provider: "claude", "openai", or "vertex"
   model = nil, -- Will use provider-specific default if nil
   parameters = {
     max_tokens = nil, -- Will use default if nil
     temperature = nil, -- Will use default if nil
+  },
+  vertex = {
+    project_id = nil, -- Google Cloud project ID
+    location = "europe-central2-aiplatform", -- Google Cloud region
+    endpoint_id = nil, -- Vertex AI endpoint ID
   },
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
@@ -241,6 +246,8 @@ M.setup = function(opts)
 
   if config.provider == "openai" then
     provider = require("claudius.provider.openai").new(config)
+  elseif config.provider == "vertex" then
+    provider = require("claudius.provider.vertex").new(config)
   else
     -- Default to Claude if not specified
     provider = require("claudius.provider.claude").new(config)

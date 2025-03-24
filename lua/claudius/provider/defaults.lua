@@ -6,6 +6,7 @@ local M = {}
 M.models = {
   claude = "claude-3-7-sonnet-20250219",
   openai = "gpt-4o",
+  vertex = "gemini-1.5-pro",
 }
 
 -- Available OpenAI models
@@ -60,6 +61,21 @@ M.openai_models = {
   "gpt-3.5-turbo-16k-0613",
 }
 
+-- Available Google Vertex AI models
+M.vertex_models = {
+  -- Gemini models
+  "gemini-1.5-pro",
+  "gemini-1.5-flash",
+  "gemini-1.0-pro",
+  "gemini-1.0-pro-vision",
+  "gemini-1.0-ultra",
+  "gemini-1.0-ultra-vision",
+  -- PaLM models
+  "text-bison",
+  "chat-bison",
+  "codechat-bison",
+}
+
 -- Default parameters for all providers
 M.parameters = {
   max_tokens = 4000,
@@ -80,6 +96,11 @@ function M.is_provider_model(model_name, provider_name)
       or model_name:match("^o%d") ~= nil
       or model_name:match("^chatgpt") ~= nil
       or model_name:match("^computer%-use") ~= nil
+  elseif provider_name == "vertex" then
+    return model_name:match("^gemini") ~= nil
+      or model_name:match("^text%-bison") ~= nil
+      or model_name:match("^chat%-bison") ~= nil
+      or model_name:match("^codechat%-bison") ~= nil
   end
   return false
 end
