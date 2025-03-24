@@ -68,10 +68,13 @@ M.vertex_models = {
   "gemini-2.0-flash-lite-001",
   -- Gemini 1.5 models
   "gemini-1.5-pro-001",
+  "gemini-1.5-pro-002",
   "gemini-1.5-flash-001",
+  "gemini-1.5-flash-002",
   "gemini-1.5-flash-8b-001",
   -- Gemini 1.0 models
   "gemini-1.0-pro-001",
+  "gemini-1.0-pro-002",
   "gemini-1.0-pro-vision-001",
   "gemini-1.0-ultra-001",
   "gemini-1.0-ultra-vision-001",
