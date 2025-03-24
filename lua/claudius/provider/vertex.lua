@@ -9,21 +9,14 @@ function M.new(opts)
   local provider = openai.new(opts)
 
   -- Vertex AI-specific state
-  -- First check for top-level parameters.vertex, then fall back to top-level vertex
-  local vertex_opts = (opts.parameters and opts.parameters.vertex) or opts.vertex or {}
+  -- Get parameters with defaults, then override with vertex-specific parameters
+  local params = opts.parameters or {}
+  local vertex_params = params.vertex or {}
   
-  -- Get project_id from parameters.vertex, parameters, or vertex
-  provider.project_id = vertex_opts.project_id or 
-                        (opts.parameters and opts.parameters.project_id)
-  
-  -- Get location from parameters.vertex, parameters, or vertex, with default
-  provider.location = vertex_opts.location or 
-                      (opts.parameters and opts.parameters.location) or 
-                      "europe-central2-aiplatform"
-  
-  -- Get endpoint_id from parameters.vertex, parameters, or vertex
-  provider.endpoint_id = vertex_opts.endpoint_id or 
-                         (opts.parameters and opts.parameters.endpoint_id)
+  -- Set provider properties with defaults
+  provider.project_id = vertex_params.project_id or params.project_id
+  provider.location = vertex_params.location or params.location or "europe-central2-aiplatform"
+  provider.endpoint_id = vertex_params.endpoint_id or params.endpoint_id
 
   -- Set metatable to use Vertex AI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = openai }) })
