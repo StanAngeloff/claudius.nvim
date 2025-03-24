@@ -350,7 +350,7 @@ M.setup = function(opts)
 
   -- Create user commands
   vim.api.nvim_create_user_command("ClaudiusSend", function()
-    M.send_to_claude()
+    M.send_to_provider()
   end, {})
 
   vim.api.nvim_create_user_command("ClaudiusCancel", function()
@@ -364,7 +364,7 @@ M.setup = function(opts)
   vim.api.nvim_create_user_command("ClaudiusSendAndInsert", function()
     local bufnr = vim.api.nvim_get_current_buf()
     M.buffer_cmd(bufnr, "stopinsert")
-    M.send_to_claude({
+    M.send_to_provider({
       on_complete = function()
         M.buffer_cmd(bufnr, "startinsert!")
       end,
@@ -444,8 +444,8 @@ M.setup = function(opts)
         -- Normal mode mappings
         if config.keymaps.normal.send then
           vim.keymap.set("n", config.keymaps.normal.send, function()
-            M.send_to_claude()
-          end, { buffer = true, desc = "Send to Claude" })
+            M.send_to_provider()
+          end, { buffer = true, desc = "Send to AI" })
         end
 
         if config.keymaps.normal.cancel then
@@ -484,12 +484,12 @@ M.setup = function(opts)
           vim.keymap.set("i", config.keymaps.insert.send, function()
             local bufnr = vim.api.nvim_get_current_buf()
             M.buffer_cmd(bufnr, "stopinsert")
-            M.send_to_claude({
+            M.send_to_provider({
               on_complete = function()
                 M.buffer_cmd(bufnr, "startinsert!")
               end,
             })
-          end, { buffer = true, desc = "Send to Claude and continue editing" })
+          end, { buffer = true, desc = "Send to AI and continue editing" })
         end
       end,
     })
@@ -682,8 +682,8 @@ local function start_loading_spinner(bufnr)
   return timer
 end
 
--- Handle the Claude interaction
-function M.send_to_claude(opts)
+-- Handle the AI provider interaction
+function M.send_to_provider(opts)
   opts = opts or {}
   local bufnr = vim.api.nvim_get_current_buf()
   local state = buffers.get_state(bufnr)
@@ -694,7 +694,7 @@ function M.send_to_claude(opts)
     return
   end
 
-  log.info("Starting new Claude request")
+  log.info("Starting new AI request")
   state.request_cancelled = false
 
   -- Auto-write the buffer before sending if enabled
@@ -704,7 +704,7 @@ function M.send_to_claude(opts)
   if not provider:get_api_key() then
     log.info("No API key found in environment or keyring, prompting user")
     vim.ui.input({
-      prompt = "Enter your Anthropic API key: ",
+      prompt = "Enter your API key: ",
       default = "",
       border = "rounded",
       title = " Claudius - API Key Required ",
@@ -886,7 +886,7 @@ function M.send_to_claude(opts)
         local usage_str = format_usage(state.current_usage, session_usage)
         if usage_str ~= "" then
           local notify_opts = vim.tbl_deep_extend("force", config.notify, {
-            title = "Claude Usage",
+            title = "Usage",
           })
           require("claudius.notify").show(usage_str, notify_opts)
         end
