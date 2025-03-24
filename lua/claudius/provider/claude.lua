@@ -97,9 +97,9 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Check for expected format: lines should start with "data: "
-  if not line:match("^data: ") then
-    -- This is not a standard SSE data line
+  -- Check for expected format: lines should start with "event: " or "data: "
+  if not (line:match("^event: ") or line:match("^data: ")) then
+    -- This is not a standard SSE line
     log.error("Unexpected response format from Claude API: " .. line)
     
     -- Try parsing as a direct JSON error response again (more thorough check)
@@ -119,7 +119,14 @@ function M.process_response_line(self, line, callbacks)
     end
     
     -- If we can't parse it as an error, log and ignore
-    log.error("Ignoring unrecognized Claude API response line")
+    log.error("Ignoring unrecognized Claude API response line: " .. line)
+    return
+  end
+
+  -- Handle event lines (event: type)
+  if line:match("^event: ") then
+    local event_type = line:gsub("^event: ", "")
+    log.debug("Received event type: " .. event_type)
     return
   end
 
@@ -164,6 +171,12 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
+  -- Handle ping events
+  if data.type == "ping" then
+    log.debug("Received ping event")
+    return
+  end
+
   -- Track usage information
   if data.type == "message_start" then
     log.debug("Received message_start event")
@@ -176,13 +189,25 @@ function M.process_response_line(self, line, callbacks)
         })
       end
     else
-      log.error("Expected usage information in message_start event but not found")
+      log.debug("No usage information in message_start event")
     end
   end
 
   -- Track output tokens from usage field in any event
   if data.usage and data.usage.output_tokens then
     if callbacks.on_usage then
+      callbacks.on_usage({
+        type = "output",
+        tokens = data.usage.output_tokens,
+      })
+    end
+  end
+
+  -- Handle message_delta event
+  if data.type == "message_delta" then
+    log.debug("Received message_delta event")
+    -- Update usage if available
+    if data.usage and data.usage.output_tokens and callbacks.on_usage then
       callbacks.on_usage({
         type = "output",
         tokens = data.usage.output_tokens,
@@ -198,18 +223,49 @@ function M.process_response_line(self, line, callbacks)
     end
   end
 
-  -- Handle content blocks
+  -- Handle content_block_start event
+  if data.type == "content_block_start" then
+    log.debug("Received content_block_start event for index " .. tostring(data.index))
+  end
+
+  -- Handle content_block_stop event
+  if data.type == "content_block_stop" then
+    log.debug("Received content_block_stop event for index " .. tostring(data.index))
+  end
+
+  -- Handle content blocks deltas
   if data.type == "content_block_delta" then
-    if data.delta and data.delta.text then
-      log.debug("Content delta: " .. data.delta.text)
+    if not data.delta then
+      log.error("Received content_block_delta without delta field")
+      return
+    end
+
+    if data.delta.type == "text_delta" and data.delta.text then
+      log.debug("Content text delta: " .. data.delta.text)
       
       if callbacks.on_content then
         callbacks.on_content(data.delta.text)
       end
+    elseif data.delta.type == "input_json_delta" and data.delta.partial_json ~= nil then
+      log.debug("Content input_json_delta: " .. tostring(data.delta.partial_json))
+      -- Tool use JSON deltas are not displayed directly
+    elseif data.delta.type == "thinking_delta" and data.delta.thinking then
+      log.debug("Content thinking delta: " .. data.delta.thinking)
+      -- Thinking deltas are not displayed directly
+    elseif data.delta.type == "signature_delta" and data.delta.signature then
+      log.debug("Content signature delta received")
+      -- Signature deltas are not displayed
     else
-      log.error("Received content_block_delta without expected text field")
+      log.error("Received content_block_delta with unknown delta type: " .. tostring(data.delta.type))
     end
-  elseif data.type and data.type ~= "message_start" and data.type ~= "message_stop" then
+  elseif data.type and not (
+    data.type == "message_start" or 
+    data.type == "message_stop" or 
+    data.type == "message_delta" or
+    data.type == "content_block_start" or
+    data.type == "content_block_stop" or
+    data.type == "ping"
+  ) then
     log.error("Received unknown event type from Claude API: " .. data.type)
   end
 end
