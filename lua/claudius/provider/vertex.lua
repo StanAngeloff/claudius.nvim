@@ -274,9 +274,9 @@ function M.process_response_line(self, line, callbacks)
   -- Handle raw JSON format (Vertex AI returns an array of response objects)
   
   -- Check if we're starting an array
-  if line == "[" then
+  if line == "[" or line:match("^%[%s*{") then
     log.debug("Starting JSON array")
-    accumulated_json = "["
+    accumulated_json = line
     in_array = true
     return
   end
@@ -308,14 +308,21 @@ function M.process_response_line(self, line, callbacks)
   -- Append the current line to our accumulated JSON
   accumulated_json = accumulated_json .. line
   
-  -- Try two parsing approaches:
+  -- Try multiple parsing approaches:
   -- 1. Parse as a complete object/array
   local parse_ok, data = pcall(vim.fn.json_decode, accumulated_json)
   
   -- 2. If we're in an array and parsing failed, try closing the array and parsing
   local array_parse_ok, array_data
-  if not parse_ok and in_array then
-    array_parse_ok, array_data = pcall(vim.fn.json_decode, accumulated_json .. "]")
+  if not parse_ok then
+    if in_array then
+      -- Try adding a closing bracket
+      array_parse_ok, array_data = pcall(vim.fn.json_decode, accumulated_json .. "]")
+    elseif accumulated_json:match("^%[") then
+      -- If it starts with [ but in_array wasn't set, try it anyway
+      in_array = true
+      array_parse_ok, array_data = pcall(vim.fn.json_decode, accumulated_json .. "]")
+    end
   end
   
   if parse_ok and type(data) == "table" then
