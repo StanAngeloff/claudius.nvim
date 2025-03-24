@@ -1,6 +1,7 @@
 --- OpenAI provider for Claudius
 --- Implements the OpenAI API integration
 local base = require("claudius.provider.base")
+local log = require("claudius.logging")
 local M = {}
 
 -- Create a new OpenAI provider instance

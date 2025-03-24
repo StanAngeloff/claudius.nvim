@@ -1,5 +1,6 @@
 --- Base provider for Claudius
 --- Defines the interface that all providers must implement
+local log = require("claudius.logging")
 local M = {}
 
 -- Provider constructor
@@ -151,9 +152,7 @@ function M.send_request(self, request_body, callbacks)
   local endpoint = self:get_endpoint()
 
   -- Log the API request
-  if vim.g.claudius_log and vim.g.claudius_log.debug then
-    vim.g.claudius_log.debug("Sending request to API endpoint: " .. endpoint)
-  end
+  log.debug("Sending request to API endpoint: " .. endpoint)
 
   -- Prepare curl command
   local cmd = self:prepare_curl_command(tmp_file, headers, endpoint)

@@ -1,6 +1,7 @@
 --- Claude provider for Claudius
 --- Implements the Claude API integration
 local base = require("claudius.provider.base")
+local log = require("claudius.logging")
 local M = {}
 
 -- Create a new Claude provider instance

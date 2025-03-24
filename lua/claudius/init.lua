@@ -2,7 +2,7 @@
 --- Provides chat interface and API integration
 local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
-local log = {}
+local log = require("claudius.logging")
 local buffers = require("claudius.buffers")
 local provider = nil
 
@@ -229,41 +229,21 @@ M.setup = function(opts)
     -- Default to Claude if not specified
     provider = require("claudius.provider.claude").new(config)
   end
+
+  -- Configure logging based on user settings
+  log.configure({
+    enabled = config.logging.enabled,
+    path = config.logging.path,
+  })
   
-  -- Make logging functions available to the provider
-  vim.g.claudius_log = log
-
-  -- Setup logging
-  local function write_log(level, msg)
-    if config.logging and config.logging.enabled then
-      local f = io.open(config.logging.path, "a")
-      if f then
-        f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [" .. level .. "] " .. msg .. "\n")
-        f:close()
-      end
-    end
-  end
-
-  function log.info(msg)
-    write_log("INFO", msg)
-  end
-
-  function log.error(msg)
-    write_log("ERROR", msg)
-  end
-
-  function log.debug(msg)
-    write_log("DEBUG", msg)
-  end
-
   -- Helper function to toggle logging
   local function toggle_logging(enable)
     if enable == nil then
-      enable = not config.logging.enabled
+      enable = not log.is_enabled()
     end
-    config.logging.enabled = enable
+    log.set_enabled(enable)
     if enable then
-      vim.notify("Claudius: Logging enabled - " .. config.logging.path)
+      vim.notify("Claudius: Logging enabled - " .. log.get_path())
     else
       vim.notify("Claudius: Logging disabled")
     end
@@ -390,14 +370,14 @@ M.setup = function(opts)
   end, {})
 
   vim.api.nvim_create_user_command("ClaudiusOpenLog", function()
-    if not config.logging.enabled then
+    if not log.is_enabled() then
       vim.notify("Claudius: Logging is currently disabled", vim.log.levels.WARN)
       -- Give user time to see the warning
       vim.defer_fn(function()
-        vim.cmd("tabedit " .. config.logging.path)
+        vim.cmd("tabedit " .. log.get_path())
       end, 1000)
     else
-      vim.cmd("tabedit " .. config.logging.path)
+      vim.cmd("tabedit " .. log.get_path())
     end
   end, {})
 
@@ -617,8 +597,8 @@ function M.cancel_request()
       end
 
       local msg = "Claudius: Request cancelled"
-      if config.logging.enabled then
-        msg = msg .. ". See " .. config.logging.path .. " for details"
+      if log.is_enabled() then
+        msg = msg .. ". See " .. log.get_path() .. " for details"
       end
       vim.notify(msg, vim.log.levels.INFO)
     end
@@ -851,8 +831,8 @@ function M.send_to_provider(opts)
         auto_write_buffer(bufnr)
 
         local notify_msg = "Claudius: " .. msg
-        if config.logging and config.logging.enabled then
-          notify_msg = notify_msg .. ". See " .. config.logging.path .. " for details"
+        if log.is_enabled() then
+          notify_msg = notify_msg .. ". See " .. log.get_path() .. " for details"
         end
         vim.notify(notify_msg, vim.log.levels.ERROR)
       end)
