@@ -151,7 +151,7 @@ function M.process_response_line(self, line, callbacks)
   -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
     -- This is not a standard SSE data line
-    log.warn("Unexpected response format: " .. line)
+    log.error("Unexpected response format: " .. line)
     
     -- Try parsing as a direct JSON error response
     local ok, error_data = pcall(vim.fn.json_decode, line)
@@ -171,7 +171,7 @@ function M.process_response_line(self, line, callbacks)
     end
     
     -- If we can't parse it as an error, log and ignore
-    log.warn("Ignoring unrecognized response line")
+    log.error("Ignoring unrecognized response line")
     return
   end
 
@@ -179,13 +179,13 @@ function M.process_response_line(self, line, callbacks)
   local json_str = line:gsub("^data: ", "")
   local parse_ok, data = pcall(vim.fn.json_decode, json_str)
   if not parse_ok then
-    log.warn("Failed to parse JSON from response: " .. json_str)
+    log.error("Failed to parse JSON from response: " .. json_str)
     return
   end
 
   -- Validate the response structure
   if type(data) ~= "table" then
-    log.warn("Expected table in response, got: " .. type(data))
+    log.error("Expected table in response, got: " .. type(data))
     return
   end
 
@@ -208,17 +208,17 @@ function M.process_response_line(self, line, callbacks)
 
   -- Handle content deltas
   if not data.choices then
-    log.warn("Expected 'choices' in response data, but not found")
+    log.error("Expected 'choices' in response data, but not found")
     return
   end
   
   if not data.choices[1] then
-    log.warn("Expected at least one choice in response, but none found")
+    log.error("Expected at least one choice in response, but none found")
     return
   end
   
   if not data.choices[1].delta then
-    log.warn("Expected 'delta' in first choice, but not found")
+    log.error("Expected 'delta' in first choice, but not found")
     return
   end
   
