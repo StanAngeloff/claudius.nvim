@@ -232,7 +232,7 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
         { text = system_message }
       }
     }
-  }
+  end
 
   -- Ensure we're requesting a stream response
   request_body.stream = true
