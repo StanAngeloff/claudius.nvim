@@ -109,11 +109,8 @@ function M.new(opts)
   -- Set the API version
   provider.api_version = "v1"
   
-  -- Initialize response accumulator for multi-line responses
-  provider.response_accumulator = {
-    lines = {},
-    has_processed_content = false
-  }
+  -- Initialize response accumulator by calling reset
+  provider:reset()
 
   -- Set metatable to use Vertex AI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
