@@ -50,30 +50,41 @@ end
 
 -- Get API key from environment, keyring, or prompt
 function M.get_api_key(self, opts)
-  -- Return cached key if we have it
-  if self.state.api_key then
+  -- Return cached key if we have it and it's not empty
+  if self.state.api_key and self.state.api_key ~= "" then
     log.debug("Using cached API key: " .. vim.inspect(self.state.api_key))
     return self.state.api_key
   end
+  
+  -- Reset the API key to nil to ensure we don't use an empty string
+  self.state.api_key = nil
 
   -- Try environment variable if provided
   if opts and opts.env_var_name then
-    self.state.api_key = os.getenv(opts.env_var_name)
+    local env_key = os.getenv(opts.env_var_name)
+    -- Only set if not empty
+    if env_key and env_key ~= "" then
+      self.state.api_key = env_key
+    end
   end
 
   -- Try system keyring if no env var and service/key names are provided
   if not self.state.api_key and opts and opts.keyring_service_name and opts.keyring_key_name then
     -- First try with project_id if provided
     if opts.keyring_project_id then
-      self.state.api_key = try_keyring(opts.keyring_service_name, opts.keyring_key_name, opts.keyring_project_id)
-      if self.state.api_key then
+      local key = try_keyring(opts.keyring_service_name, opts.keyring_key_name, opts.keyring_project_id)
+      if key and key ~= "" then
+        self.state.api_key = key
         log.debug("Retrieved API key from keyring with project ID: " .. opts.keyring_project_id)
       end
     end
 
     -- Fall back to generic lookup if project-specific key wasn't found
     if not self.state.api_key then
-      self.state.api_key = try_keyring(opts.keyring_service_name, opts.keyring_key_name)
+      local key = try_keyring(opts.keyring_service_name, opts.keyring_key_name)
+      if key and key ~= "" then
+        self.state.api_key = key
+      end
     end
   end
 
