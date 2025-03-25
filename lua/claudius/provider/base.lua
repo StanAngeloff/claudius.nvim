@@ -52,6 +52,7 @@ end
 function M.get_api_key(self, opts)
   -- Return cached key if we have it
   if self.state.api_key then
+    log.debug("Using cached API key: " .. vim.inspect(self.state.api_key))
     return self.state.api_key
   end
 
