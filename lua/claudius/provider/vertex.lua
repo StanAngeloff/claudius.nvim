@@ -31,7 +31,8 @@ local function generate_access_token(service_account_json)
   if check_result ~= 0 then
     -- Clean up the temporary file
     os.remove(tmp_file)
-    return nil, "gcloud command not found. Please install the Google Cloud CLI or set VERTEX_AI_ACCESS_TOKEN environment variable."
+    return nil,
+      "gcloud command not found. Please install the Google Cloud CLI or set VERTEX_AI_ACCESS_TOKEN environment variable."
   end
 
   -- Use gcloud to generate an access token
@@ -51,7 +52,11 @@ local function generate_access_token(service_account_json)
 
     if success and output and #output > 0 then
       -- Check if the output looks like a token (no error messages)
-      if not output:match("ERROR:") and not output:match("command not found") and not output:match("not recognized") then
+      if
+        not output:match("ERROR:")
+        and not output:match("command not found")
+        and not output:match("not recognized")
+      then
         -- Trim whitespace
         token = output:gsub("%s+$", "")
         -- Basic validation: tokens are usually long strings without spaces
@@ -132,11 +137,16 @@ function M.get_api_key(self)
     else
       log.error("Failed to generate access token: " .. (err or "unknown error"))
       if err then
-        error(err .. "\n\n---\n\nVertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n" ..
-              "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable.")
+        error(
+          err
+            .. "\n\n---\n\nVertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n"
+            .. "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable."
+        )
       else
-        error("Vertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n" ..
-              "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable.")
+        error(
+          "Vertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n"
+            .. "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable."
+        )
       end
     end
   end
@@ -180,7 +190,7 @@ function M.format_messages(self, messages, system_message)
     if role then
       table.insert(formatted, {
         role = role,
-        content = msg.content:gsub("%s+$", "")
+        content = msg.content:gsub("%s+$", ""),
       })
     end
   end
@@ -196,8 +206,8 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
     table.insert(contents, {
       role = msg.role,
       parts = {
-        { text = msg.content }
-      }
+        { text = msg.content },
+      },
     })
   end
 
@@ -214,8 +224,8 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
   if system_message then
     request_body.systemInstruction = {
       parts = {
-        { text = system_message }
-      }
+        { text = system_message },
+      },
     }
   end
 
