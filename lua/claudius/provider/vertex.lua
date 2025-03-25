@@ -229,8 +229,8 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
   if system_message then
     request_body.systemInstruction = {
       parts = {
-        { text = system_message },
-      },
+        { text = system_message }
+      }
     }
   }
 
