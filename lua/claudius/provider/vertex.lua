@@ -114,6 +114,17 @@ function M.new(opts)
     lines = {},
     has_processed_content = false
   }
+  
+  -- Reset the accumulator before each request
+  vim.api.nvim_create_autocmd("User", {
+    pattern = "ClaudiusBeforeRequest",
+    callback = function()
+      provider.response_accumulator = {
+        lines = {},
+        has_processed_content = false
+      }
+    end
+  })
 
   -- Set metatable to use Vertex AI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
@@ -474,35 +485,20 @@ function M.process_response_line(self, line, callbacks)
   end
 end
 
--- Override send_request to add response accumulator check on exit
-function M.send_request(self, request_body, callbacks)
-  -- Create a wrapper for the callbacks to add our response accumulator check
-  local wrapped_callbacks = vim.tbl_extend("force", {}, callbacks)
+-- Check unprocessed JSON responses (called by base provider on_exit)
+function M.check_unprocessed_json(self, callbacks)
+  -- Check accumulated response if we haven't processed any content
+  if not self.response_accumulator.has_processed_content and #self.response_accumulator.lines > 0 then
+    if not self:check_accumulated_response(callbacks) then
+      log.debug("No actionable content found in accumulated response")
+    end
+  end
   
-  -- Reset the accumulator for this request
+  -- Reset the accumulator for next request
   self.response_accumulator = {
     lines = {},
     has_processed_content = false
   }
-  
-  -- Wrap the on_complete callback to check accumulated responses
-  local original_on_complete = wrapped_callbacks.on_complete
-  wrapped_callbacks.on_complete = function(code)
-    -- Check accumulated response if we haven't processed any content
-    if not self.response_accumulator.has_processed_content and #self.response_accumulator.lines > 0 then
-      if not self:check_accumulated_response(callbacks) then
-        log.debug("No actionable content found in accumulated response")
-      end
-    end
-    
-    -- Call the original callback
-    if original_on_complete then
-      original_on_complete(code)
-    end
-  end
-  
-  -- Call the base implementation with our wrapped callbacks
-  return require("claudius.provider.base").send_request(self, request_body, wrapped_callbacks)
 end
 
 return M

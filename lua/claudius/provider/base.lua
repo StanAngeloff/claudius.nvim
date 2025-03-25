@@ -268,6 +268,11 @@ function M.send_request(self, request_body, callbacks)
       -- Log exit code
       log.info("Request completed with exit code: " .. tostring(code))
 
+      -- Check for unprocessed JSON if the provider supports it
+      if self.check_unprocessed_json then
+        self:check_unprocessed_json(callbacks)
+      end
+
       if callbacks.on_complete then
         callbacks.on_complete(code)
       end
