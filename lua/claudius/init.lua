@@ -124,6 +124,9 @@ end
 -- Module configuration
 local config = {}
 
+-- Store the current provider instance
+local provider = nil
+
 -- Default configuration
 local default_config = {
   highlights = {
@@ -220,6 +223,37 @@ local function auto_write_buffer(bufnr)
   end
 end
 
+-- Initialize or switch provider based on configuration
+local function initialize_provider(provider_config)
+  local provider_defaults = require("claudius.provider.defaults")
+  
+  -- Set default model if not specified
+  if not provider_config.model then
+    provider_config.model = provider_defaults.get_model(provider_config.provider)
+  end
+
+  -- Set default parameters if not specified
+  if not provider_config.parameters.max_tokens then
+    provider_config.parameters.max_tokens = provider_defaults.parameters.max_tokens
+  end
+
+  if not provider_config.parameters.temperature then
+    provider_config.parameters.temperature = provider_defaults.parameters.temperature
+  end
+
+  -- Create the provider instance
+  if provider_config.provider == "openai" then
+    provider = require("claudius.provider.openai").new(provider_config)
+  elseif provider_config.provider == "vertex" then
+    provider = require("claudius.provider.vertex").new(provider_config)
+  else
+    -- Default to Claude if not specified
+    provider = require("claudius.provider.claude").new(provider_config)
+  end
+  
+  return provider
+end
+
 -- Setup function to initialize the plugin
 M.setup = function(opts)
   -- Merge user config with defaults
@@ -227,30 +261,7 @@ M.setup = function(opts)
   config = vim.tbl_deep_extend("force", default_config, opts)
 
   -- Initialize provider based on config
-  local provider_defaults = require("claudius.provider.defaults")
-
-  -- Set default model if not specified
-  if not config.model then
-    config.model = provider_defaults.get_model(config.provider)
-  end
-
-  -- Set default parameters if not specified
-  if not config.parameters.max_tokens then
-    config.parameters.max_tokens = provider_defaults.parameters.max_tokens
-  end
-
-  if not config.parameters.temperature then
-    config.parameters.temperature = provider_defaults.parameters.temperature
-  end
-
-  if config.provider == "openai" then
-    provider = require("claudius.provider.openai").new(config)
-  elseif config.provider == "vertex" then
-    provider = require("claudius.provider.vertex").new(config)
-  else
-    -- Default to Claude if not specified
-    provider = require("claudius.provider.claude").new(config)
-  end
+  initialize_provider(config)
 
   -- Configure logging based on user settings
   log.configure({
@@ -372,6 +383,30 @@ M.setup = function(opts)
       end,
     })
   end, {})
+  
+  -- Command to switch providers
+  vim.api.nvim_create_user_command("ClaudiusSwitch", function(opts)
+    local args = opts.fargs
+    if #args < 1 then
+      vim.notify("Usage: ClaudiusSwitch <provider> [model]", vim.log.levels.ERROR)
+      return
+    end
+    
+    local switch_opts = {
+      provider = args[1],
+    }
+    
+    if args[2] then
+      switch_opts.model = args[2]
+    end
+    
+    M.switch(switch_opts)
+  end, {
+    nargs = "+",
+    complete = function(_, _, _)
+      return { "claude", "openai", "vertex" }
+    end,
+  })
 
   -- Navigation commands
   vim.api.nvim_create_user_command("ClaudiusNextMessage", function()
@@ -1088,6 +1123,66 @@ function M.send_to_provider(opts)
 
   -- Send the request using the provider
   state.current_request = provider:send_request(request_body, callbacks)
+end
+
+-- Switch to a different provider or model
+function M.switch(opts)
+  if not opts or not opts.provider then
+    vim.notify("Provider is required", vim.log.levels.ERROR)
+    return
+  end
+  
+  -- Check for ongoing requests
+  local bufnr = vim.api.nvim_get_current_buf()
+  local state = buffers.get_state(bufnr)
+  if state.current_request then
+    vim.notify("Cannot switch providers while a request is in progress. Cancel it first.", vim.log.levels.WARN)
+    return
+  end
+  
+  -- Create a new configuration by merging the current config with the provided options
+  local new_config = vim.tbl_deep_extend("force", {}, config)
+  
+  -- Update provider
+  new_config.provider = opts.provider
+  
+  -- Update model if specified
+  if opts.model then
+    new_config.model = opts.model
+  else
+    -- Reset model to use provider default
+    new_config.model = nil
+  end
+  
+  -- Handle Vertex AI specific options
+  if opts.provider == "vertex" then
+    -- Initialize vertex parameters if they don't exist
+    if not new_config.parameters.vertex then
+      new_config.parameters.vertex = {}
+    end
+    
+    -- Update project_id if specified
+    if opts.project_id then
+      new_config.parameters.vertex.project_id = opts.project_id
+    end
+    
+    -- Update location if specified
+    if opts.location then
+      new_config.parameters.vertex.location = opts.location
+    end
+  end
+  
+  -- Update the global config
+  config = new_config
+  
+  -- Initialize the new provider
+  local new_provider = initialize_provider(config)
+  
+  -- Notify the user
+  local model_info = config.model and (" with model " .. config.model) or ""
+  vim.notify("Switched to " .. config.provider .. model_info, vim.log.levels.INFO)
+  
+  return new_provider
 end
 
 return M
