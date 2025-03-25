@@ -342,8 +342,10 @@ end
 -- Reset provider state before a new request
 -- This can be overridden by specific providers to reset their state
 function M.reset(self)
-  -- Base implementation does nothing by default
+  -- Base implementation resets the API key
   -- Providers can override this to reset their specific state
+  -- but should call the base implementation
+  self.state.api_key = nil
 end
 
 return M
