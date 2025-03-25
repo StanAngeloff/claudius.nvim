@@ -28,7 +28,7 @@ pkgs.mkShell {
       text = ''
         aider \
           --model anthropic/claude-3-7-sonnet-20250219 \
-            README.md lua/**/*.lua syntax/*.vim
+            README.md lua/*/*.lua lua/*/*/*.lua syntax/*.vim
       '';
     })
 
