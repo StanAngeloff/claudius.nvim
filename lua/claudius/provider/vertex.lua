@@ -24,6 +24,16 @@ local function generate_access_token(service_account_json)
     end
   end, 60 * 1000) -- 60 seconds in milliseconds
 
+  -- First check if gcloud is installed
+  local check_cmd = "command -v gcloud >/dev/null 2>&1"
+  local check_result = os.execute(check_cmd)
+  
+  if check_result ~= 0 then
+    -- Clean up the temporary file
+    os.remove(tmp_file)
+    return nil, "gcloud command not found. Please install the Google Cloud CLI or set VERTEX_AI_ACCESS_TOKEN environment variable."
+  end
+  
   -- Use gcloud to generate an access token
   -- Capture both stdout and stderr for better error reporting
   local cmd = string.format("GOOGLE_APPLICATION_CREDENTIALS=%s gcloud auth print-access-token 2>&1", tmp_file)
@@ -41,10 +51,16 @@ local function generate_access_token(service_account_json)
     
     if success and output and #output > 0 then
       -- Check if the output looks like a token (no error messages)
-      if not output:match("ERROR:") and not output:match("Command .* not found") then
+      if not output:match("ERROR:") and not output:match("command not found") and not output:match("not recognized") then
         -- Trim whitespace
         token = output:gsub("%s+$", "")
-        return token
+        -- Basic validation: tokens are usually long strings without spaces
+        if #token > 20 and not token:match("%s") then
+          return token
+        else
+          err = "Invalid token format received from gcloud"
+          log.debug("Invalid token format: " .. output)
+        end
       else
         -- This is an error message from gcloud
         err = "gcloud error: " .. output
