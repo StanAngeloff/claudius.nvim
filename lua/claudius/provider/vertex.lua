@@ -247,7 +247,7 @@ function M.get_endpoint(self)
   end
 
   local endpoint = string.format(
-    "https://%s-aiplatform.googleapis.com/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent",
+    "https://%s-aiplatform.googleapis.com/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
     self.location,
     self.api_version,
     self.project_id,
