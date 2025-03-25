@@ -272,7 +272,7 @@ end
 -- Process a response line from Vertex AI API (Server-Sent Events format)
 function M.process_response_line(self, line, callbacks)
   -- Skip empty lines
-  if not line or line == "" or line == "\r"  then
+  if not line or line == "" or line == "\r" then
     return
   end
 
@@ -359,7 +359,12 @@ function M.process_response_line(self, line, callbacks)
       log.debug("Received finish reason: " .. tostring(data.candidates[1].finishReason))
 
       -- Process any content in the final message before signaling completion
-      if data.candidates[1].content and data.candidates[1].content.parts and data.candidates[1].content.parts[1] and data.candidates[1].content.parts[1].text then
+      if
+        data.candidates[1].content
+        and data.candidates[1].content.parts
+        and data.candidates[1].content.parts[1]
+        and data.candidates[1].content.parts[1].text
+      then
         local text = data.candidates[1].content.parts[1].text
         log.debug("Final message content text: " .. text)
 
