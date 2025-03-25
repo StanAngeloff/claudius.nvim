@@ -11,9 +11,6 @@ function M.new(opts)
   -- Claude-specific state
   provider.endpoint = "https://api.anthropic.com/v1/messages"
   provider.api_version = "2023-06-01"
-  
-  -- Reset state to ensure clean initialization
-  provider:reset()
 
   -- Set metatable to use Claude methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })

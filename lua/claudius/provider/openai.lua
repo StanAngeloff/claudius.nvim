@@ -11,9 +11,6 @@ function M.new(opts)
   -- OpenAI-specific state
   provider.endpoint = "https://api.openai.com/v1/chat/completions"
   provider.api_version = "2023-05-15" -- OpenAI API version
-  
-  -- Reset state to ensure clean initialization
-  provider:reset()
 
   -- Set metatable to use OpenAI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })

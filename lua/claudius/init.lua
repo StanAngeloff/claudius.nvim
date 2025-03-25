@@ -226,7 +226,7 @@ end
 -- Initialize or switch provider based on configuration
 local function initialize_provider(provider_config)
   local provider_defaults = require("claudius.provider.defaults")
-  
+
   -- Set default model if not specified
   if not provider_config.model then
     provider_config.model = provider_defaults.get_model(provider_config.provider)
@@ -251,10 +251,10 @@ local function initialize_provider(provider_config)
     -- Default to Claude if not specified
     new_provider = require("claudius.provider.claude").new(provider_config)
   end
-  
+
   -- Update the global provider reference
   provider = new_provider
-  
+
   return new_provider
 end
 
@@ -387,7 +387,7 @@ M.setup = function(opts)
       end,
     })
   end, {})
-  
+
   -- Command to switch providers
   vim.api.nvim_create_user_command("ClaudiusSwitch", function(opts)
     local args = opts.fargs
@@ -395,15 +395,15 @@ M.setup = function(opts)
       vim.notify("Usage: ClaudiusSwitch <provider> [model]", vim.log.levels.ERROR)
       return
     end
-    
+
     local switch_opts = {
       provider = args[1],
     }
-    
+
     if args[2] then
       switch_opts.model = args[2]
     end
-    
+
     M.switch(switch_opts)
   end, {
     nargs = "+",
@@ -1081,17 +1081,17 @@ function M.send_to_provider(opts)
         -- Only add the new prompt if the request wasn't cancelled and completed successfully
         if not state.request_cancelled and code == 0 and response_started then
           local last_line = vim.api.nvim_buf_line_count(bufnr)
-          
+
           -- Check if the last line is empty
           local last_line_content = ""
           if last_line > 0 then
             last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1] or ""
           end
-          
+
           -- Prepare lines to insert based on whether the last line is empty
           local lines_to_insert = {}
           local cursor_line_offset = 1
-          
+
           if last_line_content == "" then
             -- Last line is already empty, just add the prompt
             lines_to_insert = { "@You: " }
@@ -1100,7 +1100,7 @@ function M.send_to_provider(opts)
             lines_to_insert = { "", "@You: " }
             cursor_line_offset = 2
           end
-          
+
           -- Insert the lines
           M.buffer_cmd(bufnr, "undojoin")
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines_to_insert)
@@ -1142,7 +1142,7 @@ function M.switch(opts)
     vim.notify("Provider is required", vim.log.levels.ERROR)
     return
   end
-  
+
   -- Check for ongoing requests
   local bufnr = vim.api.nvim_get_current_buf()
   local state = buffers.get_state(bufnr)
@@ -1150,13 +1150,13 @@ function M.switch(opts)
     vim.notify("Cannot switch providers while a request is in progress. Cancel it first.", vim.log.levels.WARN)
     return
   end
-  
+
   -- Create a new configuration by merging the current config with the provided options
   local new_config = vim.tbl_deep_extend("force", {}, config)
-  
+
   -- Update provider
   new_config.provider = opts.provider
-  
+
   -- Update model if specified
   if opts.model then
     new_config.model = opts.model
@@ -1164,41 +1164,41 @@ function M.switch(opts)
     -- Reset model to use provider default
     new_config.model = nil
   end
-  
+
   -- Handle Vertex AI specific options
   if opts.provider == "vertex" then
     -- Initialize vertex parameters if they don't exist
     if not new_config.parameters.vertex then
       new_config.parameters.vertex = {}
     end
-    
+
     -- Update project_id if specified
     if opts.project_id then
       new_config.parameters.vertex.project_id = opts.project_id
     end
-    
+
     -- Update location if specified
     if opts.location then
       new_config.parameters.vertex.location = opts.location
     end
   end
-  
+
   -- Update the global config
   config = new_config
-  
+
   -- Initialize the new provider with a clean state
   provider = nil -- Clear the current provider
   local new_provider = initialize_provider(config)
-  
+
   -- Force the new provider to clear its API key cache
   if new_provider and new_provider.state then
     new_provider.state.api_key = nil
   end
-  
+
   -- Notify the user
   local model_info = config.model and (" with model " .. config.model) or ""
   vim.notify("Switched to " .. config.provider .. model_info, vim.log.levels.INFO)
-  
+
   return new_provider
 end
 

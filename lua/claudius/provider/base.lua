@@ -55,7 +55,7 @@ function M.get_api_key(self, opts)
     log.debug("Using cached API key: " .. vim.inspect(self.state.api_key))
     return self.state.api_key
   end
-  
+
   -- Reset the API key to nil to ensure we don't use an empty string
   self.state.api_key = nil
 
@@ -342,10 +342,8 @@ end
 -- Reset provider state before a new request
 -- This can be overridden by specific providers to reset their state
 function M.reset(self)
-  -- Base implementation resets the API key
+  -- Base implementation does nothing by default
   -- Providers can override this to reset their specific state
-  -- but should call the base implementation
-  self.state.api_key = nil
 end
 
 return M
