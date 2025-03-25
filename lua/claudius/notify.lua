@@ -19,35 +19,35 @@ M.default_opts = {
 function M.alert(content, opts)
   opts = opts or {}
   local title = opts.title or "Alert"
-  
+
   -- Create a new buffer for the alert
   local buf = vim.api.nvim_create_buf(false, true)
-  
+
   -- Set buffer options for Markdown
   vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
   vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
   vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(buf, "swapfile", false)
-  
+
   -- Set the content with title
-  local lines = {"# " .. title, "", ""}
+  local lines = { "# " .. title, "", "" }
   local content_lines = vim.split(content, "\n", true)
   for _, line in ipairs(content_lines) do
     table.insert(lines, line)
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  
+
   -- Calculate window size (80% of screen width, appropriate height)
   local width = math.floor(vim.o.columns * 0.8)
   local height = #lines + 2 -- Add some padding
   if height > math.floor(vim.o.lines * 0.8) then
     height = math.floor(vim.o.lines * 0.8)
   end
-  
+
   -- Calculate position (centered)
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
-  
+
   -- Create the floating window
   local win_id = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
@@ -58,22 +58,22 @@ function M.alert(content, opts)
     style = "minimal",
     border = "rounded",
     title = " " .. title .. " ",
-    title_pos = "center"
+    title_pos = "center",
   })
-  
+
   -- Set window-local options
   vim.api.nvim_win_set_option(win_id, "wrap", true)
   vim.api.nvim_win_set_option(win_id, "conceallevel", 2)
   vim.api.nvim_win_set_option(win_id, "concealcursor", "n")
-  
+
   -- Add keymaps to close the window
-  vim.api.nvim_buf_set_keymap(buf, "n", "q", "<cmd>close<CR>", {noremap = true, silent = true})
-  vim.api.nvim_buf_set_keymap(buf, "n", "<Esc>", "<cmd>close<CR>", {noremap = true, silent = true})
-  
+  vim.api.nvim_buf_set_keymap(buf, "n", "q", "<cmd>close<CR>", { noremap = true, silent = true })
+  vim.api.nvim_buf_set_keymap(buf, "n", "<Esc>", "<cmd>close<CR>", { noremap = true, silent = true })
+
   -- Return the buffer and window IDs
   return {
     buf = buf,
-    win = win_id
+    win = win_id,
   }
 end
 

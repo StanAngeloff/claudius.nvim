@@ -703,16 +703,18 @@ function M.send_to_provider(opts)
   auto_write_buffer(bufnr)
 
   -- Check if we need to prompt for API key
-  local api_key_result, api_key_error = pcall(function() return provider:get_api_key() end)
-    
+  local api_key_result, api_key_error = pcall(function()
+    return provider:get_api_key()
+  end)
+
   if not api_key_result then
     -- There was an error getting the API key
     log.error("Error getting API key: " .. tostring(api_key_error))
-      
+
     -- Get provider-specific authentication notes if available
     local provider_defaults = require("claudius.provider.defaults")
     local auth_notes = provider_defaults.auth_notes and provider_defaults.auth_notes[config.provider]
-      
+
     if auth_notes then
       -- Show a more detailed alert with the auth notes
       require("claudius.notify").alert(
@@ -720,14 +722,11 @@ function M.send_to_provider(opts)
         { title = "Claudius - " .. config.provider .. " Authentication Error" }
       )
     else
-      require("claudius.notify").alert(
-        tostring(api_key_error),
-        { title = "Claudius - Authentication Error" }
-      )
+      require("claudius.notify").alert(tostring(api_key_error), { title = "Claudius - Authentication Error" })
     end
     return
   end
-    
+
   if not api_key_error then
     log.info("No API key found in environment or keyring, prompting user")
     vim.ui.input({
