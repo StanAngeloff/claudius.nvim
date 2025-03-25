@@ -14,6 +14,15 @@ local function generate_access_token(service_account_json)
   end
   f:write(service_account_json)
   f:close()
+  
+  -- Schedule deletion of the temporary file after 60 seconds as a safety measure
+  -- This ensures the file is deleted even if there's an unhandled error
+  vim.defer_fn(function()
+    if vim.fn.filereadable(tmp_file) == 1 then
+      log.debug("Safety timer: removing temporary service account file")
+      os.remove(tmp_file)
+    end
+  end, 60 * 1000) -- 60 seconds in milliseconds
 
   -- Use gcloud to generate an access token
   -- Capture both stdout and stderr for better error reporting
@@ -27,7 +36,7 @@ local function generate_access_token(service_account_json)
     output = handle:read("*a")
     local success, _, code = handle:close()
     
-    -- Clean up the temporary file
+    -- Clean up the temporary file immediately after use
     os.remove(tmp_file)
     
     if success and output and #output > 0 then
