@@ -241,17 +241,21 @@ local function initialize_provider(provider_config)
     provider_config.parameters.temperature = provider_defaults.parameters.temperature
   end
 
-  -- Create the provider instance
+  -- Create a fresh provider instance with a clean state
+  local new_provider
   if provider_config.provider == "openai" then
-    provider = require("claudius.provider.openai").new(provider_config)
+    new_provider = require("claudius.provider.openai").new(provider_config)
   elseif provider_config.provider == "vertex" then
-    provider = require("claudius.provider.vertex").new(provider_config)
+    new_provider = require("claudius.provider.vertex").new(provider_config)
   else
     -- Default to Claude if not specified
-    provider = require("claudius.provider.claude").new(provider_config)
+    new_provider = require("claudius.provider.claude").new(provider_config)
   end
   
-  return provider
+  -- Update the global provider reference
+  provider = new_provider
+  
+  return new_provider
 end
 
 -- Setup function to initialize the plugin
@@ -737,6 +741,13 @@ function M.send_to_provider(opts)
   -- Auto-write the buffer before sending if enabled
   auto_write_buffer(bufnr)
 
+  -- Ensure we have a valid provider
+  if not provider then
+    log.error("No provider initialized")
+    vim.notify("Claudius: Provider not initialized", vim.log.levels.ERROR)
+    return
+  end
+
   -- Check if we need to prompt for API key
   local api_key_result, api_key_error = pcall(function()
     return provider:get_api_key()
@@ -762,7 +773,7 @@ function M.send_to_provider(opts)
     return
   end
 
-  if not api_key_error then
+  if not api_key_error and not provider.state.api_key then
     log.info("No API key found in environment or keyring, prompting user")
     vim.ui.input({
       prompt = "Enter your API key: ",
@@ -1175,8 +1186,14 @@ function M.switch(opts)
   -- Update the global config
   config = new_config
   
-  -- Initialize the new provider
+  -- Initialize the new provider with a clean state
+  provider = nil -- Clear the current provider
   local new_provider = initialize_provider(config)
+  
+  -- Force the new provider to clear its API key cache
+  if new_provider and new_provider.state then
+    new_provider.state.api_key = nil
+  end
   
   -- Notify the user
   local model_info = config.model and (" with model " .. config.model) or ""
