@@ -1164,21 +1164,16 @@ function M.switch(opts)
     new_config.model = nil
   end
 
-  -- Handle Vertex AI specific options
-  if opts.provider == "vertex" then
-    -- Initialize vertex parameters if they don't exist
-    if not new_config.parameters.vertex then
-      new_config.parameters.vertex = {}
-    end
-
-    -- Update project_id if specified
-    if opts.project_id then
-      new_config.parameters.vertex.project_id = opts.project_id
-    end
-
-    -- Update location if specified
-    if opts.location then
-      new_config.parameters.vertex.location = opts.location
+  -- Let each provider handle its own parameters by passing all options
+  -- This avoids special-casing for specific providers like Vertex AI
+  if not new_config.parameters then
+    new_config.parameters = {}
+  end
+  
+  -- Pass all options to the parameters object for the provider to handle
+  for k, v in pairs(opts) do
+    if k ~= "provider" and k ~= "model" then
+      new_config.parameters[k] = v
     end
   end
 
