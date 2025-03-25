@@ -1170,10 +1170,15 @@ function M.switch(opts)
     new_config.parameters = {}
   end
   
-  -- Pass all options to the parameters object for the provider to handle
+  -- Initialize provider-specific parameters if they don't exist
+  if not new_config.parameters[opts.provider] then
+    new_config.parameters[opts.provider] = {}
+  end
+  
+  -- Pass all options to the provider-specific parameters object
   for k, v in pairs(opts) do
     if k ~= "provider" and k ~= "model" then
-      new_config.parameters[k] = v
+      new_config.parameters[opts.provider][k] = v
     end
   end
 
