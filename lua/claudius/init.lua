@@ -1073,7 +1073,6 @@ function M.send_to_provider(opts)
     end,
 
     on_complete = function(code)
-      log.info("Request completed with exit code: " .. tostring(code))
       vim.schedule(function()
         state.current_request = nil
         vim.fn.timer_stop(spinner_timer)
