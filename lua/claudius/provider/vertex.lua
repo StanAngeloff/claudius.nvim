@@ -114,17 +114,6 @@ function M.new(opts)
     lines = {},
     has_processed_content = false
   }
-  
-  -- Reset the accumulator before each request
-  vim.api.nvim_create_autocmd("User", {
-    pattern = "ClaudiusBeforeRequest",
-    callback = function()
-      provider.response_accumulator = {
-        lines = {},
-        has_processed_content = false
-      }
-    end
-  })
 
   -- Set metatable to use Vertex AI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
@@ -493,12 +482,17 @@ function M.check_unprocessed_json(self, callbacks)
       log.debug("No actionable content found in accumulated response")
     end
   end
-  
-  -- Reset the accumulator for next request
+end
+
+-- Reset provider state before a new request
+function M.reset(self)
+  -- Reset the response accumulator
   self.response_accumulator = {
     lines = {},
     has_processed_content = false
   }
+  
+  log.debug("Reset Vertex AI provider state")
 end
 
 return M

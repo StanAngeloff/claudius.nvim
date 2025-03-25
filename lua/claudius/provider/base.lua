@@ -190,6 +190,9 @@ end
 
 -- Send request to API using curl
 function M.send_request(self, request_body, callbacks)
+  -- Reset provider state before sending a new request
+  self:reset()
+  
   -- Get API key
   local api_key = self:get_api_key()
   if not api_key then
@@ -322,6 +325,13 @@ function M.delayed_terminate(self, pid, job_id, delay)
       end
     end
   end, delay)
+end
+
+-- Reset provider state before a new request
+-- This can be overridden by specific providers to reset their state
+function M.reset(self)
+  -- Base implementation does nothing by default
+  -- Providers can override this to reset their specific state
 end
 
 return M
