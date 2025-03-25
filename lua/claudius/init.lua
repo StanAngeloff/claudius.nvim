@@ -1035,11 +1035,33 @@ function M.send_to_provider(opts)
         -- Only add the new prompt if the request wasn't cancelled and completed successfully
         if not state.request_cancelled and code == 0 and response_started then
           local last_line = vim.api.nvim_buf_line_count(bufnr)
+          
+          -- Check if the last line is empty
+          local last_line_content = ""
+          if last_line > 0 then
+            last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1] or ""
+          end
+          
+          -- Prepare lines to insert based on whether the last line is empty
+          local lines_to_insert = {}
+          local cursor_line_offset = 1
+          
+          if last_line_content == "" then
+            -- Last line is already empty, just add the prompt
+            lines_to_insert = { "@You: " }
+          else
+            -- Last line has content, add a blank line then the prompt
+            lines_to_insert = { "", "@You: " }
+            cursor_line_offset = 2
+          end
+          
+          -- Insert the lines
           M.buffer_cmd(bufnr, "undojoin")
-          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
+          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines_to_insert)
 
           -- Move cursor to after the colon and any whitespace
-          local lines = vim.api.nvim_buf_get_lines(bufnr, last_line + 1, last_line + 2, false)
+          local new_line = last_line + cursor_line_offset - 1
+          local lines = vim.api.nvim_buf_get_lines(bufnr, new_line, new_line + 1, false)
           if #lines > 0 then
             local line = lines[1]
             local col = line:find(":%s*") + 1 -- Find position after the colon
@@ -1048,7 +1070,7 @@ function M.send_to_provider(opts)
             end
             -- Only set cursor if we're still in the buffer
             if vim.api.nvim_get_current_buf() == bufnr then
-              vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
+              vim.api.nvim_win_set_cursor(0, { new_line + 1, col - 1 })
             end
           end
 
