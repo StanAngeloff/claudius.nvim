@@ -108,6 +108,12 @@ function M.new(opts)
 
   -- Set the API version
   provider.api_version = "v1"
+  
+  -- Initialize response accumulator for multi-line responses
+  provider.response_accumulator = {
+    lines = {},
+    has_processed_content = false
+  }
 
   -- Set metatable to use Vertex AI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
@@ -274,6 +280,79 @@ function M.get_endpoint(self)
   return endpoint
 end
 
+-- Check accumulated response for multi-line JSON responses
+function M.check_accumulated_response(self, callbacks)
+  -- If we have accumulated lines, try to parse them as a complete JSON response
+  if #self.response_accumulator.lines == 0 then
+    return false
+  end
+  
+  log.debug("Checking accumulated response with " .. #self.response_accumulator.lines .. " lines")
+  
+  -- Join all accumulated lines
+  local full_response = table.concat(self.response_accumulator.lines, "\n")
+  
+  -- Try to parse as JSON
+  local ok, data = pcall(vim.fn.json_decode, full_response)
+  if not ok then
+    log.debug("Failed to parse accumulated response as JSON")
+    return false
+  end
+  
+  -- Check if it's an array response with error
+  if vim.tbl_islist(data) and #data > 0 and type(data[1]) == "table" and data[1].error then
+    local error_data = data[1]
+    local msg = "Vertex AI API error"
+    
+    if error_data.error then
+      if error_data.error.message then
+        msg = error_data.error.message
+      end
+      
+      if error_data.error.status then
+        msg = msg .. " (Status: " .. error_data.error.status .. ")"
+      end
+      
+      -- Include details if available
+      if error_data.error.details and #error_data.error.details > 0 then
+        for _, detail in ipairs(error_data.error.details) do
+          if detail["@type"] and detail["@type"]:match("BadRequest") and detail.fieldViolations then
+            for _, violation in ipairs(detail.fieldViolations) do
+              if violation.description then
+                msg = msg .. "\n" .. violation.description
+              end
+            end
+          end
+        end
+      end
+    end
+    
+    log.error("Parsed error from accumulated response: " .. msg)
+    
+    if callbacks.on_error then
+      callbacks.on_error(msg)
+    end
+    return true
+  end
+  
+  -- Check for direct error object
+  if type(data) == "table" and data.error then
+    local msg = "Vertex AI API error"
+    if data.error.message then
+      msg = data.error.message
+    end
+    
+    log.error("Parsed error from accumulated response: " .. msg)
+    
+    if callbacks.on_error then
+      callbacks.on_error(msg)
+    end
+    return true
+  end
+  
+  return false
+end
+
 -- Process a response line from Vertex AI API (Server-Sent Events format)
 function M.process_response_line(self, line, callbacks)
   -- Skip empty lines
@@ -284,9 +363,12 @@ function M.process_response_line(self, line, callbacks)
   -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
     -- This is not a standard SSE data line
-    log.error("Unexpected response format from Vertex AI: " .. line)
-
-    -- Try parsing as a direct JSON error response
+    log.debug("Non-SSE line from Vertex AI, adding to accumulator: " .. line)
+    
+    -- Add to response accumulator for potential multi-line JSON response
+    table.insert(self.response_accumulator.lines, line)
+    
+    -- Try parsing as a direct JSON error response (for single-line errors)
     local ok, error_data = pcall(vim.fn.json_decode, line)
     if ok and error_data.error then
       local msg = "Vertex AI API error"
@@ -303,8 +385,7 @@ function M.process_response_line(self, line, callbacks)
       return
     end
 
-    -- If we can't parse it as an error, log and ignore
-    log.error("Ignoring unrecognized Vertex AI response line")
+    -- If we can't parse it as an error, continue accumulating
     return
   end
 
@@ -383,11 +464,45 @@ function M.process_response_line(self, line, callbacks)
       local text = content.parts[1].text
       log.debug("Content text: " .. text)
       
+      -- Mark that we've received valid content
+      self.response_accumulator.has_processed_content = true
+      
       if callbacks.on_content then
         callbacks.on_content(text)
       end
     end
   end
+end
+
+-- Override send_request to add response accumulator check on exit
+function M.send_request(self, request_body, callbacks)
+  -- Create a wrapper for the callbacks to add our response accumulator check
+  local wrapped_callbacks = vim.tbl_extend("force", {}, callbacks)
+  
+  -- Reset the accumulator for this request
+  self.response_accumulator = {
+    lines = {},
+    has_processed_content = false
+  }
+  
+  -- Wrap the on_complete callback to check accumulated responses
+  local original_on_complete = wrapped_callbacks.on_complete
+  wrapped_callbacks.on_complete = function(code)
+    -- Check accumulated response if we haven't processed any content
+    if not self.response_accumulator.has_processed_content and #self.response_accumulator.lines > 0 then
+      if not self:check_accumulated_response(callbacks) then
+        log.debug("No actionable content found in accumulated response")
+      end
+    end
+    
+    -- Call the original callback
+    if original_on_complete then
+      original_on_complete(code)
+    end
+  end
+  
+  -- Call the base implementation with our wrapped callbacks
+  return require("claudius.provider.base").send_request(self, request_body, wrapped_callbacks)
 end
 
 return M
