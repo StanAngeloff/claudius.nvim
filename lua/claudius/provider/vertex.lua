@@ -358,6 +358,19 @@ function M.process_response_line(self, line, callbacks)
     if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
       log.debug("Received finish reason: " .. tostring(data.candidates[1].finishReason))
 
+      -- Process any content in the final message before signaling completion
+      if data.candidates[1].content and data.candidates[1].content.parts and data.candidates[1].content.parts[1] and data.candidates[1].content.parts[1].text then
+        local text = data.candidates[1].content.parts[1].text
+        log.debug("Final message content text: " .. text)
+
+        -- Mark that we've received valid content
+        self.response_accumulator.has_processed_content = true
+
+        if callbacks.on_content then
+          callbacks.on_content(text)
+        end
+      end
+
       -- Signal message completion
       if callbacks.on_message_complete then
         callbacks.on_message_complete()
