@@ -100,6 +100,11 @@ function M.new(opts)
   provider.project_id = vertex_params.project_id or params.project_id
   provider.location = vertex_params.location or params.location or "us-central1"
   provider.model = opts.model or require("claudius.provider.defaults").get_model("vertex")
+  
+  -- Ensure we have a valid model name
+  if not provider.model then
+    provider.model = "gemini-1.5-flash"
+  end
 
   -- Set the API version
   provider.api_version = "v1"
@@ -227,7 +232,10 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
         { text = system_message },
       },
     }
-  end
+  }
+
+  -- Ensure we're requesting a stream response
+  request_body.stream = true
 
   return request_body
 end
@@ -252,6 +260,7 @@ function M.get_endpoint(self)
     return nil
   end
 
+  -- Ensure we're using the streamGenerateContent endpoint with SSE format
   local endpoint = string.format(
     "https://%s-aiplatform.googleapis.com/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
     self.location,
@@ -265,9 +274,120 @@ function M.get_endpoint(self)
   return endpoint
 end
 
--- Process a response line from Vertex AI API (chunked transfer encoding)
+-- Process a response line from Vertex AI API (Server-Sent Events format)
 function M.process_response_line(self, line, callbacks)
-  -- TODO: Implement SSE response processing
+  -- Skip empty lines
+  if not line or line == "" then
+    return
+  end
+
+  -- Check for expected format: lines should start with "data: "
+  if not line:match("^data: ") then
+    -- This is not a standard SSE data line
+    log.error("Unexpected response format from Vertex AI: " .. line)
+
+    -- Try parsing as a direct JSON error response
+    local ok, error_data = pcall(vim.fn.json_decode, line)
+    if ok and error_data.error then
+      local msg = "Vertex AI API error"
+      if error_data.error and error_data.error.message then
+        msg = error_data.error.message
+      end
+
+      -- Log the error
+      log.error("API error: " .. msg)
+
+      if callbacks.on_error then
+        callbacks.on_error(msg)
+      end
+      return
+    end
+
+    -- If we can't parse it as an error, log and ignore
+    log.error("Ignoring unrecognized Vertex AI response line")
+    return
+  end
+
+  -- Extract JSON from data: prefix
+  local json_str = line:gsub("^data: ", "")
+  local parse_ok, data = pcall(vim.fn.json_decode, json_str)
+  if not parse_ok then
+    log.error("Failed to parse JSON from Vertex AI response: " .. json_str)
+    return
+  end
+
+  -- Validate the response structure
+  if type(data) ~= "table" then
+    log.error("Expected table in Vertex AI response, got: " .. type(data))
+    return
+  end
+
+  -- Handle error responses
+  if data.error then
+    local msg = "Vertex AI API error"
+    if data.error and data.error.message then
+      msg = data.error.message
+    end
+
+    log.error("API error in response: " .. msg)
+
+    if callbacks.on_error then
+      callbacks.on_error(msg)
+    end
+    return
+  end
+
+  -- Process usage information if available
+  if data.usageMetadata then
+    local usage = data.usageMetadata
+    
+    -- Handle input tokens
+    if usage.promptTokenCount and callbacks.on_usage then
+      callbacks.on_usage({
+        type = "input",
+        tokens = usage.promptTokenCount,
+      })
+    end
+    
+    -- Handle output tokens
+    if usage.candidatesTokenCount and callbacks.on_usage then
+      callbacks.on_usage({
+        type = "output",
+        tokens = usage.candidatesTokenCount,
+      })
+    end
+    
+    -- Check if this is the final message with finish reason
+    if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
+      log.debug("Received finish reason: " .. tostring(data.candidates[1].finishReason))
+      
+      -- Signal message completion
+      if callbacks.on_message_complete then
+        callbacks.on_message_complete()
+      end
+      
+      -- Signal done
+      if callbacks.on_done then
+        callbacks.on_done()
+      end
+      return
+    end
+  end
+
+  -- Handle content
+  if data.candidates and data.candidates[1] and data.candidates[1].content then
+    local content = data.candidates[1].content
+    
+    -- Check if there's text content
+    if content.parts and content.parts[1] and content.parts[1].text then
+      local text = content.parts[1].text
+      log.debug("Content text: " .. text)
+      
+      if callbacks.on_content then
+        callbacks.on_content(text)
+      end
+    end
+  end
 end
 
 return M
