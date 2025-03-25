@@ -100,15 +100,10 @@ function M.new(opts)
   provider.project_id = vertex_params.project_id or params.project_id
   provider.location = vertex_params.location or params.location or "us-central1"
   provider.model = opts.model or require("claudius.provider.defaults").get_model("vertex")
-  
-  -- Ensure we have a valid model name
-  if not provider.model then
-    provider.model = "gemini-1.5-flash"
-  end
 
   -- Set the API version
   provider.api_version = "v1"
-  
+
   -- Initialize response accumulator by calling reset
   provider:reset()
 
@@ -232,13 +227,10 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
   if system_message then
     request_body.systemInstruction = {
       parts = {
-        { text = system_message }
-      }
+        { text = system_message },
+      },
     }
   end
-
-  -- Ensure we're requesting a stream response
-  request_body.stream = true
 
   return request_body
 end
@@ -277,83 +269,10 @@ function M.get_endpoint(self)
   return endpoint
 end
 
--- Check accumulated response for multi-line JSON responses
-function M.check_accumulated_response(self, callbacks)
-  -- If we have accumulated lines, try to parse them as a complete JSON response
-  if #self.response_accumulator.lines == 0 then
-    return false
-  end
-  
-  log.debug("Checking accumulated response with " .. #self.response_accumulator.lines .. " lines")
-  
-  -- Join all accumulated lines
-  local full_response = table.concat(self.response_accumulator.lines, "\n")
-  
-  -- Try to parse as JSON
-  local ok, data = pcall(vim.fn.json_decode, full_response)
-  if not ok then
-    log.debug("Failed to parse accumulated response as JSON")
-    return false
-  end
-  
-  -- Check if it's an array response with error
-  if vim.tbl_islist(data) and #data > 0 and type(data[1]) == "table" and data[1].error then
-    local error_data = data[1]
-    local msg = "Vertex AI API error"
-    
-    if error_data.error then
-      if error_data.error.message then
-        msg = error_data.error.message
-      end
-      
-      if error_data.error.status then
-        msg = msg .. " (Status: " .. error_data.error.status .. ")"
-      end
-      
-      -- Include details if available
-      if error_data.error.details and #error_data.error.details > 0 then
-        for _, detail in ipairs(error_data.error.details) do
-          if detail["@type"] and detail["@type"]:match("BadRequest") and detail.fieldViolations then
-            for _, violation in ipairs(detail.fieldViolations) do
-              if violation.description then
-                msg = msg .. "\n" .. violation.description
-              end
-            end
-          end
-        end
-      end
-    end
-    
-    log.error("Parsed error from accumulated response: " .. msg)
-    
-    if callbacks.on_error then
-      callbacks.on_error(msg)
-    end
-    return true
-  end
-  
-  -- Check for direct error object
-  if type(data) == "table" and data.error then
-    local msg = "Vertex AI API error"
-    if data.error.message then
-      msg = data.error.message
-    end
-    
-    log.error("Parsed error from accumulated response: " .. msg)
-    
-    if callbacks.on_error then
-      callbacks.on_error(msg)
-    end
-    return true
-  end
-  
-  return false
-end
-
 -- Process a response line from Vertex AI API (Server-Sent Events format)
 function M.process_response_line(self, line, callbacks)
   -- Skip empty lines
-  if not line or line == "" then
+  if not line or line == "" or line == "\r"  then
     return
   end
 
@@ -361,10 +280,10 @@ function M.process_response_line(self, line, callbacks)
   if not line:match("^data: ") then
     -- This is not a standard SSE data line
     log.debug("Non-SSE line from Vertex AI, adding to accumulator: " .. line)
-    
+
     -- Add to response accumulator for potential multi-line JSON response
     table.insert(self.response_accumulator.lines, line)
-    
+
     -- Try parsing as a direct JSON error response (for single-line errors)
     local ok, error_data = pcall(vim.fn.json_decode, line)
     if ok and error_data.error then
@@ -418,7 +337,7 @@ function M.process_response_line(self, line, callbacks)
   -- Process usage information if available
   if data.usageMetadata then
     local usage = data.usageMetadata
-    
+
     -- Handle input tokens
     if usage.promptTokenCount and callbacks.on_usage then
       callbacks.on_usage({
@@ -426,7 +345,7 @@ function M.process_response_line(self, line, callbacks)
         tokens = usage.promptTokenCount,
       })
     end
-    
+
     -- Handle output tokens
     if usage.candidatesTokenCount and callbacks.on_usage then
       callbacks.on_usage({
@@ -434,16 +353,16 @@ function M.process_response_line(self, line, callbacks)
         tokens = usage.candidatesTokenCount,
       })
     end
-    
+
     -- Check if this is the final message with finish reason
     if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
       log.debug("Received finish reason: " .. tostring(data.candidates[1].finishReason))
-      
+
       -- Signal message completion
       if callbacks.on_message_complete then
         callbacks.on_message_complete()
       end
-      
+
       -- Signal done
       if callbacks.on_done then
         callbacks.on_done()
@@ -455,15 +374,15 @@ function M.process_response_line(self, line, callbacks)
   -- Handle content
   if data.candidates and data.candidates[1] and data.candidates[1].content then
     local content = data.candidates[1].content
-    
+
     -- Check if there's text content
     if content.parts and content.parts[1] and content.parts[1].text then
       local text = content.parts[1].text
       log.debug("Content text: " .. text)
-      
+
       -- Mark that we've received valid content
       self.response_accumulator.has_processed_content = true
-      
+
       if callbacks.on_content then
         callbacks.on_content(text)
       end
@@ -481,14 +400,87 @@ function M.check_unprocessed_json(self, callbacks)
   end
 end
 
+-- Check accumulated response for multi-line JSON responses
+function M.check_accumulated_response(self, callbacks)
+  -- If we have accumulated lines, try to parse them as a complete JSON response
+  if #self.response_accumulator.lines == 0 then
+    return false
+  end
+
+  log.debug("Checking accumulated response with " .. #self.response_accumulator.lines .. " lines")
+
+  -- Join all accumulated lines
+  local full_response = table.concat(self.response_accumulator.lines, "\n")
+
+  -- Try to parse as JSON
+  local ok, data = pcall(vim.fn.json_decode, full_response)
+  if not ok then
+    log.debug("Failed to parse accumulated response as JSON")
+    return false
+  end
+
+  -- Check if it's an array response with error
+  if vim.tbl_islist(data) and #data > 0 and type(data[1]) == "table" and data[1].error then
+    local error_data = data[1]
+    local msg = "Vertex AI API error"
+
+    if error_data.error then
+      if error_data.error.message then
+        msg = error_data.error.message
+      end
+
+      if error_data.error.status then
+        msg = msg .. " (Status: " .. error_data.error.status .. ")"
+      end
+
+      -- Include details if available
+      if error_data.error.details and #error_data.error.details > 0 then
+        for _, detail in ipairs(error_data.error.details) do
+          if detail["@type"] and detail["@type"]:match("BadRequest") and detail.fieldViolations then
+            for _, violation in ipairs(detail.fieldViolations) do
+              if violation.description then
+                msg = msg .. "\n" .. violation.description
+              end
+            end
+          end
+        end
+      end
+    end
+
+    log.error("Parsed error from accumulated response: " .. msg)
+
+    if callbacks.on_error then
+      callbacks.on_error(msg)
+    end
+    return true
+  end
+
+  -- Check for direct error object
+  if type(data) == "table" and data.error then
+    local msg = "Vertex AI API error"
+    if data.error.message then
+      msg = data.error.message
+    end
+
+    log.error("Parsed error from accumulated response: " .. msg)
+
+    if callbacks.on_error then
+      callbacks.on_error(msg)
+    end
+    return true
+  end
+
+  return false
+end
+
 -- Reset provider state before a new request
 function M.reset(self)
   -- Reset the response accumulator
   self.response_accumulator = {
     lines = {},
-    has_processed_content = false
+    has_processed_content = false,
   }
-  
+
   log.debug("Reset Vertex AI provider state")
 end
 

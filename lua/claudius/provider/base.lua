@@ -192,7 +192,7 @@ end
 function M.send_request(self, request_body, callbacks)
   -- Reset provider state before sending a new request
   self:reset()
-  
+
   -- Get API key
   local api_key = self:get_api_key()
   if not api_key then
