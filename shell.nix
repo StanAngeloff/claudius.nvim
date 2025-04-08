@@ -24,7 +24,7 @@ pkgs.mkShell {
 
     (writeShellApplication {
       name = "claudius-dev";
-      runtimeInputs = [ aider-chat.withPlaywright ];
+      runtimeInputs = [ aider-chat-with-playwright ];
       text = ''
         aider \
           --model anthropic/claude-3-7-sonnet-20250219 \
