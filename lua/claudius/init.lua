@@ -252,6 +252,12 @@ local function initialize_provider(provider_config)
     new_provider = require("claudius.provider.claude").new(provider_config)
   end
 
+  -- Log the actual provider instance details
+  log.debug("New provider initialized:")
+  log.debug("  Provider: " .. provider_config.provider)
+  log.debug("  Model: " .. (new_provider.model or provider_config.model or "default"))
+  log.debug("  Parameters: " .. vim.inspect(provider_config.parameters))
+
   -- Update the global provider reference
   provider = new_provider
 
@@ -1228,12 +1234,6 @@ function M.switch(opts)
   if new_provider and new_provider.state then
     new_provider.state.api_key = nil
   end
-
-  -- Log the actual provider instance details
-  log.debug("New provider initialized:")
-  log.debug("  Provider: " .. config.provider)
-  log.debug("  Model: " .. (new_provider.model or config.model or "default"))
-  log.debug("  Parameters: " .. vim.inspect(config.parameters))
 
   -- Notify the user
   local model_info = config.model and (" with model " .. config.model) or ""
