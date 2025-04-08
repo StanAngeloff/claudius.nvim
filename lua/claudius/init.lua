@@ -486,7 +486,7 @@ M.setup = function(opts)
         if config.keymaps.normal.send then
           vim.keymap.set("n", config.keymaps.normal.send, function()
             M.send_to_provider()
-          end, { buffer = true, desc = "Send to AI" })
+          end, { buffer = true, desc = "Send to Claudius" })
         end
 
         if config.keymaps.normal.cancel then
@@ -530,7 +530,7 @@ M.setup = function(opts)
                 M.buffer_cmd(bufnr, "startinsert!")
               end,
             })
-          end, { buffer = true, desc = "Send to AI and continue editing" })
+          end, { buffer = true, desc = "Send to Claudius and continue editing" })
         end
       end,
     })
@@ -735,7 +735,7 @@ function M.send_to_provider(opts)
     return
   end
 
-  log.info("Starting new AI request")
+  log.info("Starting new request")
   state.request_cancelled = false
 
   -- Auto-write the buffer before sending if enabled
