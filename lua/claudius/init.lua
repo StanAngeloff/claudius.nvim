@@ -1213,6 +1213,12 @@ function M.switch(opts)
     end
   end
 
+  -- Log the configuration being used for the new provider
+  log.debug("Switching provider configuration:")
+  log.debug("  Provider: " .. config.provider)
+  log.debug("  Model: " .. (config.model or "default"))
+  log.debug("  Parameters: " .. vim.inspect(config.parameters))
+
   -- Update the global config
   config = new_config
 
@@ -1224,6 +1230,12 @@ function M.switch(opts)
   if new_provider and new_provider.state then
     new_provider.state.api_key = nil
   end
+
+  -- Log the actual provider instance details
+  log.debug("New provider initialized:")
+  log.debug("  Provider: " .. config.provider)
+  log.debug("  Model: " .. (new_provider.model or config.model or "default"))
+  log.debug("  Parameters: " .. vim.inspect(config.parameters))
 
   -- Notify the user
   local model_info = config.model and (" with model " .. config.model) or ""
