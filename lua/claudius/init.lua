@@ -394,7 +394,7 @@ M.setup = function(opts)
     for i = start_index or 3, #args do
       local arg = args[i]
       local key, value = arg:match("^([%w_]+)=(.+)$")
-      
+
       if key and value then
         -- Convert value to appropriate type
         if value == "true" then
@@ -406,7 +406,7 @@ M.setup = function(opts)
         elseif tonumber(value) then
           value = tonumber(value)
         end
-        
+
         result[key] = value
       end
     end

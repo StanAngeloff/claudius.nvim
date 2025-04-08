@@ -2,12 +2,12 @@
 
 Transform Neovim into your AI conversation companion with a native interface to multiple AI providers. Key features:
 
-| 🚀 Instant Integration                                                | ⚡ Power Features                                                     | 🛠️ Developer Experience          |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
-| Chat with multiple AI providers directly in your editor             | Dynamic Lua templates in your prompts - embed code evaluation results | Markdown rendering in responses  |
-| Support for Claude, OpenAI, and Google Vertex AI models             | Import/export compatibility with Claude Workbench                     | Code block syntax highlighting   |
-| Native Neovim feel with proper syntax highlighting and folding      | Real-time token usage and cost tracking                               | Automatic buffer management      |
-| Automatic API key management via system keyring                     | Message-based text objects and navigation                             | Customizable keymaps and styling |
+| 🚀 Instant Integration                                         | ⚡ Power Features                                                     | 🛠️ Developer Experience          |
+| -------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
+| Chat with multiple AI providers directly in your editor        | Dynamic Lua templates in your prompts - embed code evaluation results | Markdown rendering in responses  |
+| Support for Claude, OpenAI, and Google Vertex AI models        | Import/export compatibility with Claude Workbench                     | Code block syntax highlighting   |
+| Native Neovim feel with proper syntax highlighting and folding | Real-time token usage and cost tracking                               | Automatic buffer management      |
+| Automatic API key management via system keyring                | Message-based text objects and navigation                             | Customizable keymaps and styling |
 
 <img src="assets/pretty_snap_2025_1_21_23_9.png" alt="A screenshot of Claudius in action" />
 
