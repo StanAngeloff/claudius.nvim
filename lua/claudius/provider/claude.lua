@@ -46,12 +46,16 @@ end
 
 -- Create request body for Claude API
 function M.create_request_body(self, formatted_messages, system_message, opts)
+  -- Get parameters with proper fallbacks
+  local max_tokens = opts.max_tokens or self.options.parameters.max_tokens
+  local temperature = opts.temperature or self.options.parameters.temperature
+
   local request_body = {
     model = opts.model or self.options.model,
     messages = formatted_messages,
     system = system_message,
-    max_tokens = opts.max_tokens or self.options.parameters.max_tokens,
-    temperature = opts.temperature or self.options.parameters.temperature,
+    max_tokens = max_tokens,
+    temperature = temperature,
     stream = true,
   }
 
