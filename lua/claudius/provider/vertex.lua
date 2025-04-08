@@ -143,12 +143,14 @@ function M.get_api_key(self)
         error(
           err
             .. "\n\n---\n\nVertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n"
-            .. "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable."
+            .. "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable.",
+          0
         )
       else
         error(
           "Vertex AI requires the Google Cloud CLI (gcloud) to generate access tokens from service accounts.\n"
-            .. "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable."
+            .. "Please install gcloud or set VERTEX_AI_ACCESS_TOKEN environment variable.",
+          0
         )
       end
     end
@@ -239,7 +241,7 @@ end
 function M.get_request_headers(self)
   local access_token = self:get_api_key()
   if not access_token then
-    error("No Vertex AI access token available. Please set up a service account or provide an access token.")
+    error("No Vertex AI access token available. Please set up a service account or provide an access token.", 0)
   end
 
   return {

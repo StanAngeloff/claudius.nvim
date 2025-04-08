@@ -30,7 +30,7 @@ function M.alert(content, opts)
   vim.api.nvim_buf_set_option(buf, "swapfile", false)
 
   -- Set the content with title
-  local lines = { "# " .. title, "", "" }
+  local lines = { "# " .. title, "" }
   local content_lines = vim.split(content, "\n", true)
   for _, line in ipairs(content_lines) do
     table.insert(lines, line)

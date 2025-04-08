@@ -87,10 +87,6 @@ M.vertex_models = {
 -- Authentication notes for providers
 M.auth_notes = {
   vertex = [[
-
-
----
-
 ## Authentication Options
 
 Vertex AI requires OAuth2 authentication. You can:

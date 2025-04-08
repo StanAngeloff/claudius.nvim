@@ -764,8 +764,8 @@ function M.send_to_provider(opts)
     if auth_notes then
       -- Show a more detailed alert with the auth notes
       require("claudius.notify").alert(
-        tostring(api_key_error):gsub("%s+$", "") .. "\n" .. auth_notes,
-        { title = "Claudius - " .. config.provider .. " Authentication Error" }
+        tostring(api_key_error):gsub("%s+$", "") .. "\n\n---\n\n" .. auth_notes,
+        { title = "Claudius - Authentication Error: " .. config.provider }
       )
     else
       require("claudius.notify").alert(tostring(api_key_error), { title = "Claudius - Authentication Error" })
@@ -1169,12 +1169,12 @@ function M.switch(opts)
   if not new_config.parameters then
     new_config.parameters = {}
   end
-  
+
   -- Initialize provider-specific parameters if they don't exist
   if not new_config.parameters[opts.provider] then
     new_config.parameters[opts.provider] = {}
   end
-  
+
   -- Pass all options to the provider-specific parameters object
   for k, v in pairs(opts) do
     if k ~= "provider" and k ~= "model" then
