@@ -280,9 +280,10 @@ Messages are automatically folded for better overview. Press <kbd>za</kbd> to to
 You can switch between AI providers at any time using the `:ClaudiusSwitch` command:
 
 ```
-:ClaudiusSwitch claude      # Switch to Claude with default model
-:ClaudiusSwitch openai gpt-4o  # Switch to OpenAI with specific model
+:ClaudiusSwitch claude                                    # Switch to Claude with default model
+:ClaudiusSwitch openai gpt-4o                             # Switch to OpenAI with specific model
 :ClaudiusSwitch vertex gemini-1.5-pro project_id=my-project  # Switch to Vertex AI with project ID
+:ClaudiusSwitch vertex gemini-1.5-pro temperature=0.2 max_tokens=1000  # Multiple parameters
 ```
 
 This allows you to compare responses from different AI models without restarting Neovim.

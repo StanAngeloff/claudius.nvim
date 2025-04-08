@@ -388,11 +388,36 @@ M.setup = function(opts)
     })
   end, {})
 
+  -- Parse key=value arguments
+  local function parse_key_value_args(args, start_index)
+    local result = {}
+    for i = start_index or 3, #args do
+      local arg = args[i]
+      local key, value = arg:match("^([%w_]+)=(.+)$")
+      
+      if key and value then
+        -- Convert value to appropriate type
+        if value == "true" then
+          value = true
+        elseif value == "false" then
+          value = false
+        elseif value == "nil" or value == "null" then
+          value = nil
+        elseif tonumber(value) then
+          value = tonumber(value)
+        end
+        
+        result[key] = value
+      end
+    end
+    return result
+  end
+
   -- Command to switch providers
   vim.api.nvim_create_user_command("ClaudiusSwitch", function(opts)
     local args = opts.fargs
     if #args < 1 then
-      vim.notify("Usage: ClaudiusSwitch <provider> [model]", vim.log.levels.ERROR)
+      vim.notify("Usage: ClaudiusSwitch <provider> [model] [key=value ...]", vim.log.levels.ERROR)
       return
     end
 
@@ -400,8 +425,14 @@ M.setup = function(opts)
       provider = args[1],
     }
 
-    if args[2] then
+    if args[2] and not args[2]:match("^[%w_]+=") then
       switch_opts.model = args[2]
+    end
+
+    -- Parse any key=value pairs
+    local key_value_args = parse_key_value_args(args, switch_opts.model and 3 or 2)
+    for k, v in pairs(key_value_args) do
+      switch_opts[k] = v
     end
 
     M.switch(switch_opts)
