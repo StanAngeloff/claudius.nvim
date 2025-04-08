@@ -1,13 +1,13 @@
 # Claudius 🤖
 
-Transform Neovim into your AI conversation companion with a native interface to Claude. Key features:
+Transform Neovim into your AI conversation companion with a native interface to multiple AI providers. Key features:
 
-| 🚀 Instant Integration                                          | ⚡ Power Features                                                     | 🛠️ Developer Experience          |
-| --------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
-| Chat with Claude directly in your editor - no context switching | Dynamic Lua templates in your prompts - embed code evaluation results | Markdown rendering in responses  |
-| Native Neovim feel with proper syntax highlighting and folding  | Import/export compatibility with Claude Workbench                     | Code block syntax highlighting   |
-| Automatic API key management via system keyring                 | Real-time token usage and cost tracking                               | Automatic buffer management      |
-|                                                                 | Message-based text objects and navigation                             | Customizable keymaps and styling |
+| 🚀 Instant Integration                                                | ⚡ Power Features                                                     | 🛠️ Developer Experience          |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
+| Chat with multiple AI providers directly in your editor             | Dynamic Lua templates in your prompts - embed code evaluation results | Markdown rendering in responses  |
+| Support for Claude, OpenAI, and Google Vertex AI models             | Import/export compatibility with Claude Workbench                     | Code block syntax highlighting   |
+| Native Neovim feel with proper syntax highlighting and folding      | Real-time token usage and cost tracking                               | Automatic buffer management      |
+| Automatic API key management via system keyring                     | Message-based text objects and navigation                             | Customizable keymaps and styling |
 
 <img src="assets/pretty_snap_2025_1_21_23_9.png" alt="A screenshot of Claudius in action" />
 
@@ -18,6 +18,7 @@ Claudius requires:
 - An API key for your chosen provider:
   - Anthropic API key (via ANTHROPIC_API_KEY environment variable)
   - OpenAI API key (via OPENAI_API_KEY environment variable)
+  - Google Vertex AI access token (via VERTEX_AI_ACCESS_TOKEN environment variable) or service account credentials
 - Neovim with Tree-sitter support (required for core functionality)
 - Tree-sitter markdown parser (required for message formatting and syntax highlighting)
 
@@ -37,7 +38,15 @@ Optional Features:
   secret-tool store --label="OpenAI API Key" service openai key api
   ```
 
+  For Google Vertex AI (store service account JSON):
+
+  ```bash
+  secret-tool store --label="Vertex AI Service Account" service vertex key api
+  ```
+
   This will securely prompt for your API key and store it in the system keyring.
+
+- For Google Vertex AI, the Google Cloud CLI (`gcloud`) is required if using service account authentication.
 
 ## Installation
 
@@ -56,13 +65,18 @@ The plugin works out of the box with sensible defaults, but you can customize va
 
 ```lua
 require("claudius").setup({
-    provider = "claude",  -- AI provider: "claude" or "openai"
+    provider = "claude",  -- AI provider: "claude", "openai", or "vertex"
     model = nil,  -- Uses provider defaults if nil
     -- Claude default: "claude-3-7-sonnet-20250219"
     -- OpenAI default: "gpt-4o"
+    -- Vertex default: "gemini-1.5-pro"
     parameters = {
         max_tokens = nil,  -- Default: 4000
         temperature = nil,  -- Default: 0.7
+        vertex = {
+            project_id = nil,  -- Google Cloud project ID (required for Vertex AI)
+            location = "us-central1",  -- Google Cloud region
+        },
     },
     highlights = {
         system = "Special",    -- highlight group for system messages
@@ -186,13 +200,14 @@ The plugin only works with files having the .chat extension. Create or open a .c
 
 ### Commands and Keybindings
 
-The plugin provides several commands for interacting with Claude and managing chat content:
+The plugin provides several commands for interacting with AI providers and managing chat content:
 
 #### Core Commands
 
-- `ClaudiusSend` - Send the current conversation to Claude
+- `ClaudiusSend` - Send the current conversation to the configured AI provider
 - `ClaudiusCancel` - Cancel an ongoing request
-- `ClaudiusSendAndInsert` - Send to Claude and return to insert mode
+- `ClaudiusSendAndInsert` - Send to AI and return to insert mode
+- `ClaudiusSwitch` - Switch between providers (e.g., `:ClaudiusSwitch openai gpt-4o`)
 - `ClaudiusRecallNotification` - Recall the last notification (useful for reviewing usage statistics)
 
 #### Navigation Commands
@@ -260,6 +275,18 @@ Then add your first message:
 
 Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
 
+### Switching Providers
+
+You can switch between AI providers at any time using the `:ClaudiusSwitch` command:
+
+```
+:ClaudiusSwitch claude      # Switch to Claude with default model
+:ClaudiusSwitch openai gpt-4o  # Switch to OpenAI with specific model
+:ClaudiusSwitch vertex gemini-1.5-pro project_id=my-project  # Switch to Vertex AI with project ID
+```
+
+This allows you to compare responses from different AI models without restarting Neovim.
+
 ### Importing from Claude Workbench
 
 You can import conversations from the Claude Workbench (console.anthropic.com):
@@ -275,7 +302,7 @@ The command will parse the API call and convert it into Claudius's chat format.
 
 ## About
 
-Claudius aims to provide a simple, native-feeling interface for having conversations with Claude directly in Neovim. The plugin focuses on being lightweight and following Vim/Neovim conventions.
+Claudius aims to provide a simple, native-feeling interface for having conversations with AI models directly in Neovim. Originally built for Claude (hence the name), it now supports multiple AI providers including OpenAI and Google Vertex AI. The plugin focuses on being lightweight and following Vim/Neovim conventions.
 
 ## Contributing
 
@@ -338,4 +365,4 @@ The goal is to demonstrate how far we can push AI-assisted development while mai
 
 ---
 
-_Keywords: claude tui, claude cli, claude terminal, claude vim, claude neovim, anthropic vim, anthropic neovim, ai vim, ai neovim, llm vim, llm neovim, chat vim, chat neovim_
+_Keywords: claude tui, claude cli, claude terminal, claude vim, claude neovim, anthropic vim, anthropic neovim, ai vim, ai neovim, llm vim, llm neovim, chat vim, chat neovim, openai vim, openai neovim, gpt vim, gpt neovim, vertex ai vim, vertex ai neovim, gemini vim, gemini neovim_
