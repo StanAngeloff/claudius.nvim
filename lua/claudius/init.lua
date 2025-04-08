@@ -880,8 +880,6 @@ function M.send_to_provider(opts)
 
   local request_body = provider:create_request_body(formatted_messages, system_message, {
     model = model,
-    max_tokens = config.parameters.max_tokens,
-    temperature = config.parameters.temperature,
   })
 
   -- Log the request details
