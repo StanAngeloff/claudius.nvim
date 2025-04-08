@@ -71,11 +71,18 @@ end
 
 -- Create request body for OpenAI API
 function M.create_request_body(self, formatted_messages, _, opts)
+  -- Get parameters with proper fallbacks, checking both top-level and provider-specific parameters
+  local provider_params = self.options.parameters.openai or {}
+
+  -- First check opts, then provider-specific params, then top-level params
+  local max_tokens = opts.max_tokens or provider_params.max_tokens or self.options.parameters.max_tokens
+  local temperature = opts.temperature or provider_params.temperature or self.options.parameters.temperature
+
   local request_body = {
     model = opts.model or self.options.model,
     messages = formatted_messages,
-    max_tokens = opts.max_tokens or self.options.parameters.max_tokens,
-    temperature = opts.temperature or self.options.parameters.temperature,
+    max_tokens = max_tokens,
+    temperature = temperature,
     stream = true,
     stream_options = {
       include_usage = true, -- Request usage information in the final chunk

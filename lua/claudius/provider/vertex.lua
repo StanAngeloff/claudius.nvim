@@ -205,6 +205,13 @@ end
 
 -- Create request body for Vertex AI API
 function M.create_request_body(self, formatted_messages, system_message, opts)
+  -- Get parameters with proper fallbacks, checking both top-level and provider-specific parameters
+  local provider_params = self.options.parameters.vertex or {}
+
+  -- First check opts, then provider-specific params, then top-level params
+  local max_tokens = opts.max_tokens or provider_params.max_tokens or self.options.parameters.max_tokens
+  local temperature = opts.temperature or provider_params.temperature or self.options.parameters.temperature
+
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
   for _, msg in ipairs(formatted_messages) do
@@ -220,8 +227,8 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
     contents = contents,
     model = opts.model or self.model,
     generationConfig = {
-      maxOutputTokens = opts.max_tokens or self.options.parameters.max_tokens,
-      temperature = opts.temperature or self.options.parameters.temperature,
+      maxOutputTokens = max_tokens,
+      temperature = temperature,
     },
   }
 
