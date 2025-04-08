@@ -41,7 +41,7 @@ Optional Features:
   For Google Vertex AI (store service account JSON):
 
   ```bash
-  secret-tool store --label="Vertex AI Service Account" service vertex key api
+  secret-tool store --label="Vertex AI Service Account" service vertex key api project_id your_project_id
   ```
 
   This will securely prompt for your API key and store it in the system keyring.
