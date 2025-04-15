@@ -225,7 +225,7 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
 
   local request_body = {
     contents = contents,
-    model = opts.model or self.model,
+    model = self.model, -- Use the validated model stored directly on self
     generationConfig = {
       maxOutputTokens = max_tokens,
       temperature = temperature,

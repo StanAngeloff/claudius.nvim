@@ -227,10 +227,27 @@ end
 local function initialize_provider(provider_config)
   local provider_defaults = require("claudius.provider.defaults")
 
-  -- Set default model if not specified
-  if not provider_config.model then
-    provider_config.model = provider_defaults.get_model(provider_config.provider)
+  -- Validate and potentially update the model based on the provider
+  local original_model = provider_config.model -- Could be nil
+  local validated_model = provider_defaults.get_appropriate_model(original_model, provider_config.provider)
+
+  -- Log if we had to switch models during initialization/switch
+  if validated_model ~= original_model and original_model ~= nil then
+    log.info(
+      "Model '"
+        .. original_model
+        .. "' is not valid for provider '"
+        .. provider_config.provider
+        .. "'. Using default: '"
+        .. validated_model
+        .. "'"
+    )
+  elseif original_model == nil then
+    log.debug("Using default model for " .. provider_config.provider .. ": " .. validated_model)
   end
+
+  -- Use the validated model for the provider configuration
+  provider_config.model = validated_model
 
   -- Set default parameters if not specified
   if not provider_config.parameters.max_tokens then

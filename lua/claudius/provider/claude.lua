@@ -54,7 +54,7 @@ function M.create_request_body(self, formatted_messages, system_message, opts)
   local temperature = opts.temperature or provider_params.temperature or self.options.parameters.temperature
 
   local request_body = {
-    model = opts.model or self.options.model,
+    model = self.options.model, -- Use the validated model stored in options
     messages = formatted_messages,
     system = system_message,
     max_tokens = max_tokens,
