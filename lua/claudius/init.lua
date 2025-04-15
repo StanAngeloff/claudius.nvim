@@ -392,13 +392,6 @@ M.setup = function(user_opts)
       return {}
     end,
   })
-        end, models)
-      end
-
-      -- Default: return empty list if no completion matches
-      return {}
-    end,
-  })
 
   -- Navigation commands
   vim.api.nvim_create_user_command("ClaudiusNextMessage", function()
