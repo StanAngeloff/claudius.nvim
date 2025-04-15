@@ -68,4 +68,9 @@ M.defaults = {
   },
 }
 
+-- Check if a parameter key is a general parameter applicable to all providers
+function M.is_general_parameter(key)
+  return key == "max_tokens" or key == "temperature"
+end
+
 return M

@@ -136,9 +136,8 @@ local function initialize_provider(provider_name, model_name, parameters)
 
   -- 1. Copy all non-provider-specific keys from the base parameters
   for k, v in pairs(base_params) do
-    -- Only copy if it's not a table (assuming provider sections are tables)
-    -- or if it's a key that should always be present (like max_tokens, temperature)
-    if type(v) ~= "table" or k == "max_tokens" or k == "temperature" then
+    -- Only copy if it's not a provider-specific table or if it's a general parameter
+    if type(v) ~= "table" or plugin_config.is_general_parameter(k) then
       merged_params[k] = v
     end
   end
@@ -1139,7 +1138,7 @@ function M.switch(provider_name, model_name, parameters)
   -- Merge the provided parameters into the correct parameter locations
   for k, v in pairs(parameters) do
     -- Check if it's a general parameter
-    if k == "max_tokens" or k == "temperature" then
+    if plugin_config.is_general_parameter(k) then
       new_config.parameters[k] = v
     else
       -- Assume it's a provider-specific parameter
