@@ -185,6 +185,8 @@ local function initialize_provider(base_config)
 
   -- Use the validated model for the final provider configuration
   final_config.model = validated_model
+  -- Also update the global config table so format_usage gets the correct model
+  config.model = validated_model
 
   -- Prepare the final parameters table by merging base and provider-specific settings
   local merged_params = {}
