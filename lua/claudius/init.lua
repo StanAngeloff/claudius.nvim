@@ -213,12 +213,12 @@ local function initialize_provider(provider_name, model_name, parameters)
 
   -- Create a fresh provider instance with the flattened provider_config
   local new_provider
-  if provider_config.provider == "openai" then
+  if provider_name == "openai" then
     new_provider = require("claudius.provider.openai").new(provider_config)
-  elseif provider_config.provider == "vertex" then
+  elseif provider_name == "vertex" then
     new_provider = require("claudius.provider.vertex").new(provider_config)
   else
-    -- Default to Claude if not specified
+    -- Default to Claude if not specified (or if provider_name is 'claude')
     new_provider = require("claudius.provider.claude").new(provider_config)
   end
 
