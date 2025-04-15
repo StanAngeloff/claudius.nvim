@@ -259,11 +259,15 @@ function M.get_endpoint(self)
   local location = self.parameters.location
 
   if not project_id then
-    log.error("get_endpoint(): Vertex AI project_id is required but missing in parameters: " .. vim.inspect(self.parameters))
+    log.error(
+      "get_endpoint(): Vertex AI project_id is required but missing in parameters: " .. log.inspect(self.parameters)
+    )
     return nil
   end
   if not location then
-    log.error("get_endpoint(): Vertex AI location is required but missing in parameters: " .. vim.inspect(self.parameters)) -- Should have a default, but check anyway
+    log.error(
+      "get_endpoint(): Vertex AI location is required but missing in parameters: " .. log.inspect(self.parameters)
+    ) -- Should have a default, but check anyway
     return nil
   end
 
@@ -305,7 +309,7 @@ function M.process_response_line(self, line, callbacks)
       end
 
       -- Log the error
-      log.error("process_response_line(): Vertex AI API error (parsed from non-SSE line): " .. vim.inspect(msg))
+      log.error("process_response_line(): Vertex AI API error (parsed from non-SSE line): " .. log.inspect(msg))
 
       if callbacks.on_error then
         callbacks.on_error(msg) -- Keep original message for user notification
@@ -331,7 +335,7 @@ function M.process_response_line(self, line, callbacks)
       "process_response_line(): Expected table in Vertex AI SSE response, got type: "
         .. type(data)
         .. ", data: "
-        .. vim.inspect(data)
+        .. log.inspect(data)
     )
     return
   end
@@ -343,7 +347,7 @@ function M.process_response_line(self, line, callbacks)
       msg = data.error.message
     end
 
-    log.error("process_response_line(): Vertex AI API error in SSE response data: " .. vim.inspect(msg))
+    log.error("process_response_line(): Vertex AI API error in SSE response data: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -373,7 +377,7 @@ function M.process_response_line(self, line, callbacks)
 
     -- Check if this is the final message with finish reason
     if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
-      log.debug("process_response_line(): Received finish reason: " .. vim.inspect(data.candidates[1].finishReason))
+      log.debug("process_response_line(): Received finish reason: " .. log.inspect(data.candidates[1].finishReason))
 
       -- Process any content in the final message before signaling completion
       if
@@ -383,7 +387,7 @@ function M.process_response_line(self, line, callbacks)
         and data.candidates[1].content.parts[1].text
       then
         local text = data.candidates[1].content.parts[1].text
-        log.debug("process_response_line(): ... Final message content text: " .. vim.inspect(text))
+        log.debug("process_response_line(): ... Final message content text: " .. log.inspect(text))
 
         -- Mark that we've received valid content
         self.response_accumulator.has_processed_content = true
@@ -413,7 +417,7 @@ function M.process_response_line(self, line, callbacks)
     -- Check if there's text content
     if content.parts and content.parts[1] and content.parts[1].text then
       local text = content.parts[1].text
-      log.debug("process_response_line(): ... Content text: " .. vim.inspect(text))
+      log.debug("process_response_line(): ... Content text: " .. log.inspect(text))
 
       -- Mark that we've received valid content
       self.response_accumulator.has_processed_content = true
@@ -442,7 +446,9 @@ function M.check_accumulated_response(self, callbacks)
     return false
   end
 
-  log.debug("check_accumulated_response(): Checking accumulated response with " .. #self.response_accumulator.lines .. " lines")
+  log.debug(
+    "check_accumulated_response(): Checking accumulated response with " .. #self.response_accumulator.lines .. " lines"
+  )
 
   -- Join all accumulated lines
   local full_response = table.concat(self.response_accumulator.lines, "\n")
@@ -482,7 +488,7 @@ function M.check_accumulated_response(self, callbacks)
       end
     end
 
-    log.error("check_accumulated_response(): Parsed error from accumulated response: " .. vim.inspect(msg))
+    log.error("check_accumulated_response(): Parsed error from accumulated response: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -497,7 +503,7 @@ function M.check_accumulated_response(self, callbacks)
       msg = data.error.message
     end
 
-    log.error("check_accumulated_response(): Parsed error from accumulated response: " .. vim.inspect(msg))
+    log.error("check_accumulated_response(): Parsed error from accumulated response: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification

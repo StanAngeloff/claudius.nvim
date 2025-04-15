@@ -75,7 +75,9 @@ function M.get_api_key(self, opts)
       local key = try_keyring(opts.keyring_service_name, opts.keyring_key_name, opts.keyring_project_id)
       if key and key ~= "" then
         self.state.api_key = key
-        log.debug("get_api_key(): Retrieved API key from keyring with project ID: " .. vim.inspect(opts.keyring_project_id))
+        log.debug(
+          "get_api_key(): Retrieved API key from keyring with project ID: " .. log.inspect(opts.keyring_project_id)
+        )
       end
     end
 
@@ -235,8 +237,8 @@ function M.send_request(self, request_body, callbacks)
   local curl_cmd_log = format_curl_command_for_log(cmd)
   -- Replace the temporary file path with @request.json for easier reproduction
   curl_cmd_log = curl_cmd_log:gsub(vim.fn.escape(tmp_file, "%-%."), "request.json")
-  log.debug("send_request(): ... $ " .. curl_cmd_log) -- Added '$ ' prefix
-  log.debug("send_request(): ... @request.json <<< " .. vim.fn.json_encode(request_body)) -- Reverted to json_encode
+  log.debug("send_request(): ... $ " .. curl_cmd_log)
+  log.debug("send_request(): ... @request.json <<< " .. vim.fn.json_encode(request_body))
 
   -- Start job
   local job_id = vim.fn.jobstart(cmd, {

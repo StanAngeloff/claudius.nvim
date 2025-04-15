@@ -114,18 +114,18 @@ local function initialize_provider(provider_name, model_name, parameters)
   if validated_model ~= original_model and original_model ~= nil then
     log.info(
       "initialize_provider(): Model "
-        .. vim.inspect(original_model)
+        .. log.inspect(original_model)
         .. " is not valid for provider "
-        .. vim.inspect(provider_name)
+        .. log.inspect(provider_name)
         .. ". Using default: "
-        .. vim.inspect(validated_model)
+        .. log.inspect(validated_model)
     )
   elseif original_model == nil then
     log.debug(
       "initialize_provider(): Using default model for provider "
-        .. vim.inspect(provider_name)
+        .. log.inspect(provider_name)
         .. ": "
-        .. vim.inspect(validated_model)
+        .. log.inspect(validated_model)
     )
   end
 
@@ -156,9 +156,9 @@ local function initialize_provider(provider_name, model_name, parameters)
   -- Log the final configuration being passed to the provider constructor
   log.debug(
     "initialize_provider(): Initializing provider "
-      .. vim.inspect(provider_name)
+      .. log.inspect(provider_name)
       .. " with config: "
-      .. vim.inspect(merged_params)
+      .. log.inspect(merged_params)
   )
 
   -- Create a fresh provider instance with the merged parameters
@@ -795,13 +795,13 @@ function M.send_to_provider(opts)
   -- Execute frontmatter if present and get variables
   local template_vars = {}
   if frontmatter_code then
-    log.debug("send_to_provider(): Evaluating frontmatter code: " .. vim.inspect(frontmatter_code))
+    log.debug("send_to_provider(): Evaluating frontmatter code: " .. log.inspect(frontmatter_code))
     local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code)
     if not ok then
       vim.notify("Claudius: Frontmatter error - " .. result, vim.log.levels.ERROR)
       return
     end
-    log.debug("send_to_provider(): ... Frontmatter evaluation result: " .. vim.inspect(result))
+    log.debug("send_to_provider(): ... Frontmatter evaluation result: " .. log.inspect(result))
     template_vars = result
   end
 
@@ -814,7 +814,9 @@ function M.send_to_provider(opts)
   for i, msg in ipairs(formatted_messages) do
     -- Look for {{expression}} patterns
     msg.content = msg.content:gsub("{{(.-)}}", function(expr)
-      log.debug(string.format("send_to_provider(): Evaluating template expression (message %d): %s", i, vim.inspect(expr)))
+      log.debug(
+        string.format("send_to_provider(): Evaluating template expression (message %d): %s", i, log.inspect(expr))
+      )
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
         local err_msg = string.format("Template error (message %d) - %s", i, result)
@@ -822,7 +824,7 @@ function M.send_to_provider(opts)
         vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
       end
-      log.debug(string.format("send_to_provider(): ... Expression result (message %d): %s", i, vim.inspect(result)))
+      log.debug(string.format("send_to_provider(): ... Expression result (message %d): %s", i, log.inspect(result)))
       return tostring(result)
     end)
   end
@@ -833,9 +835,9 @@ function M.send_to_provider(opts)
   -- Log the request details (using the provider's stored model)
   log.debug(
     "send_to_provider(): Sending request for provider "
-      .. vim.inspect(config.provider)
+      .. log.inspect(config.provider)
       .. " with model "
-      .. vim.inspect(provider.parameters.model)
+      .. log.inspect(provider.parameters.model)
   )
 
   local spinner_timer = start_loading_spinner(bufnr)
@@ -1162,11 +1164,11 @@ function M.switch(provider_name, model_name, parameters)
   -- Log the relevant configuration being used for the new provider
   log.debug(
     "switch(): provider = "
-      .. vim.inspect(new_config.provider)
+      .. log.inspect(new_config.provider)
       .. ", model = "
-      .. vim.inspect(new_config.model)
+      .. log.inspect(new_config.model)
       .. ", parameters = "
-      .. vim.inspect(new_config.parameters)
+      .. log.inspect(new_config.parameters)
   )
 
   -- Update the global config

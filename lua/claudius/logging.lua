@@ -1,5 +1,5 @@
 --- Claudius logging functionality
---- Provides centralized logging capabilities
+--- Provides centralized logging capabilities with custom inspect
 local M = {}
 
 -- Default configuration
@@ -19,6 +19,21 @@ local function write_log(level, msg)
     f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [" .. level .. "] " .. msg .. "\n")
     f:close()
   end
+end
+
+-- Custom inspect function for logging
+function M.inspect(obj)
+  return vim.inspect(obj, {
+    newline = " ", -- Use space instead of newline
+    indent = "", -- No indentation
+    process = function(item)
+      -- Truncate long strings
+      if type(item) == "string" and #item > 1000 then
+        return vim.inspect(item:sub(1, 1000) .. "...")
+      end
+      return item
+    end,
+  })
 end
 
 -- Log an info message

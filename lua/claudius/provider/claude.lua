@@ -93,7 +93,7 @@ function M.process_response_line(self, line, callbacks)
     end
 
     -- Log the error
-    log.error("process_response_line(): Claude API error: " .. vim.inspect(msg))
+    log.error("process_response_line(): Claude API error: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -114,7 +114,7 @@ function M.process_response_line(self, line, callbacks)
         msg = error_json.error.message
       end
 
-      log.error("process_response_line(): ... Claude API error (parsed from non-SSE line): " .. vim.inspect(msg))
+      log.error("process_response_line(): ... Claude API error (parsed from non-SSE line): " .. log.inspect(msg))
 
       if callbacks.on_error then
         callbacks.on_error(msg) -- Keep original message for user notification
@@ -160,7 +160,7 @@ function M.process_response_line(self, line, callbacks)
       "process_response_line(): Expected table in Claude API response, got type: "
         .. type(data)
         .. ", data: "
-        .. vim.inspect(data)
+        .. log.inspect(data)
     )
     return
   end
@@ -172,7 +172,7 @@ function M.process_response_line(self, line, callbacks)
       msg = data.error.message
     end
 
-    log.error("process_response_line(): Claude API error in response data: " .. vim.inspect(msg))
+    log.error("process_response_line(): Claude API error in response data: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -190,9 +190,7 @@ function M.process_response_line(self, line, callbacks)
   if data.type == "message_start" then
     log.debug("process_response_line(): Received message_start event")
     if data.message and data.message.usage and data.message.usage.input_tokens then
-      log.debug(
-        "process_response_line(): ... Input tokens from message_start: " .. data.message.usage.input_tokens
-      )
+      log.debug("process_response_line(): ... Input tokens from message_start: " .. data.message.usage.input_tokens)
       if callbacks.on_usage then
         callbacks.on_usage({
           type = "input",
@@ -248,21 +246,21 @@ function M.process_response_line(self, line, callbacks)
   -- Handle content_block_delta event
   if data.type == "content_block_delta" then
     if not data.delta then
-      log.error("process_response_line(): Received content_block_delta without delta field: " .. vim.inspect(data))
+      log.error("process_response_line(): Received content_block_delta without delta field: " .. log.inspect(data))
       return
     end
 
     if data.delta.type == "text_delta" and data.delta.text then
-      log.debug("process_response_line(): ... Content text delta: " .. vim.inspect(data.delta.text))
+      log.debug("process_response_line(): ... Content text delta: " .. log.inspect(data.delta.text))
 
       if callbacks.on_content then
         callbacks.on_content(data.delta.text)
       end
     elseif data.delta.type == "input_json_delta" and data.delta.partial_json ~= nil then
-      log.debug("process_response_line(): ... Content input_json_delta: " .. vim.inspect(data.delta.partial_json))
+      log.debug("process_response_line(): ... Content input_json_delta: " .. log.inspect(data.delta.partial_json))
       -- Tool use JSON deltas are not displayed directly
     elseif data.delta.type == "thinking_delta" and data.delta.thinking then
-      log.debug("process_response_line(): ... Content thinking delta: " .. vim.inspect(data.delta.thinking))
+      log.debug("process_response_line(): ... Content thinking delta: " .. log.inspect(data.delta.thinking))
       -- Thinking deltas are not displayed directly
     elseif data.delta.type == "signature_delta" and data.delta.signature then
       log.debug("process_response_line(): ... Content signature delta received")
@@ -270,9 +268,9 @@ function M.process_response_line(self, line, callbacks)
     else
       log.error(
         "process_response_line(): Received content_block_delta with unknown delta type: "
-          .. vim.inspect(data.delta.type)
+          .. log.inspect(data.delta.type)
           .. ", delta: "
-          .. vim.inspect(data.delta)
+          .. log.inspect(data.delta)
       )
     end
   elseif
@@ -288,9 +286,9 @@ function M.process_response_line(self, line, callbacks)
   then
     log.error(
       "process_response_line(): Received unknown event type from Claude API: "
-        .. vim.inspect(data.type)
+        .. log.inspect(data.type)
         .. ", data: "
-        .. vim.inspect(data)
+        .. log.inspect(data)
     )
   end
 end
