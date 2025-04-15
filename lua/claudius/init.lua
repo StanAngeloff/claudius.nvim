@@ -362,7 +362,6 @@ M.setup = function(user_opts)
   end, {
     nargs = "+",
     complete = function(arglead, cmdline, _)
-      local provider_config = require("claudius.provider.config")
       local args = vim.split(cmdline, "%s+", { trimempty = true })
       local num_args = #args
       local trailing_space = cmdline:match("%s$")
@@ -374,8 +373,8 @@ M.setup = function(user_opts)
           table.insert(providers, name)
         end
         table.sort(providers)
-        return vim.tbl_filter(function(provider)
-          return vim.startswith(provider, arglead)
+        return vim.tbl_filter(function(p)
+          return vim.startswith(p, arglead)
         end, providers)
       -- If completing the model name (argument 3)
       elseif (num_args == 2 and trailing_space) or (num_args == 3 and not trailing_space) then
