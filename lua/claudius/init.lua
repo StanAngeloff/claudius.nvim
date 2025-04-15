@@ -23,15 +23,6 @@ local session_usage = {
   output_tokens = 0,
 }
 
--- Utility functions for JSON encoding/decoding
-local function json_decode(str)
-  return vim.fn.json_decode(str)
-end
-
-local function json_encode(data)
-  return vim.fn.json_encode(data)
-end
-
 -- Folding functions
 function M.get_fold_level(lnum)
   local line = vim.fn.getline(lnum)
@@ -69,13 +60,6 @@ function M.get_fold_text()
   -- Create fold text: prefix + first line + number of lines
   return string.format("%s %s... (%d lines)", prefix, content:sub(1, 50), lines_count)
 end
-
--- Message types
-local MSG_TYPE = {
-  SYSTEM = "System",
-  USER = "You",
-  ASSISTANT = "Assistant",
-}
 
 -- Message selection and navigation functions
 local textobject = require("claudius.textobject")
