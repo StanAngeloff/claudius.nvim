@@ -1150,9 +1150,11 @@ function M.switch(provider_name, model_name, parameters)
   -- Log the relevant configuration being used for the new provider
   log.debug(
     "Switching provider configuration: "
-    .. vim.inspect({ provider = new_config.provider }):gsub("%s+", " ") .. ", "
-    .. vim.inspect({ model = new_config.model }):gsub("%s+", " ") .. ", "
-    .. vim.inspect({ parameters = new_config.parameters })
+      .. vim.inspect({ provider = new_config.provider }):gsub("%s+", " ")
+      .. ", "
+      .. vim.inspect({ model = new_config.model }):gsub("%s+", " ")
+      .. ", "
+      .. vim.inspect({ parameters = new_config.parameters })
   )
 
   -- Update the global config
