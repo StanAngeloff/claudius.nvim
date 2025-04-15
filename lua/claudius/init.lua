@@ -177,14 +177,14 @@ M.setup = function(user_opts)
   user_opts = user_opts or {}
   config = vim.tbl_deep_extend("force", plugin_config.defaults, user_opts)
 
-  -- Initialize provider based on the merged config
-  initialize_provider(config.provider, config.model, config.parameters)
-
   -- Configure logging based on user settings
   log.configure({
     enabled = config.logging.enabled,
     path = config.logging.path,
   })
+
+  -- Initialize provider based on the merged config
+  initialize_provider(config.provider, config.model, config.parameters)
 
   -- Helper function to toggle logging
   local function toggle_logging(enable)
