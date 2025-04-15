@@ -19,7 +19,7 @@ local function generate_access_token(service_account_json)
   -- This ensures the file is deleted even if there's an unhandled error
   vim.defer_fn(function()
     if vim.fn.filereadable(tmp_file) == 1 then
-      log.debug("generate_access_token(): Safety timer: removing temporary service account file: " .. tmp_file)
+      log.debug("vertex.generate_access_token(): Safety timer: removing temporary service account file: " .. tmp_file)
       os.remove(tmp_file)
     end
   end, 60 * 1000) -- 60 seconds in milliseconds
@@ -64,18 +64,18 @@ local function generate_access_token(service_account_json)
           return token
         else
           err = "Invalid token format received from gcloud"
-          log.debug("generate_access_token(): Invalid token format received from gcloud: " .. output)
+          log.debug("vertex.generate_access_token(): Invalid token format received from gcloud: " .. output)
         end
       else
         -- This is an error message from gcloud
         err = "gcloud error: " .. output
-        log.debug("generate_access_token(): gcloud command output: " .. output)
+        log.debug("vertex.generate_access_token(): gcloud command output: " .. output)
       end
     else
       err = "Failed to generate access token (exit code: " .. tostring(code) .. ")"
       if output and #output > 0 then
         err = err .. "\nOutput: " .. output
-        log.debug("generate_access_token(): gcloud command output: " .. output)
+        log.debug("vertex.generate_access_token(): gcloud command output: " .. output)
       end
     end
   else
@@ -128,15 +128,15 @@ function M.get_api_key(self)
 
   -- If we have service account JSON, try to generate an access token
   if service_account_json and service_account_json:match("service_account") then
-    log.debug("get_api_key(): Found service account JSON, attempting to generate access token")
+    log.debug("vertex.get_api_key(): Found service account JSON, attempting to generate access token")
 
     local token, err = generate_access_token(service_account_json)
     if token then
-      log.debug("get_api_key(): Successfully generated access token from service account")
+      log.debug("vertex.get_api_key(): Successfully generated access token from service account")
       self.state.api_key = token
       return token
     else
-      log.error("get_api_key(): Failed to generate access token: " .. (err or "unknown error"))
+      log.error("vertex.get_api_key(): Failed to generate access token: " .. (err or "unknown error"))
       if err then
         error(
           err
@@ -260,13 +260,15 @@ function M.get_endpoint(self)
 
   if not project_id then
     log.error(
-      "get_endpoint(): Vertex AI project_id is required but missing in parameters: " .. log.inspect(self.parameters)
+      "vertex.get_endpoint(): Vertex AI project_id is required but missing in parameters: "
+        .. log.inspect(self.parameters)
     )
     return nil
   end
   if not location then
     log.error(
-      "get_endpoint(): Vertex AI location is required but missing in parameters: " .. log.inspect(self.parameters)
+      "vertex.get_endpoint(): Vertex AI location is required but missing in parameters: "
+        .. log.inspect(self.parameters)
     ) -- Should have a default, but check anyway
     return nil
   end
@@ -281,7 +283,7 @@ function M.get_endpoint(self)
     self.parameters.model -- Use model from parameters
   )
 
-  log.debug("get_endpoint(): Using Vertex AI endpoint: " .. endpoint)
+  log.debug("vertex.get_endpoint(): Using Vertex AI endpoint: " .. endpoint)
   return endpoint
 end
 
@@ -295,7 +297,7 @@ function M.process_response_line(self, line, callbacks)
   -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
     -- This is not a standard SSE data line or potentially a non-SSE JSON error
-    log.debug("process_response_line(): Received non-SSE line, adding to accumulator: " .. line)
+    log.debug("vertex.process_response_line(): Received non-SSE line, adding to accumulator: " .. line)
 
     -- Add to response accumulator for potential multi-line JSON response
     table.insert(self.response_accumulator.lines, line)
@@ -309,7 +311,7 @@ function M.process_response_line(self, line, callbacks)
       end
 
       -- Log the error
-      log.error("process_response_line(): Vertex AI API error (parsed from non-SSE line): " .. log.inspect(msg))
+      log.error("vertex.process_response_line(): Vertex AI API error (parsed from non-SSE line): " .. log.inspect(msg))
 
       if callbacks.on_error then
         callbacks.on_error(msg) -- Keep original message for user notification
@@ -325,14 +327,14 @@ function M.process_response_line(self, line, callbacks)
   local json_str = line:gsub("^data: ", "")
   local parse_ok, data = pcall(vim.fn.json_decode, json_str)
   if not parse_ok then
-    log.error("process_response_line(): Failed to parse JSON from Vertex AI SSE response: " .. json_str)
+    log.error("vertex.process_response_line(): Failed to parse JSON from Vertex AI SSE response: " .. json_str)
     return
   end
 
   -- Validate the response structure
   if type(data) ~= "table" then
     log.error(
-      "process_response_line(): Expected table in Vertex AI SSE response, got type: "
+      "vertex.process_response_line(): Expected table in Vertex AI SSE response, got type: "
         .. type(data)
         .. ", data: "
         .. log.inspect(data)
@@ -347,7 +349,7 @@ function M.process_response_line(self, line, callbacks)
       msg = data.error.message
     end
 
-    log.error("process_response_line(): Vertex AI API error in SSE response data: " .. log.inspect(msg))
+    log.error("vertex.process_response_line(): Vertex AI API error in SSE response data: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -377,7 +379,9 @@ function M.process_response_line(self, line, callbacks)
 
     -- Check if this is the final message with finish reason
     if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
-      log.debug("process_response_line(): Received finish reason: " .. log.inspect(data.candidates[1].finishReason))
+      log.debug(
+        "vertex.process_response_line(): Received finish reason: " .. log.inspect(data.candidates[1].finishReason)
+      )
 
       -- Process any content in the final message before signaling completion
       if
@@ -387,7 +391,7 @@ function M.process_response_line(self, line, callbacks)
         and data.candidates[1].content.parts[1].text
       then
         local text = data.candidates[1].content.parts[1].text
-        log.debug("process_response_line(): ... Final message content text: " .. log.inspect(text))
+        log.debug("vertex.process_response_line(): ... Final message content text: " .. log.inspect(text))
 
         -- Mark that we've received valid content
         self.response_accumulator.has_processed_content = true
@@ -417,7 +421,7 @@ function M.process_response_line(self, line, callbacks)
     -- Check if there's text content
     if content.parts and content.parts[1] and content.parts[1].text then
       local text = content.parts[1].text
-      log.debug("process_response_line(): ... Content text: " .. log.inspect(text))
+      log.debug("vertex.process_response_line(): ... Content text: " .. log.inspect(text))
 
       -- Mark that we've received valid content
       self.response_accumulator.has_processed_content = true
@@ -434,7 +438,7 @@ function M.check_unprocessed_json(self, callbacks)
   -- Check accumulated response if we haven't processed any content
   if not self.response_accumulator.has_processed_content and #self.response_accumulator.lines > 0 then
     if not self:check_accumulated_response(callbacks) then
-      log.debug("check_unprocessed_json(): No actionable content found in accumulated response")
+      log.debug("vertex.check_unprocessed_json(): No actionable content found in accumulated response")
     end
   end
 end
@@ -447,7 +451,9 @@ function M.check_accumulated_response(self, callbacks)
   end
 
   log.debug(
-    "check_accumulated_response(): Checking accumulated response with " .. #self.response_accumulator.lines .. " lines"
+    "vertex.check_accumulated_response(): Checking accumulated response with "
+      .. #self.response_accumulator.lines
+      .. " lines"
   )
 
   -- Join all accumulated lines
@@ -456,7 +462,9 @@ function M.check_accumulated_response(self, callbacks)
   -- Try to parse as JSON
   local ok, data = pcall(vim.fn.json_decode, full_response)
   if not ok then
-    log.debug("check_accumulated_response(): Failed to parse accumulated response as JSON. Content: " .. full_response)
+    log.debug(
+      "vertex.check_accumulated_response(): Failed to parse accumulated response as JSON. Content: " .. full_response
+    )
     return false
   end
 
@@ -488,7 +496,7 @@ function M.check_accumulated_response(self, callbacks)
       end
     end
 
-    log.error("check_accumulated_response(): Parsed error from accumulated response: " .. log.inspect(msg))
+    log.error("vertex.check_accumulated_response(): Parsed error from accumulated response: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -503,7 +511,7 @@ function M.check_accumulated_response(self, callbacks)
       msg = data.error.message
     end
 
-    log.error("check_accumulated_response(): Parsed error from accumulated response: " .. log.inspect(msg))
+    log.error("vertex.check_accumulated_response(): Parsed error from accumulated response: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -522,7 +530,7 @@ function M.reset(self)
     has_processed_content = false,
   }
 
-  log.debug("reset(): Reset Vertex AI provider state (response accumulator)")
+  log.debug("vertex.reset(): Reset Vertex AI provider state (response accumulator)")
 end
 
 return M

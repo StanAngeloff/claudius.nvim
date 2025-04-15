@@ -112,7 +112,7 @@ function M.process_response_line(self, line, callbacks)
 
   -- Handle [DONE] message
   if line == "data: [DONE]" then
-    log.debug("process_response_line(): Received [DONE] message")
+    log.debug("openai.process_response_line(): Received [DONE] message")
 
     if callbacks.on_done then
       callbacks.on_done()
@@ -126,7 +126,9 @@ function M.process_response_line(self, line, callbacks)
     local ok, data = pcall(vim.fn.json_decode, json_str)
 
     if ok and data and data.choices and #data.choices == 0 and data.usage then
-      log.debug("process_response_line(): Received final chunk with usage information: " .. log.inspect(data.usage))
+      log.debug(
+        "openai.process_response_line(): Received final chunk with usage information: " .. log.inspect(data.usage)
+      )
 
       -- Process usage information
       if type(data.usage) == "table" then
@@ -155,7 +157,7 @@ function M.process_response_line(self, line, callbacks)
   -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
     -- This is not a standard SSE data line or potentially a non-SSE JSON error
-    log.debug("process_response_line(): Received non-SSE line: " .. line)
+    log.debug("openai.process_response_line(): Received non-SSE line: " .. line)
 
     -- Try parsing as a direct JSON error response
     local ok, error_data = pcall(vim.fn.json_decode, line)
@@ -166,7 +168,7 @@ function M.process_response_line(self, line, callbacks)
       end
 
       -- Log the error
-      log.error("process_response_line(): OpenAI API error (parsed from non-SSE line): " .. log.inspect(msg))
+      log.error("openai.process_response_line(): OpenAI API error (parsed from non-SSE line): " .. log.inspect(msg))
 
       if callbacks.on_error then
         callbacks.on_error(msg) -- Keep original message for user notification
@@ -175,7 +177,7 @@ function M.process_response_line(self, line, callbacks)
     end
 
     -- If we can't parse it as an error, log and ignore
-    log.error("process_response_line(): Ignoring unrecognized response line: " .. line)
+    log.error("openai.process_response_line(): Ignoring unrecognized response line: " .. line)
     return
   end
 
@@ -183,14 +185,17 @@ function M.process_response_line(self, line, callbacks)
   local json_str = line:gsub("^data: ", "")
   local parse_ok, data = pcall(vim.fn.json_decode, json_str)
   if not parse_ok then
-    log.error("process_response_line(): Failed to parse JSON from response: " .. json_str)
+    log.error("openai.process_response_line(): Failed to parse JSON from response: " .. json_str)
     return
   end
 
   -- Validate the response structure
   if type(data) ~= "table" then
     log.error(
-      "process_response_line(): Expected table in response, got type: " .. type(data) .. ", data: " .. log.inspect(data)
+      "openai.process_response_line(): Expected table in response, got type: "
+        .. type(data)
+        .. ", data: "
+        .. log.inspect(data)
     )
     return
   end
@@ -202,7 +207,7 @@ function M.process_response_line(self, line, callbacks)
       msg = data.error.message
     end
 
-    log.error("process_response_line(): OpenAI API error in response data: " .. log.inspect(msg))
+    log.error("openai.process_response_line(): OpenAI API error in response data: " .. log.inspect(msg))
 
     if callbacks.on_error then
       callbacks.on_error(msg) -- Keep original message for user notification
@@ -214,20 +219,23 @@ function M.process_response_line(self, line, callbacks)
 
   -- Handle content deltas
   if not data.choices then
-    log.error("process_response_line(): Expected 'choices' in response data, but not found: " .. log.inspect(data))
+    log.error(
+      "openai.process_response_line(): Expected 'choices' in response data, but not found: " .. log.inspect(data)
+    )
     return
   end
 
   if not data.choices[1] then
     log.error(
-      "process_response_line(): Expected at least one choice in response, but none found: " .. log.inspect(data)
+      "openai.process_response_line(): Expected at least one choice in response, but none found: " .. log.inspect(data)
     )
     return
   end
 
   if not data.choices[1].delta then
     log.error(
-      "process_response_line(): Expected 'delta' in first choice, but not found: " .. log.inspect(data.choices[1])
+      "openai.process_response_line(): Expected 'delta' in first choice, but not found: "
+        .. log.inspect(data.choices[1])
     )
     return
   end
@@ -237,13 +245,13 @@ function M.process_response_line(self, line, callbacks)
   -- Check if this is the role marker without content
   if delta.role == "assistant" and not delta.content then
     -- This is just the role marker, skip it
-    log.debug("process_response_line(): Received assistant role marker, skipping")
+    log.debug("openai.process_response_line(): Received assistant role marker, skipping")
     return
   end
 
   -- Handle actual content
   if delta.content then
-    log.debug("process_response_line(): Content delta: " .. log.inspect(delta.content))
+    log.debug("openai.process_response_line(): Content delta: " .. log.inspect(delta.content))
 
     if callbacks.on_content then
       callbacks.on_content(delta.content)
@@ -256,7 +264,7 @@ function M.process_response_line(self, line, callbacks)
     and data.choices[1].finish_reason ~= vim.NIL
     and data.choices[1].finish_reason ~= nil
   then
-    log.debug("process_response_line(): Received finish_reason: " .. log.inspect(data.choices[1].finish_reason))
+    log.debug("openai.process_response_line(): Received finish_reason: " .. log.inspect(data.choices[1].finish_reason))
     -- We'll let the final chunk with usage information trigger on_message_complete
   end
 end
