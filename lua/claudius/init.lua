@@ -276,8 +276,8 @@ M.setup = function(user_opts)
     vim.wo.foldlevel = 99
   end
 
-  -- Add autocmd for updating rulers
-  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "VimResized", "TextChanged", "TextChangedI" }, {
+  -- Add autocmd for updating rulers and signs (debounced via CursorHold)
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "VimResized", "CursorHold", "CursorHoldI" }, {
     pattern = "*.chat",
     callback = function(ev)
       add_rulers(ev.buf)
