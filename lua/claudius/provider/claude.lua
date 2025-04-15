@@ -5,10 +5,10 @@ local log = require("claudius.logging")
 local M = {}
 
 -- Create a new Claude provider instance
-function M.new(opts)
-  local provider = base.new(opts)
+function M.new(merged_config)
+  local provider = base.new(merged_config) -- Pass the already merged config to base
 
-  -- Claude-specific state
+  -- Claude-specific state (endpoint, version)
   provider.endpoint = "https://api.anthropic.com/v1/messages"
   provider.api_version = "2023-06-01"
 
@@ -46,13 +46,10 @@ end
 
 -- Create request body for Claude API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Get parameters from the main config stored in self.options
+  -- Parameters are already merged in self.options.parameters
   local params = self.options.parameters or {}
-  local provider_params = params.claude or {} -- Provider-specific overrides
-
-  -- Use provider-specific parameters, falling back to general defaults
-  local max_tokens = provider_params.max_tokens or params.max_tokens
-  local temperature = provider_params.temperature or params.temperature
+  local max_tokens = params.max_tokens
+  local temperature = params.temperature
 
   local request_body = {
     model = self.options.model, -- Use the validated model stored in self.options

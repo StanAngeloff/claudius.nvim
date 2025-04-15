@@ -5,10 +5,10 @@ local log = require("claudius.logging")
 local M = {}
 
 -- Create a new OpenAI provider instance
-function M.new(opts)
-  local provider = base.new(opts)
+function M.new(merged_config)
+  local provider = base.new(merged_config) -- Pass the already merged config to base
 
-  -- OpenAI-specific state
+  -- OpenAI-specific state (endpoint, version)
   provider.endpoint = "https://api.openai.com/v1/chat/completions"
   provider.api_version = "2023-05-15" -- OpenAI API version
 
@@ -71,13 +71,10 @@ end
 
 -- Create request body for OpenAI API
 function M.create_request_body(self, formatted_messages, _)
-  -- Get parameters from the main config stored in self.options
+  -- Parameters are already merged in self.options.parameters
   local params = self.options.parameters or {}
-  local provider_params = params.openai or {} -- Provider-specific overrides
-
-  -- Use provider-specific parameters, falling back to general defaults
-  local max_tokens = provider_params.max_tokens or params.max_tokens
-  local temperature = provider_params.temperature or params.temperature
+  local max_tokens = params.max_tokens
+  local temperature = params.temperature
 
   local request_body = {
     model = self.options.model, -- Use the validated model stored in self.options

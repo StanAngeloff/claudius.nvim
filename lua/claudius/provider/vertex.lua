@@ -88,21 +88,20 @@ local function generate_access_token(service_account_json)
 end
 
 -- Create a new Google Vertex AI provider instance
-function M.new(opts)
-  local provider = base.new(opts)
+function M.new(merged_config)
+  local provider = base.new(merged_config) -- Pass the already merged config to base
 
   -- Vertex AI-specific state
-  -- Get parameters with defaults, then override with vertex-specific parameters
-  local params = opts.parameters or {}
-  local vertex_params = params.vertex or {}
+  -- Parameters are already merged in merged_config.parameters
+  local params = merged_config.parameters or {}
 
-  -- Set provider properties with defaults
-  provider.project_id = vertex_params.project_id or params.project_id
-  provider.location = vertex_params.location or params.location or "us-central1"
-  provider.model = opts.model or require("claudius.provider.defaults").get_model("vertex")
+  -- Set provider properties directly from the merged parameters
+  provider.project_id = params.project_id -- Required, should be present after merge
+  provider.location = params.location -- Has default in config.lua
+  provider.model = merged_config.model -- Already validated in initialize_provider
 
   -- Set the API version
-  provider.api_version = "v1"
+  provider.api_version = "v1" -- Or potentially make this configurable in future
 
   -- Initialize response accumulator by calling reset
   provider:reset()
@@ -113,6 +112,9 @@ end
 
 -- Get access token from environment, keyring, or prompt
 function M.get_api_key(self)
+  -- Access project_id from the merged options
+  local project_id = self.options.parameters and self.options.parameters.project_id
+
   -- First try to get token from environment variable
   local token = os.getenv("VERTEX_AI_ACCESS_TOKEN")
   if token and #token > 0 then
@@ -125,7 +127,7 @@ function M.get_api_key(self)
     env_var_name = "VERTEX_SERVICE_ACCOUNT",
     keyring_service_name = "vertex",
     keyring_key_name = "api",
-    keyring_project_id = self.project_id,
+    keyring_project_id = project_id, -- Use project_id from options
   })
 
   -- If we have service account JSON, try to generate an access token
@@ -205,13 +207,10 @@ end
 
 -- Create request body for Vertex AI API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Get parameters from the main config stored in self.options
+  -- Parameters are already merged in self.options.parameters
   local params = self.options.parameters or {}
-  local provider_params = params.vertex or {} -- Provider-specific overrides
-
-  -- Use provider-specific parameters, falling back to general defaults
-  local max_tokens = provider_params.max_tokens or params.max_tokens
-  local temperature = opts.temperature or provider_params.temperature or params.temperature
+  local max_tokens = params.max_tokens
+  local temperature = params.temperature
 
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
@@ -260,19 +259,27 @@ end
 
 -- Get API endpoint for Vertex AI
 function M.get_endpoint(self)
-  if not self.project_id then
+  -- Access project_id and location from the merged options
+  local project_id = self.options.parameters and self.options.parameters.project_id
+  local location = self.options.parameters and self.options.parameters.location
+
+  if not project_id then
     log.error("Vertex AI project_id is required")
+    return nil
+  end
+  if not location then
+    log.error("Vertex AI location is required") -- Should have a default, but check anyway
     return nil
   end
 
   -- Ensure we're using the streamGenerateContent endpoint with SSE format
   local endpoint = string.format(
     "https://%s-aiplatform.googleapis.com/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
-    self.location,
+    location,
     self.api_version,
-    self.project_id,
-    self.location,
-    self.model
+    project_id,
+    location,
+    self.model -- self.model was set during initialization
   )
 
   log.debug("Using Vertex AI endpoint: " .. endpoint)

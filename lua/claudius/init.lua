@@ -157,11 +157,15 @@ local function auto_write_buffer(bufnr)
 end
 
 -- Initialize or switch provider based on configuration
-local function initialize_provider(provider_config)
+local function initialize_provider(base_config)
   local provider_defaults = require("claudius.provider.defaults")
 
+  -- Create a deep copy to avoid modifying the original config table
+  local final_config = vim.deepcopy(base_config)
+  local provider_name = final_config.provider
+
   -- Validate and potentially update the model based on the provider
-  local original_model = provider_config.model -- Could be nil
+  local original_model = final_config.model -- Could be nil
   local validated_model = provider_defaults.get_appropriate_model(original_model, provider_config.provider)
 
   -- Log if we had to switch models during initialization/switch
@@ -176,28 +180,49 @@ local function initialize_provider(provider_config)
         .. "'"
     )
   elseif original_model == nil then
-    log.debug("Using default model for " .. provider_config.provider .. ": " .. validated_model)
+    log.debug("Using default model for " .. provider_name .. ": " .. validated_model)
   end
 
-  -- Use the validated model for the provider configuration
-  provider_config.model = validated_model
+  -- Use the validated model for the final provider configuration
+  final_config.model = validated_model
 
-  -- Create a fresh provider instance with a clean state, passing the full config
+  -- Prepare the final parameters table by merging base and provider-specific settings
+  local merged_params = {}
+  local base_params = final_config.parameters or {}
+  local provider_overrides = base_params[provider_name] or {}
+
+  -- 1. Copy all non-provider-specific keys from the base parameters
+  for k, v in pairs(base_params) do
+    -- Only copy if it's not a table (assuming provider sections are tables)
+    -- or if it's a key that should always be present (like max_tokens, temperature)
+    if type(v) ~= "table" or k == "max_tokens" or k == "temperature" then
+      merged_params[k] = v
+    end
+  end
+  -- 2. Merge the provider-specific overrides, potentially overwriting general keys
+  for k, v in pairs(provider_overrides) do
+    merged_params[k] = v
+  end
+
+  -- Assign the merged parameters back to the final config
+  final_config.parameters = merged_params
+
+  -- Log the final configuration being passed to the provider
+  log.debug("Final provider configuration:")
+  log.debug("  Provider: " .. final_config.provider)
+  log.debug("  Model: " .. final_config.model)
+  log.debug("  Parameters: " .. vim.inspect(final_config.parameters))
+
+  -- Create a fresh provider instance with the final merged config
   local new_provider
-  if provider_config.provider == "openai" then
-    new_provider = require("claudius.provider.openai").new(provider_config)
-  elseif provider_config.provider == "vertex" then
-    new_provider = require("claudius.provider.vertex").new(provider_config)
+  if final_config.provider == "openai" then
+    new_provider = require("claudius.provider.openai").new(final_config)
+  elseif final_config.provider == "vertex" then
+    new_provider = require("claudius.provider.vertex").new(final_config)
   else
     -- Default to Claude if not specified
-    new_provider = require("claudius.provider.claude").new(provider_config)
+    new_provider = require("claudius.provider.claude").new(final_config)
   end
-
-  -- Log the actual provider instance details
-  log.debug("New provider initialized:")
-  log.debug("  Provider: " .. provider_config.provider)
-  log.debug("  Model: " .. (new_provider.model or provider_config.model or "default"))
-  log.debug("  Parameters: " .. vim.inspect(provider_config.parameters))
 
   -- Update the global provider reference
   provider = new_provider
@@ -1157,9 +1182,9 @@ function M.switch(opts)
   -- Update the global config
   config = new_config
 
-  -- Initialize the new provider with a clean state
+  -- Initialize the new provider with a clean state using the updated config
   provider = nil -- Clear the current provider
-  local new_provider = initialize_provider(config)
+  local new_provider = initialize_provider(new_config) -- Pass the modified config
 
   -- Force the new provider to clear its API key cache
   if new_provider and new_provider.state then
