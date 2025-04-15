@@ -1134,7 +1134,7 @@ end
 -- Switch to a different provider or model
 function M.switch(opts)
   if not opts or not opts.provider then
-    vim.notify("Provider is required", vim.log.levels.ERROR)
+    vim.notify("Claudius: Provider is required", vim.log.levels.ERROR)
     return
   end
 
@@ -1142,7 +1142,7 @@ function M.switch(opts)
   local bufnr = vim.api.nvim_get_current_buf()
   local state = buffers.get_state(bufnr)
   if state.current_request then
-    vim.notify("Cannot switch providers while a request is in progress. Cancel it first.", vim.log.levels.WARN)
+    vim.notify("Claudius: Cannot switch providers while a request is in progress.", vim.log.levels.WARN)
     return
   end
 
@@ -1184,12 +1184,12 @@ function M.switch(opts)
   end
 
   -- Log the relevant configuration being used for the new provider
-  log.debug("Switching provider configuration:")
-  log.debug(vim.inspect({
-    provider = new_config.provider,
-    model = new_config.model,
-    parameters = new_config.parameters,
-  }))
+  log.debug(
+    "Switching provider configuration: "
+    .. vim.inspect({ provider = new_config.provider }):gsub("%s+", " ") .. ", "
+    .. vim.inspect({ model = new_config.model }):gsub("%s+", " ") .. ", "
+    .. vim.inspect({ parameters = new_config.parameters })
+  )
 
   -- Update the global config
   config = new_config
@@ -1205,7 +1205,7 @@ function M.switch(opts)
 
   -- Notify the user
   local model_info = config.model and (" with model " .. config.model) or ""
-  vim.notify("Switched to " .. config.provider .. model_info, vim.log.levels.INFO)
+  vim.notify("Claudius: Switched to " .. config.provider .. model_info, vim.log.levels.INFO)
 
   return new_provider
 end
