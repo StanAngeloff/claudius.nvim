@@ -373,13 +373,14 @@ M.setup = function(user_opts)
       -- If completing the model name (argument 3)
       elseif (num_args == 2 and trailing_space) or (num_args == 3 and not trailing_space) then
         local provider_name = args[2]
-        -- Dynamically construct the expected model list key (e.g., "claude_models")
-        local model_list_key = provider_name .. "_models"
-        -- Attempt to access the model list from the provider config
-        local models = provider_config[model_list_key] or {}
+        -- Access the model list directly from the new structure
+        local models = provider_config.models[provider_name] or {}
 
         -- Ensure models is a table before sorting and filtering
         if type(models) == "table" then
+          -- Create a copy to avoid modifying the original table
+          local sorted_models = vim.deepcopy(models)
+          table.sort(sorted_models)
           table.sort(models)
           return vim.tbl_filter(function(model)
             return vim.startswith(model, arglead)

@@ -3,14 +3,15 @@
 local M = {}
 
 -- Default models for each provider
-M.models = {
+M.defaults = {
   claude = "claude-3-7-sonnet-20250219",
   openai = "gpt-4o",
   vertex = "gemini-2.0-flash-001",
 }
 
--- Available Claude models (Add this section)
-M.claude_models = {
+-- Available models grouped by provider
+M.models = {
+  claude = {
   "claude-3-5-sonnet",
   "claude-3-7-sonnet",
   "claude-3-opus-20240229",
@@ -18,11 +19,9 @@ M.claude_models = {
   "claude-3-haiku-20240307",
   "claude-2.1",
   "claude-2.0",
-  "claude-instant-1.2",
-}
-
--- Available OpenAI models
-M.openai_models = {
+    "claude-instant-1.2",
+  },
+  openai = {
   -- Latest models
   "gpt-4.5-preview",
   "gpt-4.5-preview-2025-02-27",
@@ -70,11 +69,9 @@ M.openai_models = {
   "gpt-3.5-turbo-0613",
   "gpt-3.5-0301",
   "gpt-3.5-turbo-instruct",
-  "gpt-3.5-turbo-16k-0613",
-}
-
--- Available Google Vertex AI models
-M.vertex_models = {
+    "gpt-3.5-turbo-16k-0613",
+  },
+  vertex = {
   -- Gemini 2.0 models
   "gemini-2.0-flash-001",
   "gemini-2.0-flash-lite-001",
@@ -93,7 +90,8 @@ M.vertex_models = {
   -- PaLM models
   "text-bison",
   "chat-bison",
-  "codechat-bison",
+    "codechat-bison",
+  },
 }
 
 -- Authentication notes for providers
@@ -110,7 +108,7 @@ Vertex AI requires OAuth2 authentication. You can:
 
 -- Get the default model for a provider
 function M.get_model(provider_name)
-  return M.models[provider_name] or M.models.claude
+  return M.defaults[provider_name] or M.defaults.claude
 end
 
 -- Check if a model belongs to a specific provider
@@ -120,20 +118,18 @@ function M.is_provider_model(model_name, provider_name)
     return false
   end
 
-  if provider_name == "claude" then
-    return model_name:match("^claude") ~= nil
-  elseif provider_name == "openai" then
-    return model_name:match("^gpt") ~= nil
-      or model_name:match("^o%d") ~= nil
-      or model_name:match("^chatgpt") ~= nil
-      or model_name:match("^computer%-use") ~= nil
-  elseif provider_name == "vertex" then
-    return model_name:match("^gemini") ~= nil
-      or model_name:match("^text%-bison") ~= nil
-      or model_name:match("^chat%-bison") ~= nil
-      or model_name:match("^codechat%-bison") ~= nil
-      or model_name:match("^text%-embedding") ~= nil
+  -- Check if the provider exists in our models table
+  if not M.models[provider_name] then
+    return false
   end
+
+  -- Check if the model_name exists in the list for that provider
+  for _, available_model in ipairs(M.models[provider_name]) do
+    if available_model == model_name then
+      return true
+    end
+  end
+
   return false
 end
 
