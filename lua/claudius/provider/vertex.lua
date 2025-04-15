@@ -4,6 +4,18 @@ local base = require("claudius.provider.base")
 local log = require("claudius.logging")
 local M = {}
 
+-- Private helper to validate required configuration
+local function _validate_config(self)
+  local project_id = self.parameters.project_id
+  if not project_id or project_id == "" then
+    error(
+      "Vertex AI project_id is required. Please configure it in `parameters.vertex.project_id` or via :ClaudiusSwitch.",
+      0
+    )
+  end
+  -- NOTE: Location has a default, and model is handled by provider_config, so only project_id is strictly required here.
+end
+
 -- Utility function to generate access token from service account JSON
 local function generate_access_token(service_account_json)
   -- Create a temporary file with the service account JSON
@@ -108,16 +120,11 @@ end
 
 -- Get access token from environment, keyring, or prompt
 function M.get_api_key(self)
-  -- Access project_id directly from self.parameters
-  local project_id = self.parameters.project_id
+  -- Validate required configuration first
+  _validate_config(self)
 
-  -- Vertex AI requires a project_id
-  if not project_id or project_id == "" then
-    error(
-      "Vertex AI project_id is required. Please configure it in `parameters.vertex.project_id` or via :ClaudiusSwitch.",
-      0
-    )
-  end
+  -- Access project_id directly from self.parameters (needed for keyring lookup)
+  local project_id = self.parameters.project_id
 
   -- First try to get token from environment variable
   local token = os.getenv("VERTEX_AI_ACCESS_TOKEN")
@@ -263,16 +270,15 @@ end
 -- Get API endpoint for Vertex AI
 function M.get_endpoint(self)
   -- Access project_id and location directly from self.parameters
+  -- Validate required configuration first
+  _validate_config(self)
+
+  -- Access project_id and location directly from self.parameters
   local project_id = self.parameters.project_id
   local location = self.parameters.location
 
-  -- Vertex AI requires a project_id
-  if not project_id or project_id == "" then
-    error(
-      "Vertex AI project_id is required. Please configure it in `parameters.vertex.project_id` or via :ClaudiusSwitch.",
-      0
-    )
-  end
+  -- We still need project_id and location for the URL construction.
+
   if not location then
     log.error( -- Location has a default, so erroring might be too strict, but logging is fine.
       "vertex.get_endpoint(): Vertex AI location is required but missing in parameters: "
