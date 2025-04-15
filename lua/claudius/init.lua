@@ -355,7 +355,13 @@ M.setup = function(user_opts)
   end, {
     nargs = "+",
     complete = function(_, _, _)
-      return { "claude", "openai", "vertex" }
+      local provider_config = require("claudius.provider.config")
+      local providers = {}
+      for name, _ in pairs(provider_config.models) do
+        table.insert(providers, name)
+      end
+      table.sort(providers) -- Optional: sort the names alphabetically
+      return providers
     end,
   })
 
