@@ -372,17 +372,26 @@ M.setup = function(user_opts)
       -- If completing the model name (second argument)
       elseif num_args == 2 and cmdline:match("%s$") or num_args == 3 and not cmdline:match("%s$") then
         local provider_name = args[2]
-        local models = {}
-        if provider_name == "claude" then
-          models = provider_config.claude_models or {}
-        elseif provider_name == "openai" then
-          models = provider_config.openai_models or {}
-        elseif provider_name == "vertex" then
-          models = provider_config.vertex_models or {}
+        -- Dynamically construct the expected model list key (e.g., "claude_models")
+        local model_list_key = provider_name .. "_models"
+        -- Attempt to access the model list from the provider config
+        local models = provider_config[model_list_key] or {}
+
+        -- Ensure models is a table before sorting and filtering
+        if type(models) == "table" then
+          table.sort(models)
+          return vim.tbl_filter(function(model)
+            return vim.startswith(model, arglead)
+          end, models)
         end
-        table.sort(models)
-        return vim.tbl_filter(function(model)
-          return vim.startswith(model, arglead)
+        -- If the key doesn't exist or isn't a table, return empty
+        return {}
+      end
+
+      -- Default: return empty list if no completion matches
+      return {}
+    end,
+  })
         end, models)
       end
 
