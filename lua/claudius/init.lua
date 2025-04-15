@@ -1163,11 +1163,26 @@ function M.switch(opts)
     new_config.model = nil
   end
 
-  -- Merge the key=value arguments directly into the new_config
-  -- These will override existing settings or add new ones
+  -- Ensure parameters table exists
+  if not new_config.parameters then
+    new_config.parameters = {}
+  end
+
+  -- Ensure provider-specific parameters table exists
+  if not new_config.parameters[opts.provider] then
+    new_config.parameters[opts.provider] = {}
+  end
+
+  -- Merge the key=value arguments into the correct parameter locations
   for k, v in pairs(opts) do
     if k ~= "provider" and k ~= "model" then
-      new_config[k] = v
+      -- Check if it's a general parameter
+      if k == "max_tokens" or k == "temperature" then
+        new_config.parameters[k] = v
+      else
+        -- Assume it's a provider-specific parameter
+        new_config.parameters[opts.provider][k] = v
+      end
     end
   end
 
