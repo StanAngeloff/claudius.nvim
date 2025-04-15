@@ -111,6 +111,14 @@ function M.get_api_key(self)
   -- Access project_id directly from self.parameters
   local project_id = self.parameters.project_id
 
+  -- Vertex AI requires a project_id
+  if not project_id or project_id == "" then
+    error(
+      "Vertex AI project_id is required. Please configure it in `parameters.vertex.project_id` or via :ClaudiusSwitch.",
+      0
+    )
+  end
+
   -- First try to get token from environment variable
   local token = os.getenv("VERTEX_AI_ACCESS_TOKEN")
   if token and #token > 0 then
@@ -258,15 +266,15 @@ function M.get_endpoint(self)
   local project_id = self.parameters.project_id
   local location = self.parameters.location
 
-  if not project_id then
-    log.error(
-      "vertex.get_endpoint(): Vertex AI project_id is required but missing in parameters: "
-        .. log.inspect(self.parameters)
+  -- Vertex AI requires a project_id
+  if not project_id or project_id == "" then
+    error(
+      "Vertex AI project_id is required. Please configure it in `parameters.vertex.project_id` or via :ClaudiusSwitch.",
+      0
     )
-    return nil
   end
   if not location then
-    log.error(
+    log.error( -- Location has a default, so erroring might be too strict, but logging is fine.
       "vertex.get_endpoint(): Vertex AI location is required but missing in parameters: "
         .. log.inspect(self.parameters)
     ) -- Should have a default, but check anyway
