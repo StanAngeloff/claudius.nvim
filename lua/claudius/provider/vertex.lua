@@ -91,11 +91,10 @@ end
 function M.new(provider_config)
   local provider = base.new(provider_config) -- Pass the flattened config to base
 
-  -- Vertex AI-specific state is now directly in provider_config (self.options)
-  -- Set provider properties directly from the flattened config
-  provider.project_id = provider_config.project_id -- Required
-  provider.location = provider_config.location -- Has default
-  -- self.parameters.model is now set via base.new
+  -- Vertex AI-specific state is accessed via self.parameters
+  -- self.parameters.project_id is required
+  -- self.parameters.location has a default
+  -- self.parameters.model is set via base.new
 
   -- Set the API version
   provider.api_version = "v1" -- Or potentially make this configurable in future
