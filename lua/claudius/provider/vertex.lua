@@ -225,7 +225,7 @@ function M.create_request_body(self, formatted_messages, system_message)
 
   local request_body = {
     contents = contents,
-    model = self.model, -- Use the validated model stored directly on self
+    -- model = self.model, -- Model is part of the endpoint URL for Vertex
     generationConfig = {
       maxOutputTokens = max_tokens,
       temperature = temperature,
