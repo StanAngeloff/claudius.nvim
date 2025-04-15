@@ -412,7 +412,8 @@ M.setup = function(user_opts)
       switch_opts[k] = v
     end
 
-    M.switch(switch_opts)
+    -- Call the refactored M.switch function
+    M.switch(switch_opts.provider, switch_opts.model, key_value_args)
   end, {
     nargs = "+",
     complete = function(_, _, _)
@@ -1132,9 +1133,9 @@ function M.send_to_provider(opts)
 end
 
 -- Switch to a different provider or model
-function M.switch(opts)
-  if not opts or not opts.provider then
-    vim.notify("Claudius: Provider is required", vim.log.levels.ERROR)
+function M.switch(provider_name, model_name, parameters)
+  if not provider_name then
+    vim.notify("Claudius: Provider name is required", vim.log.levels.ERROR)
     return
   end
 
@@ -1146,29 +1147,30 @@ function M.switch(opts)
     return
   end
 
+  -- Ensure parameters is a table if nil
+  parameters = parameters or {}
+
   -- Create a new configuration by merging the current config with the provided options
   local new_config = vim.tbl_deep_extend("force", {}, config)
 
   -- Update provider
-  new_config.provider = opts.provider
+  new_config.provider = provider_name
 
   -- Update model if specified, otherwise reset to use provider default
-  new_config.model = opts.model or nil
+  new_config.model = model_name or nil
 
   -- Ensure parameters table and provider-specific sub-table exist
   new_config.parameters = new_config.parameters or {}
-  new_config.parameters[opts.provider] = new_config.parameters[opts.provider] or {}
+  new_config.parameters[provider_name] = new_config.parameters[provider_name] or {}
 
-  -- Merge the key=value arguments into the correct parameter locations
-  for k, v in pairs(opts) do
-    if k ~= "provider" and k ~= "model" then
-      -- Check if it's a general parameter
-      if k == "max_tokens" or k == "temperature" then
-        new_config.parameters[k] = v
-      else
-        -- Assume it's a provider-specific parameter
-        new_config.parameters[opts.provider][k] = v
-      end
+  -- Merge the provided parameters into the correct parameter locations
+  for k, v in pairs(parameters) do
+    -- Check if it's a general parameter
+    if k == "max_tokens" or k == "temperature" then
+      new_config.parameters[k] = v
+    else
+      -- Assume it's a provider-specific parameter
+      new_config.parameters[provider_name][k] = v
     end
   end
 
