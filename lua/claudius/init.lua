@@ -1183,9 +1183,13 @@ function M.switch(opts)
     end
   end
 
-  -- Log the configuration being used for the new provider
+  -- Log the relevant configuration being used for the new provider
   log.debug("Switching provider configuration:")
-  log.debug(vim.inspect(new_config))
+  log.debug(vim.inspect({
+    provider = new_config.provider,
+    model = new_config.model,
+    parameters = new_config.parameters,
+  }))
 
   -- Update the global config
   config = new_config
