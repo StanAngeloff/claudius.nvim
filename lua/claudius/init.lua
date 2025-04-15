@@ -202,20 +202,13 @@ local function initialize_provider(provider_name, model_name, parameters)
   end
 
   -- Create the final configuration object to pass to the provider's constructor
-  -- This flattens the parameters for the specific provider
-  local provider_config = {
-    provider = provider_name,
-    model = validated_model, -- Use the validated model
-  }
-  -- Merge the flattened parameters
-  for k, v in pairs(merged_params) do
-    provider_config[k] = v
-  end
-  -- Ensure the validated model is part of the parameters passed to the constructor
+  -- Start with a copy of the merged parameters
+  local provider_config = vim.deepcopy(merged_params)
+  -- Set the validated model
   provider_config.model = validated_model
 
   -- Log the final configuration being passed to the provider
-  log.debug("Final provider configuration:")
+  log.debug("Final provider configuration (passed to constructor):")
   log.debug(vim.inspect(provider_config))
 
   -- Create a fresh provider instance with the flattened provider_config
