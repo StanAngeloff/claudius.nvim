@@ -381,12 +381,12 @@ M.setup = function(user_opts)
           -- Create a copy to avoid modifying the original table
           local sorted_models = vim.deepcopy(models)
           table.sort(sorted_models)
-          table.sort(models)
+          -- Filter the sorted copy
           return vim.tbl_filter(function(model)
             return vim.startswith(model, arglead)
-          end, models)
+          end, sorted_models)
         end
-        -- If the key doesn't exist or isn't a table, return empty
+        -- If the provider doesn't exist or models isn't a table, return empty
         return {}
       end
 
