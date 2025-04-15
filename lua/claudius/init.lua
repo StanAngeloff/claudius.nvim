@@ -358,9 +358,10 @@ M.setup = function(user_opts)
       local provider_config = require("claudius.provider.config")
       local args = vim.split(cmdline, "%s+", { trimempty = true })
       local num_args = #args
+      local trailing_space = cmdline:match("%s$")
 
-      -- If completing the provider name (first argument)
-      if num_args <= 2 and not cmdline:match("%s$") then
+      -- If completing the provider name (argument 2)
+      if num_args == 1 or (num_args == 2 and not trailing_space) then
         local providers = {}
         for name, _ in pairs(provider_config.models) do
           table.insert(providers, name)
@@ -369,8 +370,8 @@ M.setup = function(user_opts)
         return vim.tbl_filter(function(provider)
           return vim.startswith(provider, arglead)
         end, providers)
-      -- If completing the model name (second argument)
-      elseif num_args == 2 and cmdline:match("%s$") or num_args == 3 and not cmdline:match("%s$") then
+      -- If completing the model name (argument 3)
+      elseif (num_args == 2 and trailing_space) or (num_args == 3 and not trailing_space) then
         local provider_name = args[2]
         -- Dynamically construct the expected model list key (e.g., "claude_models")
         local model_list_key = provider_name .. "_models"
