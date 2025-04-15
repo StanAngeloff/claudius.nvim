@@ -1155,15 +1155,9 @@ function M.switch(opts)
   -- Update model if specified, otherwise reset to use provider default
   new_config.model = opts.model or nil
 
-  -- Ensure parameters table exists
-  if not new_config.parameters then
-    new_config.parameters = {}
-  end
-
-  -- Ensure provider-specific parameters table exists
-  if not new_config.parameters[opts.provider] then
-    new_config.parameters[opts.provider] = {}
-  end
+  -- Ensure parameters table and provider-specific sub-table exist
+  new_config.parameters = new_config.parameters or {}
+  new_config.parameters[opts.provider] = new_config.parameters[opts.provider] or {}
 
   -- Merge the key=value arguments into the correct parameter locations
   for k, v in pairs(opts) do
