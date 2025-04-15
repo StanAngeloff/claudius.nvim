@@ -157,15 +157,11 @@ local function auto_write_buffer(bufnr)
 end
 
 -- Initialize or switch provider based on configuration
-local function initialize_provider(base_config)
+local function initialize_provider(provider_name, model_name, parameters)
   local provider_defaults = require("claudius.provider.defaults")
 
-  -- Create a deep copy to avoid modifying the original config table
-  local final_config = vim.deepcopy(base_config)
-  local provider_name = final_config.provider
-
   -- Validate and potentially update the model based on the provider
-  local original_model = final_config.model -- Could be nil
+  local original_model = model_name -- Could be nil
   local validated_model = provider_defaults.get_appropriate_model(original_model, provider_name)
 
   -- Log if we had to switch models during initialization/switch
@@ -184,13 +180,12 @@ local function initialize_provider(base_config)
   end
 
   -- Use the validated model for the final provider configuration
-  final_config.model = validated_model
   -- Also update the global config table so format_usage gets the correct model
   config.model = validated_model
 
   -- Prepare the final parameters table by merging base and provider-specific settings
   local merged_params = {}
-  local base_params = final_config.parameters or {}
+  local base_params = parameters or {}
   local provider_overrides = base_params[provider_name] or {}
 
   -- 1. Copy all non-provider-specific keys from the base parameters
@@ -209,8 +204,8 @@ local function initialize_provider(base_config)
   -- Create the final configuration object to pass to the provider's constructor
   -- This flattens the parameters for the specific provider
   local provider_config = {
-    provider = final_config.provider,
-    model = final_config.model,
+    provider = provider_name,
+    model = validated_model, -- Use the validated model
   }
   -- Merge the flattened parameters
   for k, v in pairs(merged_params) do
@@ -245,7 +240,7 @@ M.setup = function(user_opts)
   config = vim.tbl_deep_extend("force", plugin_config.defaults, user_opts)
 
   -- Initialize provider based on the merged config
-  initialize_provider(config)
+  initialize_provider(config.provider, config.model, config.parameters)
 
   -- Configure logging based on user settings
   log.configure({
@@ -1195,7 +1190,7 @@ function M.switch(opts)
 
   -- Initialize the new provider with a clean state using the updated config
   provider = nil -- Clear the current provider
-  local new_provider = initialize_provider(new_config) -- Pass the modified config
+  local new_provider = initialize_provider(new_config.provider, new_config.model, new_config.parameters) -- Pass individual args
 
   -- Force the new provider to clear its API key cache
   if new_provider and new_provider.state then
