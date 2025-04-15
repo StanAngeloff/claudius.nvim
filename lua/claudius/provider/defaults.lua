@@ -109,6 +109,11 @@ end
 
 -- Check if a model belongs to a specific provider
 function M.is_provider_model(model_name, provider_name)
+  -- If model_name is nil, it can't belong to any provider
+  if model_name == nil then
+    return false
+  end
+
   if provider_name == "claude" then
     return model_name:match("^claude") ~= nil
   elseif provider_name == "openai" then
