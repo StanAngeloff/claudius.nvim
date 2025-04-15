@@ -354,14 +354,40 @@ M.setup = function(user_opts)
     M.switch(switch_opts.provider, switch_opts.model, key_value_args)
   end, {
     nargs = "+",
-    complete = function(_, _, _)
+    complete = function(arglead, cmdline, _)
       local provider_config = require("claudius.provider.config")
-      local providers = {}
-      for name, _ in pairs(provider_config.models) do
-        table.insert(providers, name)
+      local args = vim.split(cmdline, "%s+", { trimempty = true })
+      local num_args = #args
+
+      -- If completing the provider name (first argument)
+      if num_args <= 2 and not cmdline:match("%s$") then
+        local providers = {}
+        for name, _ in pairs(provider_config.models) do
+          table.insert(providers, name)
+        end
+        table.sort(providers)
+        return vim.tbl_filter(function(provider)
+          return vim.startswith(provider, arglead)
+        end, providers)
+      -- If completing the model name (second argument)
+      elseif num_args == 2 and cmdline:match("%s$") or num_args == 3 and not cmdline:match("%s$") then
+        local provider_name = args[2]
+        local models = {}
+        if provider_name == "claude" then
+          models = provider_config.claude_models or {}
+        elseif provider_name == "openai" then
+          models = provider_config.openai_models or {}
+        elseif provider_name == "vertex" then
+          models = provider_config.vertex_models or {}
+        end
+        table.sort(models)
+        return vim.tbl_filter(function(model)
+          return vim.startswith(model, arglead)
+        end, models)
       end
-      table.sort(providers) -- Optional: sort the names alphabetically
-      return providers
+
+      -- Default: return empty list if no completion matches
+      return {}
     end,
   })
 
