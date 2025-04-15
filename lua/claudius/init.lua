@@ -8,7 +8,7 @@ local plugin_config = require("claudius.config")
 local provider = nil
 
 -- Execute a command in the context of a specific buffer
-function M.buffer_cmd(bufnr, cmd)
+local function buffer_cmd(bufnr, cmd)
   local winid = vim.fn.bufwinid(bufnr)
   if winid == -1 then
     -- If buffer has no window, do nothing
@@ -98,7 +98,7 @@ end
 local function auto_write_buffer(bufnr)
   if config.editing.auto_write and vim.bo[bufnr].modified then
     log.debug("Auto-writing buffer")
-    M.buffer_cmd(bufnr, "silent! write")
+    buffer_cmd(bufnr, "silent! write")
   end
 end
 
@@ -296,10 +296,10 @@ M.setup = function(user_opts)
 
   vim.api.nvim_create_user_command("ClaudiusSendAndInsert", function()
     local bufnr = vim.api.nvim_get_current_buf()
-    M.buffer_cmd(bufnr, "stopinsert")
+    buffer_cmd(bufnr, "stopinsert")
     M.send_to_provider({
       on_complete = function()
-        M.buffer_cmd(bufnr, "startinsert!")
+        buffer_cmd(bufnr, "startinsert!")
       end,
     })
   end, {})
@@ -472,10 +472,10 @@ M.setup = function(user_opts)
         if config.keymaps.insert.send then
           vim.keymap.set("i", config.keymaps.insert.send, function()
             local bufnr = vim.api.nvim_get_current_buf()
-            M.buffer_cmd(bufnr, "stopinsert")
+            buffer_cmd(bufnr, "stopinsert")
             M.send_to_provider({
               on_complete = function()
-                M.buffer_cmd(bufnr, "startinsert!")
+                buffer_cmd(bufnr, "startinsert!")
               end,
             })
           end, { buffer = true, desc = "Send to Claudius and continue editing" })
@@ -663,7 +663,7 @@ local function start_loading_spinner(bufnr)
     frame = (frame % #spinner_frames) + 1
     local text = "@Assistant: " .. spinner_frames[frame] .. " Thinking..."
     local last_line = vim.api.nvim_buf_line_count(bufnr)
-    M.buffer_cmd(bufnr, "undojoin")
+    buffer_cmd(bufnr, "undojoin")
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
   end, { ["repeat"] = -1 })
 
@@ -892,7 +892,7 @@ function M.send_to_provider(opts)
 
           -- Add new prompt if needed
           local last_line = vim.api.nvim_buf_line_count(bufnr)
-          M.buffer_cmd(bufnr, "undojoin")
+          buffer_cmd(bufnr, "undojoin")
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
 
           -- Move cursor to after the colon and any whitespace
@@ -971,17 +971,17 @@ function M.send_to_provider(opts)
             -- Check if response starts with a code fence
             if lines[1]:match("^```") then
               -- Add a newline before the code fence
-              M.buffer_cmd(bufnr, "undojoin")
+              buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant:", lines[1] })
             else
               -- Start with @Assistant: prefix as normal
-              M.buffer_cmd(bufnr, "undojoin")
+              buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant: " .. lines[1] })
             end
 
             -- Add remaining lines if any
             if #lines > 1 then
-              M.buffer_cmd(bufnr, "undojoin")
+              buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, { unpack(lines, 2) })
             end
           else
@@ -990,15 +990,15 @@ function M.send_to_provider(opts)
 
             if #lines == 1 then
               -- Just append to the last line
-              M.buffer_cmd(bufnr, "undojoin")
+              buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
             else
               -- First chunk goes to the end of the last line
-              M.buffer_cmd(bufnr, "undojoin")
+              buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
 
               -- Remaining lines get added as new lines
-              M.buffer_cmd(bufnr, "undojoin")
+              buffer_cmd(bufnr, "undojoin")
               vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { unpack(lines, 2) })
             end
           end
@@ -1037,7 +1037,7 @@ function M.send_to_provider(opts)
           end
 
           -- Insert the lines
-          M.buffer_cmd(bufnr, "undojoin")
+          buffer_cmd(bufnr, "undojoin")
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines_to_insert)
 
           -- Move cursor to after the colon and any whitespace
