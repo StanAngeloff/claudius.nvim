@@ -166,7 +166,7 @@ local function initialize_provider(base_config)
 
   -- Validate and potentially update the model based on the provider
   local original_model = final_config.model -- Could be nil
-  local validated_model = provider_defaults.get_appropriate_model(original_model, provider_config.provider)
+  local validated_model = provider_defaults.get_appropriate_model(original_model, provider_name)
 
   -- Log if we had to switch models during initialization/switch
   if validated_model ~= original_model and original_model ~= nil then
@@ -174,7 +174,7 @@ local function initialize_provider(base_config)
       "Model '"
         .. original_model
         .. "' is not valid for provider '"
-        .. provider_config.provider
+        .. provider_name
         .. "'. Using default: '"
         .. validated_model
         .. "'"
