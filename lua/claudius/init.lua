@@ -96,6 +96,19 @@ local function add_rulers(bufnr)
   end
 end
 
+-- Helper function to force UI update (rulers and signs)
+local function update_ui(bufnr)
+  -- Ensure buffer is valid before proceeding
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    log.debug("update_ui(): Invalid buffer: " .. bufnr)
+    return
+  end
+  add_rulers(bufnr)
+  -- Clear and reapply all signs
+  vim.fn.sign_unplace("claudius_ns", { buffer = bufnr })
+  M.parse_buffer(bufnr) -- This will reapply signs
+end
+
 -- Helper function to auto-write the buffer if enabled
 local function auto_write_buffer(bufnr)
   if config.editing.auto_write and vim.bo[bufnr].modified then
@@ -280,10 +293,8 @@ M.setup = function(user_opts)
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "VimResized", "CursorHold", "CursorHoldI" }, {
     pattern = "*.chat",
     callback = function(ev)
-      add_rulers(ev.buf)
-      -- Clear and reapply all signs
-      vim.fn.sign_unplace("claudius_ns", { buffer = ev.buf })
-      M.parse_buffer(ev.buf) -- This will reapply signs
+      -- Use the new function for debounced updates
+      update_ui(ev.buf)
     end,
   })
 
@@ -679,6 +690,8 @@ function M.cancel_request()
         msg = msg .. ". See " .. log.get_path() .. " for details"
       end
       vim.notify(msg, vim.log.levels.INFO)
+      -- Force UI update after cancellation
+      update_ui(bufnr)
     end
   else
     log.debug("cancel_request(): No current request found")
@@ -706,6 +719,8 @@ M.cleanup_spinner = function(bufnr)
   else
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
   end
+  -- Force UI update after cleaning up spinner
+  update_ui(bufnr)
 end
 
 -- Show loading spinner
@@ -724,6 +739,8 @@ local function start_loading_spinner(bufnr)
   else
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "@Assistant: Thinking..." })
   end
+  -- Immediately update UI after adding the thinking message
+  update_ui(bufnr)
 
   local timer = vim.fn.timer_start(100, function()
     if not state.current_request then
@@ -734,6 +751,8 @@ local function start_loading_spinner(bufnr)
     local last_line = vim.api.nvim_buf_line_count(bufnr)
     buffer_cmd(bufnr, "undojoin")
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
+    -- Force UI update during spinner animation
+    update_ui(bufnr)
   end, { ["repeat"] = -1 })
 
   state.spinner_timer = timer
@@ -1079,6 +1098,8 @@ function M.send_to_provider(opts)
           end
 
           response_started = true
+          -- Force UI update after appending content
+          update_ui(bufnr)
         end
       end)
     end,
@@ -1129,6 +1150,9 @@ function M.send_to_provider(opts)
               vim.api.nvim_win_set_cursor(0, { new_line + 1, col - 1 })
             end
           end
+
+          -- Force UI update after adding the prompt
+          update_ui(bufnr)
 
           -- Auto-write after adding the prompt if enabled
           auto_write_buffer(bufnr)
