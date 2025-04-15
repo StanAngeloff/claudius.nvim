@@ -147,25 +147,22 @@ local function initialize_provider(provider_name, model_name, parameters)
     merged_params[k] = v
   end
 
-  -- Create the final configuration object to pass to the provider's constructor
-  -- Start with a copy of the merged parameters
-  local provider_config = vim.deepcopy(merged_params)
-  -- Set the validated model
-  provider_config.model = validated_model
+  -- Set the validated model in the merged parameters
+  merged_params.model = validated_model
 
   -- Log the final configuration being passed to the provider
   log.debug("Final provider configuration (passed to constructor):")
-  log.debug(vim.inspect(provider_config))
+  log.debug(vim.inspect(merged_params))
 
-  -- Create a fresh provider instance with the flattened provider_config
+  -- Create a fresh provider instance with the merged parameters
   local new_provider
   if provider_name == "openai" then
-    new_provider = require("claudius.provider.openai").new(provider_config)
+    new_provider = require("claudius.provider.openai").new(merged_params)
   elseif provider_name == "vertex" then
-    new_provider = require("claudius.provider.vertex").new(provider_config)
+    new_provider = require("claudius.provider.vertex").new(merged_params)
   else
     -- Default to Claude if not specified (or if provider_name is 'claude')
-    new_provider = require("claudius.provider.claude").new(provider_config)
+    new_provider = require("claudius.provider.claude").new(merged_params)
   end
 
   -- Update the global provider reference
