@@ -1,2 +1,4 @@
 .aider*
+!.aider.conf.yml
+.claudius-credentials.json
 .env
