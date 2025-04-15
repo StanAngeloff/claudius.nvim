@@ -1152,13 +1152,8 @@ function M.switch(opts)
   -- Update provider
   new_config.provider = opts.provider
 
-  -- Update model if specified
-  if opts.model then
-    new_config.model = opts.model
-  else
-    -- Reset model to use provider default
-    new_config.model = nil
-  end
+  -- Update model if specified, otherwise reset to use provider default
+  new_config.model = opts.model or nil
 
   -- Ensure parameters table exists
   if not new_config.parameters then
