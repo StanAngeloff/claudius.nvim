@@ -95,7 +95,7 @@ function M.new(provider_config)
   -- Set provider properties directly from the flattened config
   provider.project_id = provider_config.project_id -- Required
   provider.location = provider_config.location -- Has default
-  provider.model = provider_config.model -- Already validated
+  -- self.parameters.model is now set via base.new
 
   -- Set the API version
   provider.api_version = "v1" -- Or potentially make this configurable in future
@@ -275,7 +275,7 @@ function M.get_endpoint(self)
     self.api_version,
     project_id,
     location,
-    self.model -- self.model was set during initialization
+    self.parameters.model -- Use model from parameters
   )
 
   log.debug("Using Vertex AI endpoint: " .. endpoint)

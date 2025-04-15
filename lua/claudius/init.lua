@@ -211,6 +211,8 @@ local function initialize_provider(provider_name, model_name, parameters)
   for k, v in pairs(merged_params) do
     provider_config[k] = v
   end
+  -- Ensure the validated model is part of the parameters passed to the constructor
+  provider_config.model = validated_model
 
   -- Log the final configuration being passed to the provider
   log.debug("Final provider configuration:")

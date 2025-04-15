@@ -6,7 +6,7 @@ local M = {}
 -- Provider constructor
 function M.new(opts)
   local provider = setmetatable({
-    parameters = opts or {},
+    parameters = opts or {}, -- parameters now includes the model
     state = {
       api_key = nil,
     },
