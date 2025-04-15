@@ -892,21 +892,11 @@ function M.send_to_provider(opts)
     end)
   end
 
-  -- Create request body with provider-specific model
-  local provider_defaults = require("claudius.provider.defaults")
-  local model = provider_defaults.get_appropriate_model(config.model, config.provider)
+  -- Create request body using the validated model stored in the provider
+  local request_body = provider:create_request_body(formatted_messages, system_message, {}) -- Pass empty opts for now
 
-  -- Log if we had to switch models
-  if model ~= config.model then
-    log.info("Switching from " .. config.model .. " to " .. model .. " for " .. config.provider .. " provider")
-  end
-
-  local request_body = provider:create_request_body(formatted_messages, system_message, {
-    model = model,
-  })
-
-  -- Log the request details
-  log.debug("New request for " .. config.provider .. " to " .. model)
+  -- Log the request details (using the provider's stored model)
+  log.debug("New request for " .. config.provider .. " to " .. provider.options.model)
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
