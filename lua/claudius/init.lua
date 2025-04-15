@@ -1,11 +1,25 @@
 --- Claudius plugin core functionality
 --- Provides chat interface and API integration
 local M = {}
-local ns_id = vim.api.nvim_create_namespace("claudius")
-local log = require("claudius.logging")
+
 local buffers = require("claudius.buffers")
 local plugin_config = require("claudius.config")
+local log = require("claudius.logging")
+local provider_defaults = require("claudius.provider.defaults")
+local textobject = require("claudius.textobject")
+
 local provider = nil
+
+-- Module configuration (will hold merged user opts and defaults)
+local config = {}
+
+local ns_id = vim.api.nvim_create_namespace("claudius")
+
+-- Session-wide usage tracking
+local session_usage = {
+  input_tokens = 0,
+  output_tokens = 0,
+}
 
 -- Execute a command in the context of a specific buffer
 local function buffer_cmd(bufnr, cmd)
@@ -16,15 +30,6 @@ local function buffer_cmd(bufnr, cmd)
   end
   vim.fn.win_execute(winid, "noautocmd " .. cmd)
 end
-
--- Session-wide usage tracking
-local session_usage = {
-  input_tokens = 0,
-  output_tokens = 0,
-}
-
--- Message selection and navigation functions
-local textobject = require("claudius.textobject")
 
 -- Navigation functions
 local function find_next_message()
@@ -68,9 +73,6 @@ local function find_prev_message()
   return false
 end
 
--- Module configuration (will hold merged user opts and defaults)
-local config = {}
-
 -- Helper function to add rulers
 local function add_rulers(bufnr)
   -- Clear existing extmarks
@@ -104,8 +106,6 @@ end
 
 -- Initialize or switch provider based on configuration
 local function initialize_provider(provider_name, model_name, parameters)
-  local provider_defaults = require("claudius.provider.defaults")
-
   -- Validate and potentially update the model based on the provider
   local original_model = model_name -- Could be nil
   local validated_model = provider_defaults.get_appropriate_model(original_model, provider_name)
