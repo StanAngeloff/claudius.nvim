@@ -5,7 +5,7 @@ local M = {}
 local buffers = require("claudius.buffers")
 local plugin_config = require("claudius.config")
 local log = require("claudius.logging")
-local provider_defaults = require("claudius.provider.defaults")
+local provider_config = require("claudius.provider.config")
 local textobject = require("claudius.textobject")
 
 local provider = nil
@@ -108,7 +108,7 @@ end
 local function initialize_provider(provider_name, model_name, parameters)
   -- Validate and potentially update the model based on the provider
   local original_model = model_name -- Could be nil
-  local validated_model = provider_defaults.get_appropriate_model(original_model, provider_name)
+  local validated_model = provider_config.get_appropriate_model(original_model, provider_name)
 
   -- Log if we had to switch models during initialization/switch
   if validated_model ~= original_model and original_model ~= nil then
@@ -703,8 +703,7 @@ function M.send_to_provider(opts)
     log.error("Error getting API key: " .. tostring(api_key_error))
 
     -- Get provider-specific authentication notes if available
-    local provider_defaults = require("claudius.provider.defaults")
-    local auth_notes = provider_defaults.auth_notes and provider_defaults.auth_notes[config.provider]
+    local auth_notes = provider_config.auth_notes and provider_config.auth_notes[config.provider]
 
     if auth_notes then
       -- Show a more detailed alert with the auth notes
