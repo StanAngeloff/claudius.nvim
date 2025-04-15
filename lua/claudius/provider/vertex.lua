@@ -88,17 +88,14 @@ local function generate_access_token(service_account_json)
 end
 
 -- Create a new Google Vertex AI provider instance
-function M.new(merged_config)
-  local provider = base.new(merged_config) -- Pass the already merged config to base
+function M.new(provider_config)
+  local provider = base.new(provider_config) -- Pass the flattened config to base
 
-  -- Vertex AI-specific state
-  -- Parameters are already merged in merged_config.parameters
-  local params = merged_config.parameters or {}
-
-  -- Set provider properties directly from the merged parameters
-  provider.project_id = params.project_id -- Required, should be present after merge
-  provider.location = params.location -- Has default in config.lua
-  provider.model = merged_config.model -- Already validated in initialize_provider
+  -- Vertex AI-specific state is now directly in provider_config (self.options)
+  -- Set provider properties directly from the flattened config
+  provider.project_id = provider_config.project_id -- Required
+  provider.location = provider_config.location -- Has default
+  provider.model = provider_config.model -- Already validated
 
   -- Set the API version
   provider.api_version = "v1" -- Or potentially make this configurable in future
@@ -112,8 +109,8 @@ end
 
 -- Get access token from environment, keyring, or prompt
 function M.get_api_key(self)
-  -- Access project_id from the merged options
-  local project_id = self.options.parameters and self.options.parameters.project_id
+  -- Access project_id directly from self.options
+  local project_id = self.options.project_id
 
   -- First try to get token from environment variable
   local token = os.getenv("VERTEX_AI_ACCESS_TOKEN")
@@ -207,10 +204,9 @@ end
 
 -- Create request body for Vertex AI API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Parameters are already merged in self.options.parameters
-  local params = self.options.parameters or {}
-  local max_tokens = params.max_tokens
-  local temperature = params.temperature
+  -- Access parameters directly from self.options
+  local max_tokens = self.options.max_tokens
+  local temperature = self.options.temperature
 
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
@@ -259,9 +255,9 @@ end
 
 -- Get API endpoint for Vertex AI
 function M.get_endpoint(self)
-  -- Access project_id and location from the merged options
-  local project_id = self.options.parameters and self.options.parameters.project_id
-  local location = self.options.parameters and self.options.parameters.location
+  -- Access project_id and location directly from self.options
+  local project_id = self.options.project_id
+  local location = self.options.location
 
   if not project_id then
     log.error("Vertex AI project_id is required")

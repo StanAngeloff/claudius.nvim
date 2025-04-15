@@ -71,13 +71,12 @@ end
 
 -- Create request body for OpenAI API
 function M.create_request_body(self, formatted_messages, _)
-  -- Parameters are already merged in self.options.parameters
-  local params = self.options.parameters or {}
-  local max_tokens = params.max_tokens
-  local temperature = params.temperature
+  -- Access parameters directly from self.options
+  local max_tokens = self.options.max_tokens
+  local temperature = self.options.temperature
 
   local request_body = {
-    model = self.options.model, -- Use the validated model stored in self.options
+    model = self.options.model, -- Model is already directly in self.options
     messages = formatted_messages,
     max_tokens = max_tokens,
     temperature = temperature,

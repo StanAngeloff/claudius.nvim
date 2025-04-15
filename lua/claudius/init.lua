@@ -206,24 +206,30 @@ local function initialize_provider(base_config)
     merged_params[k] = v
   end
 
-  -- Assign the merged parameters back to the final config
-  final_config.parameters = merged_params
+  -- Create the final configuration object to pass to the provider's constructor
+  -- This flattens the parameters for the specific provider
+  local provider_config = {
+    provider = final_config.provider,
+    model = final_config.model,
+  }
+  -- Merge the flattened parameters
+  for k, v in pairs(merged_params) do
+    provider_config[k] = v
+  end
 
   -- Log the final configuration being passed to the provider
   log.debug("Final provider configuration:")
-  log.debug("  Provider: " .. final_config.provider)
-  log.debug("  Model: " .. final_config.model)
-  log.debug("  Parameters: " .. vim.inspect(final_config.parameters))
+  log.debug(vim.inspect(provider_config))
 
-  -- Create a fresh provider instance with the final merged config
+  -- Create a fresh provider instance with the flattened provider_config
   local new_provider
-  if final_config.provider == "openai" then
-    new_provider = require("claudius.provider.openai").new(final_config)
-  elseif final_config.provider == "vertex" then
-    new_provider = require("claudius.provider.vertex").new(final_config)
+  if provider_config.provider == "openai" then
+    new_provider = require("claudius.provider.openai").new(provider_config)
+  elseif provider_config.provider == "vertex" then
+    new_provider = require("claudius.provider.vertex").new(provider_config)
   else
     -- Default to Claude if not specified
-    new_provider = require("claudius.provider.claude").new(final_config)
+    new_provider = require("claudius.provider.claude").new(provider_config)
   end
 
   -- Update the global provider reference
@@ -1157,29 +1163,17 @@ function M.switch(opts)
     new_config.model = nil
   end
 
-  -- Let each provider handle its own parameters by passing all options
-  -- This avoids special-casing for specific providers like Vertex AI
-  if not new_config.parameters then
-    new_config.parameters = {}
-  end
-
-  -- Initialize provider-specific parameters if they don't exist
-  if not new_config.parameters[opts.provider] then
-    new_config.parameters[opts.provider] = {}
-  end
-
-  -- Pass all options to the provider-specific parameters object
+  -- Merge the key=value arguments directly into the new_config
+  -- These will override existing settings or add new ones
   for k, v in pairs(opts) do
     if k ~= "provider" and k ~= "model" then
-      new_config.parameters[opts.provider][k] = v
+      new_config[k] = v
     end
   end
 
   -- Log the configuration being used for the new provider
   log.debug("Switching provider configuration:")
-  log.debug("  Provider: " .. new_config.provider)
-  log.debug("  Model: " .. (new_config.model or "default"))
-  log.debug("  Parameters: " .. vim.inspect(new_config.parameters))
+  log.debug(vim.inspect(new_config))
 
   -- Update the global config
   config = new_config
