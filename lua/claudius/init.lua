@@ -338,29 +338,60 @@ M.setup = function(user_opts)
   -- Command to switch providers
   vim.api.nvim_create_user_command("ClaudiusSwitch", function(opts)
     local args = opts.fargs
-    if #args < 1 then
-      vim.notify("Usage: ClaudiusSwitch <provider> [model] [key=value ...]", vim.log.levels.ERROR)
-      return
+
+    if #args == 0 then
+      -- Interactive selection if no arguments are provided
+      local providers = {}
+      for name, _ in pairs(provider_config.models) do
+        table.insert(providers, name)
+      end
+      table.sort(providers) -- Sort providers for the selection list
+
+      vim.ui.select(providers, { prompt = "Select Provider:" }, function(selected_provider)
+        if not selected_provider then
+          vim.notify("Claudius: Provider selection cancelled", vim.log.levels.INFO)
+          return
+        end
+
+        -- Get models for the selected provider (unsorted)
+        local models = provider_config.models[selected_provider] or {}
+        if type(models) ~= "table" or #models == 0 then
+          vim.notify("Claudius: No models found for provider " .. selected_provider, vim.log.levels.WARN)
+          -- Switch to provider with default model
+          M.switch(selected_provider, nil, {})
+          return
+        end
+
+        vim.ui.select(models, { prompt = "Select Model for " .. selected_provider .. ":" }, function(selected_model)
+          if not selected_model then
+            vim.notify("Claudius: Model selection cancelled", vim.log.levels.INFO)
+            return
+          end
+          -- Call M.switch with selected provider and model, no extra params
+          M.switch(selected_provider, selected_model, {})
+        end)
+      end)
+    else
+      -- Existing logic for handling command-line arguments
+      local switch_opts = {
+        provider = args[1],
+      }
+
+      if args[2] and not args[2]:match("^[%w_]+=") then
+        switch_opts.model = args[2]
+      end
+
+      -- Parse any key=value pairs
+      local key_value_args = parse_key_value_args(args, switch_opts.model and 3 or 2)
+      for k, v in pairs(key_value_args) do
+        switch_opts[k] = v
+      end
+
+      -- Call the refactored M.switch function
+      M.switch(switch_opts.provider, switch_opts.model, key_value_args)
     end
-
-    local switch_opts = {
-      provider = args[1],
-    }
-
-    if args[2] and not args[2]:match("^[%w_]+=") then
-      switch_opts.model = args[2]
-    end
-
-    -- Parse any key=value pairs
-    local key_value_args = parse_key_value_args(args, switch_opts.model and 3 or 2)
-    for k, v in pairs(key_value_args) do
-      switch_opts[k] = v
-    end
-
-    -- Call the refactored M.switch function
-    M.switch(switch_opts.provider, switch_opts.model, key_value_args)
   end, {
-    nargs = "+",
+    nargs = "*", -- Allow zero arguments for interactive mode
     complete = function(arglead, cmdline, _)
       local args = vim.split(cmdline, "%s+", { trimempty = true })
       local num_args = #args
@@ -384,13 +415,10 @@ M.setup = function(user_opts)
 
         -- Ensure models is a table before sorting and filtering
         if type(models) == "table" then
-          -- Create a copy to avoid modifying the original table
-          local sorted_models = vim.deepcopy(models)
-          table.sort(sorted_models)
-          -- Filter the sorted copy
+          -- Filter the original (unsorted) list
           return vim.tbl_filter(function(model)
             return vim.startswith(model, arglead)
-          end, sorted_models)
+          end, models)
         end
         -- If the provider doesn't exist or models isn't a table, return empty
         return {}
