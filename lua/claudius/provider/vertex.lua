@@ -109,8 +109,8 @@ end
 
 -- Get access token from environment, keyring, or prompt
 function M.get_api_key(self)
-  -- Access project_id directly from self.options
-  local project_id = self.options.project_id
+  -- Access project_id directly from self.parameters
+  local project_id = self.parameters.project_id
 
   -- First try to get token from environment variable
   local token = os.getenv("VERTEX_AI_ACCESS_TOKEN")
@@ -124,7 +124,7 @@ function M.get_api_key(self)
     env_var_name = "VERTEX_SERVICE_ACCOUNT",
     keyring_service_name = "vertex",
     keyring_key_name = "api",
-    keyring_project_id = project_id, -- Use project_id from options
+    keyring_project_id = project_id, -- Use project_id from parameters
   })
 
   -- If we have service account JSON, try to generate an access token
@@ -204,9 +204,9 @@ end
 
 -- Create request body for Vertex AI API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Access parameters directly from self.options
-  local max_tokens = self.options.max_tokens
-  local temperature = self.options.temperature
+  -- Access parameters directly from self.parameters
+  local max_tokens = self.parameters.max_tokens
+  local temperature = self.parameters.temperature
 
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
@@ -255,9 +255,9 @@ end
 
 -- Get API endpoint for Vertex AI
 function M.get_endpoint(self)
-  -- Access project_id and location directly from self.options
-  local project_id = self.options.project_id
-  local location = self.options.location
+  -- Access project_id and location directly from self.parameters
+  local project_id = self.parameters.project_id
+  local location = self.parameters.location
 
   if not project_id then
     log.error("Vertex AI project_id is required")

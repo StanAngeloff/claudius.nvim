@@ -848,7 +848,7 @@ function M.send_to_provider(opts)
   local request_body = provider:create_request_body(formatted_messages, system_message)
 
   -- Log the request details (using the provider's stored model)
-  log.debug("New request for " .. config.provider .. " to " .. provider.options.model)
+  log.debug("New request for " .. config.provider .. " to " .. provider.parameters.model)
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false

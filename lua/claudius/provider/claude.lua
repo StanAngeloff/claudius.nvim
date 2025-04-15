@@ -46,12 +46,12 @@ end
 
 -- Create request body for Claude API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Access parameters directly from self.options
-  local max_tokens = self.options.max_tokens
-  local temperature = self.options.temperature
+  -- Access parameters directly from self.parameters
+  local max_tokens = self.parameters.max_tokens
+  local temperature = self.parameters.temperature
 
   local request_body = {
-    model = self.options.model, -- Model is already directly in self.options
+    model = self.parameters.model, -- Model is already directly in self.parameters
     messages = formatted_messages,
     system = system_message,
     max_tokens = max_tokens,
