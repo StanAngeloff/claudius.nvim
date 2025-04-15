@@ -23,44 +23,6 @@ local session_usage = {
   output_tokens = 0,
 }
 
--- Folding functions
-function M.get_fold_level(lnum)
-  local line = vim.fn.getline(lnum)
-  local last_line = vim.fn.line("$")
-
-  -- If line starts with @, it's the start of a fold
-  if line:match("^@[%w]+:") then
-    return ">1" -- vim: foldlevel string
-  end
-
-  -- If next line starts with @ or this is the last line, this is the end of the current fold
-  local next_line = vim.fn.getline(lnum + 1)
-  if next_line:match("^@[%w]+:") or lnum == last_line then
-    return "<1"
-  end
-
-  -- Otherwise, we're inside a fold
-  return "1"
-end
-
-function M.get_fold_text()
-  local foldstart = vim.v.foldstart
-  local line = vim.fn.getline(foldstart)
-  local lines_count = vim.v.foldend - vim.v.foldstart + 1
-
-  -- Extract the prefix (@You:, @Assistant:, etc.)
-  local prefix = line:match("^(@[%w]+:)")
-  if not prefix then
-    return line
-  end
-
-  -- Get the first line of content (excluding the prefix)
-  local content = line:sub(#prefix + 1):gsub("^%s*", "")
-
-  -- Create fold text: prefix + first line + number of lines
-  return string.format("%s %s... (%d lines)", prefix, content:sub(1, 50), lines_count)
-end
-
 -- Message selection and navigation functions
 local textobject = require("claudius.textobject")
 
@@ -302,8 +264,8 @@ M.setup = function(user_opts)
   -- Set up folding expression
   local function setup_folding()
     vim.wo.foldmethod = "expr"
-    vim.wo.foldexpr = 'v:lua.require("claudius").get_fold_level(v:lnum)'
-    vim.wo.foldtext = 'v:lua.require("claudius").get_fold_text()'
+    vim.wo.foldexpr = 'v:lua.require("claudius.buffers").get_fold_level(v:lnum)'
+    vim.wo.foldtext = 'v:lua.require("claudius.buffers").get_fold_text()'
     -- Start with all folds open
     vim.wo.foldlevel = 99
   end
