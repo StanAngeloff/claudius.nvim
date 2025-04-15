@@ -99,7 +99,7 @@ end
 -- Helper function to auto-write the buffer if enabled
 local function auto_write_buffer(bufnr)
   if config.editing.auto_write and vim.bo[bufnr].modified then
-    log.debug("Auto-writing buffer")
+    log.debug("auto_write_buffer(): bufnr = " .. bufnr)
     buffer_cmd(bufnr, "silent! write")
   end
 end
@@ -113,16 +113,20 @@ local function initialize_provider(provider_name, model_name, parameters)
   -- Log if we had to switch models during initialization/switch
   if validated_model ~= original_model and original_model ~= nil then
     log.info(
-      "Model '"
-        .. original_model
-        .. "' is not valid for provider '"
-        .. provider_name
-        .. "'. Using default: '"
-        .. validated_model
-        .. "'"
+      "initialize_provider(): Model "
+        .. vim.inspect(original_model)
+        .. " is not valid for provider "
+        .. vim.inspect(provider_name)
+        .. ". Using default: "
+        .. vim.inspect(validated_model)
     )
   elseif original_model == nil then
-    log.debug("Using default model for " .. provider_name .. ": " .. validated_model)
+    log.debug(
+      "initialize_provider(): Using default model for provider "
+        .. vim.inspect(provider_name)
+        .. ": "
+        .. vim.inspect(validated_model)
+    )
   end
 
   -- Use the validated model for the final provider configuration
@@ -149,9 +153,13 @@ local function initialize_provider(provider_name, model_name, parameters)
   -- Set the validated model in the merged parameters
   merged_params.model = validated_model
 
-  -- Log the final configuration being passed to the provider
-  log.debug("Final provider configuration (passed to constructor):")
-  log.debug(vim.inspect(merged_params))
+  -- Log the final configuration being passed to the provider constructor
+  log.debug(
+    "initialize_provider(): Initializing provider "
+      .. vim.inspect(provider_name)
+      .. " with config: "
+      .. vim.inspect(merged_params)
+  )
 
   -- Create a fresh provider instance with the merged parameters
   local new_provider
@@ -182,7 +190,7 @@ M.setup = function(user_opts)
     path = config.logging.path,
   })
 
-  log.info("Claudius starting...")
+  log.info("setup(): Claudius starting...")
 
   -- Initialize provider based on the merged config
   initialize_provider(config.provider, config.model, config.parameters)
@@ -615,7 +623,7 @@ function M.cancel_request()
   local state = buffers.get_state(bufnr)
 
   if state.current_request then
-    log.info("Cancelling request " .. tostring(state.current_request))
+    log.info("cancel_request(): job_id = " .. tostring(state.current_request))
 
     -- Mark as cancelled
     state.request_cancelled = true
@@ -630,7 +638,7 @@ function M.cancel_request()
 
       -- If we're still showing the thinking message, remove it
       if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
-        log.debug("Cleaning up thinking message")
+        log.debug("cancel_request(): ... Cleaning up 'Thinking...' message")
         M.cleanup_spinner(bufnr)
       end
 
@@ -646,7 +654,7 @@ function M.cancel_request()
       vim.notify(msg, vim.log.levels.INFO)
     end
   else
-    log.debug("Cancel request called but no current request found")
+    log.debug("cancel_request(): No current request found")
   end
 end
 
@@ -717,7 +725,7 @@ function M.send_to_provider(opts)
     return
   end
 
-  log.info("Starting new request")
+  log.info("send_to_provider(): Starting new request for buffer " .. bufnr)
   state.request_cancelled = false
 
   -- Auto-write the buffer before sending if enabled
@@ -725,7 +733,7 @@ function M.send_to_provider(opts)
 
   -- Ensure we have a valid provider
   if not provider then
-    log.error("No provider initialized")
+    log.error("send_to_provider(): Provider not initialized")
     vim.notify("Claudius: Provider not initialized", vim.log.levels.ERROR)
     return
   end
@@ -737,7 +745,7 @@ function M.send_to_provider(opts)
 
   if not api_key_result then
     -- There was an error getting the API key
-    log.error("Error getting API key: " .. tostring(api_key_error))
+    log.error("send_to_provider(): Error getting API key: " .. tostring(api_key_error))
 
     -- Get provider-specific authentication notes if available
     local auth_notes = provider_config.auth_notes and provider_config.auth_notes[config.provider]
@@ -755,7 +763,7 @@ function M.send_to_provider(opts)
   end
 
   if not api_key_error and not provider.state.api_key then
-    log.info("No API key found in environment or keyring, prompting user")
+    log.info("send_to_provider(): No API key found, prompting user")
     vim.ui.input({
       prompt = "Enter your API key: ",
       default = "",
@@ -765,11 +773,11 @@ function M.send_to_provider(opts)
     }, function(input)
       if input then
         provider.state.api_key = input
-        log.info("API key set via prompt")
+        log.info("send_to_provider(): API key set via prompt")
         -- Continue with the Claudius request immediately
         M.send_to_provider()
       else
-        log.error("API key prompt cancelled")
+        log.error("send_to_provider(): API key prompt cancelled by user")
         vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
       end
     end)
@@ -787,13 +795,13 @@ function M.send_to_provider(opts)
   -- Execute frontmatter if present and get variables
   local template_vars = {}
   if frontmatter_code then
-    log.debug("Evaluating frontmatter code:\n" .. frontmatter_code)
+    log.debug("send_to_provider(): Evaluating frontmatter code: " .. vim.inspect(frontmatter_code))
     local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code)
     if not ok then
       vim.notify("Claudius: Frontmatter error - " .. result, vim.log.levels.ERROR)
       return
     end
-    log.debug("Frontmatter evaluation result:\n" .. vim.inspect(result))
+    log.debug("send_to_provider(): ... Frontmatter evaluation result: " .. vim.inspect(result))
     template_vars = result
   end
 
@@ -806,15 +814,15 @@ function M.send_to_provider(opts)
   for i, msg in ipairs(formatted_messages) do
     -- Look for {{expression}} patterns
     msg.content = msg.content:gsub("{{(.-)}}", function(expr)
-      log.debug(string.format("Evaluating template expression (message %d): %s", i, expr))
+      log.debug(string.format("send_to_provider(): Evaluating template expression (message %d): %s", i, vim.inspect(expr)))
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
         local err_msg = string.format("Template error (message %d) - %s", i, result)
-        log.error(err_msg)
+        log.error("send_to_provider(): " .. err_msg)
         vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
       end
-      log.debug(string.format("Expression result (message %d): %s", i, tostring(result)))
+      log.debug(string.format("send_to_provider(): ... Expression result (message %d): %s", i, vim.inspect(result)))
       return tostring(result)
     end)
   end
@@ -823,7 +831,12 @@ function M.send_to_provider(opts)
   local request_body = provider:create_request_body(formatted_messages, system_message)
 
   -- Log the request details (using the provider's stored model)
-  log.debug("New request for " .. config.provider .. " to " .. provider.parameters.model)
+  log.debug(
+    "send_to_provider(): Sending request for provider "
+      .. vim.inspect(config.provider)
+      .. " with model "
+      .. vim.inspect(provider.parameters.model)
+  )
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
@@ -889,7 +902,7 @@ function M.send_to_provider(opts)
     end,
 
     on_stderr = function(line)
-      log.error("stderr: " .. line)
+      log.error("send_to_provider(): callbacks.on_stderr: " .. line)
     end,
 
     on_error = function(msg)
@@ -1148,12 +1161,8 @@ function M.switch(provider_name, model_name, parameters)
 
   -- Log the relevant configuration being used for the new provider
   log.debug(
-    "Switching provider configuration: "
-      .. vim.inspect({ provider = new_config.provider }):gsub("%s+", " ")
-      .. ", "
-      .. vim.inspect({ model = new_config.model }):gsub("%s+", " ")
-      .. ", "
-      .. vim.inspect({ parameters = new_config.parameters })
+    "switch(): Switching provider. New config: "
+      .. vim.inspect({ provider = new_config.provider, model = new_config.model, parameters = new_config.parameters })
   )
 
   -- Update the global config

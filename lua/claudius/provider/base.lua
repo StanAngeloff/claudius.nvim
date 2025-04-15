@@ -52,7 +52,7 @@ end
 function M.get_api_key(self, opts)
   -- Return cached key if we have it and it's not empty
   if self.state.api_key and self.state.api_key ~= "" then
-    log.debug("Using cached API key")
+    log.debug("get_api_key(): Using cached API key")
     return self.state.api_key
   end
 
@@ -75,7 +75,7 @@ function M.get_api_key(self, opts)
       local key = try_keyring(opts.keyring_service_name, opts.keyring_key_name, opts.keyring_project_id)
       if key and key ~= "" then
         self.state.api_key = key
-        log.debug("Retrieved API key from keyring with project ID: " .. opts.keyring_project_id)
+        log.debug("get_api_key(): Retrieved API key from keyring with project ID: " .. vim.inspect(opts.keyring_project_id))
       end
     end
 
@@ -230,17 +230,13 @@ function M.send_request(self, request_body, callbacks)
   -- Prepare curl command
   local cmd = self:prepare_curl_command(tmp_file, headers, endpoint)
 
-  -- Log the API request with detailed information
-  log.debug("Sending request to API endpoint: " .. endpoint)
-
-  -- Log the curl command (with sensitive information redacted)
+  -- Log the API request details
+  log.debug("send_request(): Sending request to endpoint: " .. endpoint)
   local curl_cmd_log = format_curl_command_for_log(cmd)
   -- Replace the temporary file path with @request.json for easier reproduction
   curl_cmd_log = curl_cmd_log:gsub(vim.fn.escape(tmp_file, "%-%."), "request.json")
-  log.debug("Running command: " .. curl_cmd_log)
-
-  -- Log the request body for debugging
-  log.debug("@request.json <<< " .. vim.fn.json_encode(request_body))
+  log.debug("send_request(): ... Running command: " .. curl_cmd_log)
+  log.debug("send_request(): ... Request body (@request.json): " .. vim.inspect(request_body))
 
   -- Start job
   local job_id = vim.fn.jobstart(cmd, {
@@ -250,10 +246,10 @@ function M.send_request(self, request_body, callbacks)
         for _, line in ipairs(data) do
           if line and #line > 0 then
             -- Log the raw response line
-            log.debug("Response: " .. line)
+            log.debug("send_request(): on_stdout: " .. line)
 
             if callbacks.on_data then
-              callbacks.on_data(line)
+              callbacks.on_data(line) -- Pass raw line to on_data callback
             end
 
             -- Process the response line (without duplicate logging)
@@ -267,7 +263,7 @@ function M.send_request(self, request_body, callbacks)
         for _, line in ipairs(data) do
           if line and #line > 0 then
             -- Log stderr output
-            log.error("stderr: " .. line)
+            log.error("send_request(): on_stderr: " .. line)
 
             if callbacks.on_stderr then
               callbacks.on_stderr(line)
@@ -281,7 +277,7 @@ function M.send_request(self, request_body, callbacks)
       os.remove(tmp_file)
 
       -- Log exit code
-      log.info("Request completed with exit code: " .. tostring(code))
+      log.info("send_request(): on_exit: Request completed with exit code: " .. tostring(code))
 
       -- Check for unprocessed JSON if the provider supports it
       if self.check_unprocessed_json then
