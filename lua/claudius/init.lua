@@ -183,6 +183,8 @@ M.setup = function(user_opts)
     path = config.logging.path,
   })
 
+  log.info("Claudius starting...")
+
   -- Initialize provider based on the merged config
   initialize_provider(config.provider, config.model, config.parameters)
 
