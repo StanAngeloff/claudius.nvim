@@ -46,15 +46,16 @@ end
 
 -- Create request body for Claude API
 function M.create_request_body(self, formatted_messages, system_message, opts)
-  -- Get parameters with proper fallbacks, checking both top-level and provider-specific parameters
-  local provider_params = self.options.parameters.claude or {}
+  -- Get parameters from the main config stored in self.options
+  local params = self.options.parameters or {}
+  local provider_params = params.claude or {} -- Provider-specific overrides
 
-  -- First check opts, then provider-specific params, then top-level params
-  local max_tokens = opts.max_tokens or provider_params.max_tokens or self.options.parameters.max_tokens
-  local temperature = opts.temperature or provider_params.temperature or self.options.parameters.temperature
+  -- Use opts first, then provider-specific, then general defaults
+  local max_tokens = opts.max_tokens or provider_params.max_tokens or params.max_tokens
+  local temperature = opts.temperature or provider_params.temperature or params.temperature
 
   local request_body = {
-    model = self.options.model, -- Use the validated model stored in options
+    model = self.options.model, -- Use the validated model stored in self.options
     messages = formatted_messages,
     system = system_message,
     max_tokens = max_tokens,

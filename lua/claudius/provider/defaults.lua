@@ -96,12 +96,6 @@ Vertex AI requires OAuth2 authentication. You can:
 ]],
 }
 
--- Default parameters for all providers
-M.parameters = {
-  max_tokens = 4000,
-  temperature = 0.7,
-}
-
 -- Get the default model for a provider
 function M.get_model(provider_name)
   return M.models[provider_name] or M.models.claude

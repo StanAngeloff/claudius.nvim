@@ -4,6 +4,7 @@ local M = {}
 local ns_id = vim.api.nvim_create_namespace("claudius")
 local log = require("claudius.logging")
 local buffers = require("claudius.buffers")
+local plugin_config = require("claudius.config")
 local provider = nil
 
 -- Execute a command in the context of a specific buffer
@@ -121,76 +122,8 @@ local function find_prev_message()
   return false
 end
 
--- Module configuration
+-- Module configuration (will hold merged user opts and defaults)
 local config = {}
-
--- Store the current provider instance
-local provider = nil
-
--- Default configuration
-local default_config = {
-  highlights = {
-    system = "Special",
-    user = "Normal",
-    assistant = "Comment",
-  },
-  prefix_style = "bold,underline",
-  ruler = {
-    char = "─", -- The character to use for the ruler
-    style = "NonText", -- Highlight group for the ruler
-  },
-  signs = {
-    enabled = false, -- Enable sign column highlighting (disabled by default)
-    char = "▌", -- Default vertical bar character
-    system = {
-      char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.system
-    },
-    user = {
-      char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.user
-    },
-    assistant = {
-      char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.assistant
-    },
-  },
-  notify = require("claudius.notify").default_opts,
-  pricing = {
-    enabled = true, -- Whether to show pricing information in notifications
-  },
-  provider = "claude", -- Default provider: "claude", "openai", or "vertex"
-  model = nil, -- Will use provider-specific default if nil
-  parameters = {
-    max_tokens = nil, -- Will use default if nil
-    temperature = nil, -- Will use default if nil
-    vertex = {
-      project_id = nil, -- Google Cloud project ID
-      location = "us-central1", -- Google Cloud region
-    },
-  },
-  text_object = "m", -- Default text object key, set to false to disable
-  editing = {
-    disable_textwidth = true, -- Whether to disable textwidth in chat buffers
-    auto_write = false, -- Whether to automatically write the buffer after changes
-  },
-  logging = {
-    enabled = false, -- Logging disabled by default
-    path = vim.fn.stdpath("cache") .. "/claudius.log", -- Default log path
-  },
-  keymaps = {
-    normal = {
-      send = "<C-]>",
-      cancel = "<C-c>",
-      next_message = "]m", -- Jump to next message
-      prev_message = "[m", -- Jump to previous message
-    },
-    insert = {
-      send = "<C-]>",
-    },
-    enabled = true, -- Set to false to disable all keymaps
-  },
-}
 
 -- Helper function to add rulers
 local function add_rulers(bufnr)
@@ -204,10 +137,10 @@ local function add_rulers(bufnr)
     if line:match("^@[%w]+:") then
       -- If this isn't the first line, add a ruler before it
       if i > 1 then
-        -- Create virtual line with ruler
-        local ruler_text = string.rep(default_config.ruler.char, math.floor(vim.api.nvim_win_get_width(0) * 1))
+        -- Create virtual line with ruler using the current config
+        local ruler_text = string.rep(config.ruler.char, math.floor(vim.api.nvim_win_get_width(0) * 1))
         vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
-          virt_lines = { { { ruler_text, default_config.ruler.style } } },
+          virt_lines = { { { ruler_text, config.ruler.style } } },
           virt_lines_above = true,
         })
       end
@@ -249,16 +182,7 @@ local function initialize_provider(provider_config)
   -- Use the validated model for the provider configuration
   provider_config.model = validated_model
 
-  -- Set default parameters if not specified
-  if not provider_config.parameters.max_tokens then
-    provider_config.parameters.max_tokens = provider_defaults.parameters.max_tokens
-  end
-
-  if not provider_config.parameters.temperature then
-    provider_config.parameters.temperature = provider_defaults.parameters.temperature
-  end
-
-  -- Create a fresh provider instance with a clean state
+  -- Create a fresh provider instance with a clean state, passing the full config
   local new_provider
   if provider_config.provider == "openai" then
     new_provider = require("claudius.provider.openai").new(provider_config)
@@ -282,12 +206,12 @@ local function initialize_provider(provider_config)
 end
 
 -- Setup function to initialize the plugin
-M.setup = function(opts)
-  -- Merge user config with defaults
-  opts = opts or {}
-  config = vim.tbl_deep_extend("force", default_config, opts)
+M.setup = function(user_opts)
+  -- Merge user config with defaults from the config module
+  user_opts = user_opts or {}
+  config = vim.tbl_deep_extend("force", plugin_config.defaults, user_opts)
 
-  -- Initialize provider based on config
+  -- Initialize provider based on the merged config
   initialize_provider(config)
 
   -- Configure logging based on user settings
