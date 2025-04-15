@@ -817,7 +817,7 @@ function M.send_to_provider(opts)
   end
 
   -- Create request body using the validated model stored in the provider
-  local request_body = provider:create_request_body(formatted_messages, system_message, {}) -- Pass empty opts for now
+  local request_body = provider:create_request_body(formatted_messages, system_message)
 
   -- Log the request details (using the provider's stored model)
   log.debug("New request for " .. config.provider .. " to " .. provider.options.model)

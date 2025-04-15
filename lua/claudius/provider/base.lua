@@ -97,7 +97,7 @@ function M.format_messages(self, messages, system_message)
 end
 
 -- Create request body (to be implemented by specific providers)
-function M.create_request_body(self, formatted_messages, system_message, opts)
+function M.create_request_body(self, formatted_messages, system_message)
   -- To be implemented by specific providers
 end
 
