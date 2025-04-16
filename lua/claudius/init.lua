@@ -263,16 +263,16 @@ M.setup = function(user_opts)
     vim.cmd("runtime! syntax/chat.vim")
 
     -- Link highlights to user config
-    vim.cmd(string.format("highlight link ChatSystem %s", config.highlights.system))
-    vim.cmd(string.format("highlight link ChatUser %s", config.highlights.user))
-    vim.cmd(string.format("highlight link ChatAssistant %s", config.highlights.assistant))
+    vim.cmd(string.format("highlight link ClaudiusSystem %s", config.highlights.system))
+    vim.cmd(string.format("highlight link ClaudiusUser %s", config.highlights.user))
+    vim.cmd(string.format("highlight link ClaudiusAssistant %s", config.highlights.assistant))
 
     -- Set up prefix highlights
     vim.cmd(string.format(
       [[
-      execute 'highlight ChatSystemPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatSystem")), "fg", "gui") . ' gui=%s'
-      execute 'highlight ChatUserPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatUser")), "fg", "gui") . ' gui=%s'
-      execute 'highlight ChatAssistantPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatAssistant")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusSystemPrefix guifg=' . synIDattr(synIDtrans(hlID("ClaudiusSystem")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusUserPrefix guifg=' . synIDattr(synIDtrans(hlID("ClaudiusUser")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusAssistantPrefix guifg=' . synIDattr(synIDtrans(hlID("ClaudiusAssistant")), "fg", "gui") . ' gui=%s'
     ]],
       config.prefix_style,
       config.prefix_style,
