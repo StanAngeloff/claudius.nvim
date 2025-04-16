@@ -85,10 +85,10 @@ local function add_rulers(bufnr)
     if line:match("^@[%w]+:") then
       -- If this isn't the first line, add a ruler before it
       if i > 1 then
-        -- Create virtual line with ruler using the current config
+        -- Create virtual line with ruler using the ClaudiusRuler highlight group
         local ruler_text = string.rep(config.ruler.char, math.floor(vim.api.nvim_win_get_width(0) * 1))
         vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
-          virt_lines = { { { ruler_text, config.ruler.hl } } },
+          virt_lines = { { { ruler_text, "ClaudiusRuler" } } }, -- Use defined group
           virt_lines_above = true,
         })
       end
@@ -278,6 +278,9 @@ M.setup = function(user_opts)
       config.prefix_style,
       config.prefix_style
     ))
+
+    -- Link ruler highlight group
+    vim.cmd(string.format("highlight link ClaudiusRuler %s", config.ruler.hl))
   end
 
   -- Set up folding expression
