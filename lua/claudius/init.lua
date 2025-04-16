@@ -20,12 +20,10 @@ local function set_highlight(group_name, value)
 
   if value:sub(1, 1) == "#" then
     -- Assume it's a hex color for foreground
-    log.debug(string.format("set_highlight(): Setting %s fg to %s (default)", group_name, value))
     -- Add default = true to respect pre-existing user definitions
     vim.api.nvim_set_hl(0, group_name, { fg = value, default = true })
   else
     -- Assume it's a highlight group name to link
-    log.debug(string.format("set_highlight(): Linking %s to %s (default)", group_name, value))
     -- Use the API function to link the highlight group in the global namespace (0)
     vim.api.nvim_set_hl(0, group_name, { link = value, default = true })
   end
