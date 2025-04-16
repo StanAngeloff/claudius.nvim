@@ -74,16 +74,16 @@ function M.get_fold_text()
   local line = vim.fn.getline(foldstart)
   local lines_count = vim.v.foldend - vim.v.foldstart + 1
 
-  -- Extract the role type marker (@You:, @Assistant:, etc.)
+  -- Extract the role type (@You:, @Assistant:, etc.)
   local role_type = line:match("^(@[%w]+:)")
   if not role_type then
     return line
   end
 
-  -- Get the first line of content (excluding the role type marker)
+  -- Get the first line of content (excluding the role type)
   local content = line:sub(#role_type + 1):gsub("^%s*", "")
 
-  -- Create fold text: role type marker + first line + number of lines
+  -- Create fold text: role type + first line + number of lines
   return string.format("%s %s... (%d lines)", role_type, content:sub(1, 50), lines_count)
 end
 

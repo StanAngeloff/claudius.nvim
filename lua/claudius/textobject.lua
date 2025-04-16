@@ -32,7 +32,7 @@ local function get_message_bounds()
     inner_end = inner_end - 1
   end
 
-  -- Get the end column of the role type marker (e.g., "@You:") on the start line
+  -- Get the end column of the role type (e.g., "@You:") on the start line
   local role_type_end = lines[start_line]:find(":%s*") + 1
   while lines[start_line]:sub(role_type_end, role_type_end) == " " do
     role_type_end = role_type_end + 1
@@ -62,7 +62,7 @@ function M.message_textobj(type)
   end
 
   if type == "i" then -- inner message
-    -- Start at first character after the role type marker
+    -- Start at first character after the role type
     vim.cmd(string.format("normal! %dG%d|v", bounds.start_line, bounds.role_type_end + 1))
     -- Move to last non-empty line
     vim.cmd(string.format("normal! %dG$", bounds.inner_end))
