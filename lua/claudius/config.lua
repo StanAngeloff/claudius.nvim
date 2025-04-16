@@ -11,7 +11,7 @@ M.defaults = {
   prefix_style = "bold,underline",
   ruler = {
     char = "─", -- The character to use for the ruler
-    style = "NonText", -- Highlight group for the ruler
+    hl = "NonText", -- Highlight group for the ruler
   },
   signs = {
     enabled = false, -- Enable sign column highlighting (disabled by default)

@@ -86,7 +86,7 @@ require("claudius").setup({
     prefix_style = "bold,underline",  -- style applied to message prefixes
     ruler = {
         char = "─",           -- character used for the separator line
-        style = "NonText"     -- highlight group for the separator
+        hl = "NonText"        -- highlight group for the separator
     },
     signs = {
         enabled = false,  -- enable sign column highlighting for roles (disabled by default)

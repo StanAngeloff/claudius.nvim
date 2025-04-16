@@ -88,7 +88,7 @@ local function add_rulers(bufnr)
         -- Create virtual line with ruler using the current config
         local ruler_text = string.rep(config.ruler.char, math.floor(vim.api.nvim_win_get_width(0) * 1))
         vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
-          virt_lines = { { { ruler_text, config.ruler.style } } },
+          virt_lines = { { { ruler_text, config.ruler.hl } } },
           virt_lines_above = true,
         })
       end
