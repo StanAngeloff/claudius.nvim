@@ -8,7 +8,7 @@ M.defaults = {
     user = "Normal",
     assistant = "Comment",
   },
-  prefix_style = "bold,underline",
+  role_style = "bold,underline", -- style applied to role markers like @You:
   ruler = {
     char = "─", -- The character to use for the ruler
     hl = "NonText", -- Highlight group for the ruler

@@ -74,17 +74,17 @@ function M.get_fold_text()
   local line = vim.fn.getline(foldstart)
   local lines_count = vim.v.foldend - vim.v.foldstart + 1
 
-  -- Extract the prefix (@You:, @Assistant:, etc.)
-  local prefix = line:match("^(@[%w]+:)")
-  if not prefix then
+  -- Extract the role marker (@You:, @Assistant:, etc.)
+  local role_marker = line:match("^(@[%w]+:)")
+  if not role_marker then
     return line
   end
 
-  -- Get the first line of content (excluding the prefix)
-  local content = line:sub(#prefix + 1):gsub("^%s*", "")
+  -- Get the first line of content (excluding the role marker)
+  local content = line:sub(#role_marker + 1):gsub("^%s*", "")
 
-  -- Create fold text: prefix + first line + number of lines
-  return string.format("%s %s... (%d lines)", prefix, content:sub(1, 50), lines_count)
+  -- Create fold text: role marker + first line + number of lines
+  return string.format("%s %s... (%d lines)", role_marker, content:sub(1, 50), lines_count)
 end
 
 return M

@@ -69,7 +69,7 @@ local function generate_chat(data)
 
   -- Process messages
   for _, msg in ipairs(data.messages or {}) do
-    local prefix = msg.role == "user" and "@You: " or "@Assistant: "
+    local role_type = msg.role == "user" and "@You: " or "@Assistant: "
     local text = get_message_text(msg.content)
 
     -- Add blank line before message if needed
@@ -77,7 +77,7 @@ local function generate_chat(data)
       table.insert(output, "")
     end
 
-    table.insert(output, prefix .. text)
+    table.insert(output, role_type .. text)
   end
 
   return table.concat(output, "\n")

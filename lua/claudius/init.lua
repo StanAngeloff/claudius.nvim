@@ -267,16 +267,16 @@ M.setup = function(user_opts)
     vim.cmd(string.format("highlight link ClaudiusUser %s", config.highlights.user))
     vim.cmd(string.format("highlight link ClaudiusAssistant %s", config.highlights.assistant))
 
-    -- Set up prefix highlights
+    -- Set up role marker highlights (e.g., @You:, @System:)
     vim.cmd(string.format(
       [[
-      execute 'highlight ClaudiusSystemPrefix guifg=' . synIDattr(synIDtrans(hlID("ClaudiusSystem")), "fg", "gui") . ' gui=%s'
-      execute 'highlight ClaudiusUserPrefix guifg=' . synIDattr(synIDtrans(hlID("ClaudiusUser")), "fg", "gui") . ' gui=%s'
-      execute 'highlight ClaudiusAssistantPrefix guifg=' . synIDattr(synIDtrans(hlID("ClaudiusAssistant")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusRoleSystem guifg=' . synIDattr(synIDtrans(hlID("ClaudiusSystem")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusRoleUser guifg=' . synIDattr(synIDtrans(hlID("ClaudiusUser")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusRoleAssistant guifg=' . synIDattr(synIDtrans(hlID("ClaudiusAssistant")), "fg", "gui") . ' gui=%s'
     ]],
-      config.prefix_style,
-      config.prefix_style,
-      config.prefix_style
+      config.role_style,
+      config.role_style,
+      config.role_style
     ))
 
     -- Link ruler highlight group
@@ -593,14 +593,14 @@ local function parse_message(bufnr, lines, start_idx, frontmatter_offset)
 
   local content = {}
   local i = start_idx
-  -- Remove the prefix from first line
+  -- Remove the role marker (e.g., @You:) from the first line
   local first_content = line:sub(#msg_type + 3)
   if first_content:match("%S") then
     content[#content + 1] = first_content:gsub("^%s*", "")
   end
 
   i = i + 1
-  -- Collect lines until we hit another prefix or end of buffer
+  -- Collect lines until we hit another role marker or end of buffer
   while i <= #lines do
     local next_line = lines[i]
     if next_line:match("^@[%w]+:") then

@@ -83,7 +83,7 @@ require("claudius").setup({
         user = "Normal",       -- highlight group for user messages
         assistant = "Comment"  -- highlight group for Claude's responses
     },
-    prefix_style = "bold,underline",  -- style applied to message prefixes
+    role_style = "bold,underline",  -- style applied to role markers like @You:
     ruler = {
         char = "─",           -- character used for the separator line
         hl = "NonText"        -- highlight group for the separator
