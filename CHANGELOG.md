@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2 – 2025-04-16
+## v25.04-1 – 2025-04-16
 
 This release marks a major transition for Claudius, evolving from a Claude-specific plugin to a multi-provider AI chat interface within Neovim.
 
