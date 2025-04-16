@@ -66,13 +66,13 @@ The plugin works out of the box with sensible defaults, but you can customize va
 ```lua
 require("claudius").setup({
     provider = "claude",  -- AI provider: "claude", "openai", or "vertex"
-    model = nil,  -- Uses provider defaults if nil
+    model = nil,  -- Uses provider defaults if nil (see below)
     -- Claude default: "claude-3-7-sonnet-20250219"
     -- OpenAI default: "gpt-4o"
-    -- Vertex default: "gemini-1.5-pro"
+    -- Vertex default: "gemini-2.5-pro-exp-03-25"
     parameters = {
-        max_tokens = nil,  -- Default: 4000
-        temperature = nil,  -- Default: 0.7
+        max_tokens = nil,  -- Set to nil to use default (4000)
+        temperature = nil,  -- Set to nil to use default (0.7)
         vertex = {
             project_id = nil,  -- Google Cloud project ID (required for Vertex AI)
             location = "us-central1",  -- Google Cloud region
@@ -86,7 +86,7 @@ require("claudius").setup({
     prefix_style = "bold,underline",  -- style applied to message prefixes
     ruler = {
         char = "─",           -- character used for the separator line
-        style = "FoldColumn"  -- highlight group for the separator
+        style = "NonText"     -- highlight group for the separator
     },
     signs = {
         enabled = false,  -- enable sign column highlighting for roles (disabled by default)
@@ -207,7 +207,7 @@ The plugin provides several commands for interacting with AI providers and manag
 - `ClaudiusSend` - Send the current conversation to the configured AI provider
 - `ClaudiusCancel` - Cancel an ongoing request
 - `ClaudiusSendAndInsert` - Send to AI and return to insert mode
-- `ClaudiusSwitch` - Switch between providers (e.g., `:ClaudiusSwitch openai gpt-4o`)
+- `ClaudiusSwitch` - Switch between providers (e.g., `:ClaudiusSwitch openai gpt-4o`). If called with no arguments, it provides an interactive selection menu.
 - `ClaudiusRecallNotification` - Recall the last notification (useful for reviewing usage statistics)
 
 #### Navigation Commands
@@ -280,10 +280,11 @@ Messages are automatically folded for better overview. Press <kbd>za</kbd> to to
 You can switch between AI providers at any time using the `:ClaudiusSwitch` command:
 
 ```
-:ClaudiusSwitch claude                                    # Switch to Claude with default model
-:ClaudiusSwitch openai gpt-4o                             # Switch to OpenAI with specific model
-:ClaudiusSwitch vertex gemini-1.5-pro project_id=my-project  # Switch to Vertex AI with project ID
-:ClaudiusSwitch vertex gemini-1.5-pro temperature=0.2 max_tokens=1000  # Multiple parameters
+:ClaudiusSwitch	# Interactive provider/model selection
+:ClaudiusSwitch claude	# Switch to Claude with default model
+:ClaudiusSwitch openai gpt-4o	# Switch to OpenAI with specific model
+:ClaudiusSwitch vertex gemini-2.5-pro-exp-03-25 project_id=my-project	# Switch to Vertex AI with project ID
+:ClaudiusSwitch claude claude-3-7-sonnet-20250219 temperature=0.2 max_tokens=1000	# Multiple parameters
 ```
 
 This allows you to compare responses from different AI models without restarting Neovim.
