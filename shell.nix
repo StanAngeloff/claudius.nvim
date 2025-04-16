@@ -16,7 +16,8 @@ pkgs.mkShell {
     export PROJECT_ROOT
   '';
 
-  nativeBuildInputs = with pkgs; [
+  buildInputs = with pkgs; [
+    google-cloud-sdk
     libsecret
     pythonWithPackages
 
