@@ -252,32 +252,31 @@ M.setup = function(user_opts)
 
   -- Define sign groups for each role
   if config.signs.enabled then
-    -- Define signs with proper casing to match message types
+    -- Define signs using internal keys ('user', 'system', 'assistant')
     local signs = {
-      ["You"] = { config = config.signs.user, highlight = config.highlights.user },
-      ["System"] = { config = config.signs.system, highlight = config.highlights.system },
-      ["Assistant"] = { config = config.signs.assistant, highlight = config.highlights.assistant },
+      ["user"] = { config = config.signs.user, highlight = config.highlights.user },
+      ["system"] = { config = config.signs.system, highlight = config.highlights.system },
+      ["assistant"] = { config = config.signs.assistant, highlight = config.highlights.assistant },
     }
-    -- Ensure we have lowercase versions of the role names for sign configs
-    config.signs.you = config.signs.user
-    for role, sign_data in pairs(signs) do
-      -- Define the specific highlight group name for the sign
-      local sign_hl_group = "ClaudiusSign" .. role
+    -- Iterate using internal keys
+    for internal_role_key, sign_data in pairs(signs) do
+      -- Define the specific highlight group name for the sign (e.g., ClaudiusSignUser)
+      local sign_hl_group = "ClaudiusSign" .. internal_role_key:sub(1, 1):upper() .. internal_role_key:sub(2)
 
       -- Set the sign highlight group if highlighting is enabled
       if sign_data.config.hl ~= false then
         local target_hl = sign_data.config.hl == true and sign_data.highlight or sign_data.config.hl
         set_highlight(sign_hl_group, target_hl) -- Use the helper function
 
-        -- Define the sign using the new highlight group
-        local sign_name = "claudius_" .. string.lower(role)
+        -- Define the sign using the internal key (e.g., claudius_user)
+        local sign_name = "claudius_" .. internal_role_key
         vim.fn.sign_define(sign_name, {
           text = sign_data.config.char or config.signs.char,
           texthl = sign_hl_group, -- Use the linked group
         })
       else
         -- Define the sign without a highlight group if hl is false
-        local sign_name = "claudius_" .. string.lower(role)
+        local sign_name = "claudius_" .. internal_role_key
         vim.fn.sign_define(sign_name, {
           text = sign_data.config.char or config.signs.char,
           -- texthl is omitted
@@ -609,8 +608,21 @@ local function place_signs(bufnr, start_line, end_line, role)
     return
   end
 
-  local sign_name = "claudius_" .. string.lower(role)
-  local sign_config = config.signs[string.lower(role)]
+  -- Map the display role ("You", "System", "Assistant") to the internal config key ("user", "system", "assistant")
+  local internal_role_key = string.lower(role) -- Default to lowercase
+  if role == "You" then
+    internal_role_key = "user" -- Map "You" specifically to "user"
+  end
+
+  local sign_name = "claudius_" .. internal_role_key -- Construct sign name like "claudius_user"
+  local sign_config = config.signs[internal_role_key] -- Look up config using "user", "system", etc.
+
+  -- Check if the sign is actually defined before trying to place it
+  if vim.fn.sign_getdefined(sign_name) == {} then
+    log.debug("place_signs(): Sign not defined: " .. sign_name .. " for role " .. role)
+    return
+  end
+
   if sign_config and sign_config.hl ~= false then
     for lnum = start_line, end_line do
       vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
