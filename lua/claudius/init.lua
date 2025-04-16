@@ -25,7 +25,8 @@ local function set_highlight(group_name, value)
   else
     -- Assume it's a highlight group name to link
     log.debug(string.format("set_highlight(): Linking %s to %s", group_name, value))
-    vim.cmd(string.format("highlight default link %s %s", group_name, value))
+    -- Use the API function to link the highlight group in the global namespace (0)
+    vim.api.nvim_set_hl(0, group_name, { link = value, default = true })
   end
 end
 
