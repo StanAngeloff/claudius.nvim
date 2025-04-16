@@ -79,29 +79,29 @@ require("claudius").setup({
         },
     },
     highlights = {
-        system = "Special",    -- highlight group for system messages
-        user = "Normal",       -- highlight group for user messages
-        assistant = "Comment"  -- highlight group for Claude's responses
+        system = "Special",    -- highlight group or hex color (e.g., "#80a0ff") for system messages
+        user = "Normal",       -- highlight group or hex color for user messages
+        assistant = "Comment"  -- highlight group or hex color for assistant messages
     },
     role_style = "bold,underline",  -- style applied to role markers like @You:
     ruler = {
         char = "─",           -- character used for the separator line
-        hl = "NonText"        -- highlight group for the separator
+        hl = "NonText"        -- highlight group or hex color for the separator
     },
     signs = {
         enabled = false,  -- enable sign column highlighting for roles (disabled by default)
         char = "▌",       -- default vertical bar character
         system = {
             char = nil,   -- use default char
-            hl = true,    -- inherit from highlights.system, set false to disable
+            hl = true,    -- inherit from highlights.system, set false to disable, or provide specific group/hex color
         },
         user = {
             char = nil,   -- use default char
-            hl = true,    -- inherit from highlights.user, set false to disable
+            hl = true,    -- inherit from highlights.user, set false to disable, or provide specific group/hex color
         },
         assistant = {
             char = nil,   -- use default char
-            hl = true,    -- inherit from highlights.assistant, set false to disable
+            hl = true,    -- inherit from highlights.assistant, set false to disable, or provide specific group/hex color
         }
     },
     editing = {

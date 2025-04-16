@@ -10,6 +10,25 @@ local textobject = require("claudius.textobject")
 
 local provider = nil
 
+-- Helper function to set highlight groups
+-- Accepts either a highlight group name to link to, or a hex color string (e.g., "#ff0000")
+local function set_highlight(group_name, value)
+  if type(value) ~= "string" then
+    log.error(string.format("set_highlight(): Invalid value type for group %s: %s", group_name, type(value)))
+    return
+  end
+
+  if value:sub(1, 1) == "#" then
+    -- Assume it's a hex color for foreground
+    log.debug(string.format("set_highlight(): Setting %s fg to %s", group_name, value))
+    vim.api.nvim_set_hl(0, group_name, { fg = value })
+  else
+    -- Assume it's a highlight group name to link
+    log.debug(string.format("set_highlight(): Linking %s to %s", group_name, value))
+    vim.cmd(string.format("highlight default link %s %s", group_name, value))
+  end
+end
+
 -- Module configuration (will hold merged user opts and defaults)
 local config = {}
 
@@ -245,10 +264,10 @@ M.setup = function(user_opts)
       -- Define the specific highlight group name for the sign
       local sign_hl_group = "ClaudiusSign" .. role
 
-      -- Link the sign highlight group if highlighting is enabled
+      -- Set the sign highlight group if highlighting is enabled
       if sign_data.config.hl ~= false then
         local target_hl = sign_data.config.hl == true and sign_data.highlight or sign_data.config.hl
-        vim.cmd(string.format("highlight link %s %s", sign_hl_group, target_hl))
+        set_highlight(sign_hl_group, target_hl) -- Use the helper function
 
         -- Define the sign using the new highlight group
         local sign_name = "claudius_" .. string.lower(role)
@@ -277,12 +296,13 @@ M.setup = function(user_opts)
     -- Explicitly load our syntax file
     vim.cmd("runtime! syntax/chat.vim")
 
-    -- Link highlights to user config
-    vim.cmd(string.format("highlight link ClaudiusSystem %s", config.highlights.system))
-    vim.cmd(string.format("highlight link ClaudiusUser %s", config.highlights.user))
-    vim.cmd(string.format("highlight link ClaudiusAssistant %s", config.highlights.assistant))
+    -- Set highlights based on user config (link or hex color)
+    set_highlight("ClaudiusSystem", config.highlights.system)
+    set_highlight("ClaudiusUser", config.highlights.user)
+    set_highlight("ClaudiusAssistant", config.highlights.assistant)
 
     -- Set up role marker highlights (e.g., @You:, @System:)
+    -- Use existing highlight groups which are now correctly defined by set_highlight
     vim.cmd(string.format(
       [[
       execute 'highlight ClaudiusRoleSystem guifg=' . synIDattr(synIDtrans(hlID("ClaudiusSystem")), "fg", "gui") . ' gui=%s'
@@ -294,8 +314,8 @@ M.setup = function(user_opts)
       config.role_style
     ))
 
-    -- Link ruler highlight group
-    vim.cmd(string.format("highlight link ClaudiusRuler %s", config.ruler.hl))
+    -- Set ruler highlight group
+    set_highlight("ClaudiusRuler", config.ruler.hl)
   end
 
   -- Set up folding expression

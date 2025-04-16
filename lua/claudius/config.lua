@@ -4,29 +4,29 @@ local M = {}
 -- Default configuration values
 M.defaults = {
   highlights = {
-    system = "Special",
-    user = "Normal",
-    assistant = "Comment",
+    system = "Special", -- Highlight group or hex color (e.g., "#ffccaa") for system messages
+    user = "Normal", -- Highlight group or hex color for user messages
+    assistant = "Comment", -- Highlight group or hex color for assistant messages
   },
   role_style = "bold,underline", -- style applied to role markers like @You:
   ruler = {
     char = "─", -- The character to use for the ruler
-    hl = "NonText", -- Highlight group for the ruler
+    hl = "NonText", -- Highlight group or hex color for the ruler
   },
   signs = {
     enabled = false, -- Enable sign column highlighting (disabled by default)
     char = "▌", -- Default vertical bar character
     system = {
       char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.system
+      hl = true, -- Inherit from highlights.system, set false to disable, or provide specific group/hex color
     },
     user = {
       char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.user
+      hl = true, -- Inherit from highlights.user, set false to disable, or provide specific group/hex color
     },
     assistant = {
       char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.assistant
+      hl = true, -- Inherit from highlights.assistant, set false to disable, or provide specific group/hex color
     },
   },
   notify = require("claudius.notify").default_opts,
