@@ -242,11 +242,26 @@ M.setup = function(user_opts)
     -- Ensure we have lowercase versions of the role names for sign configs
     config.signs.you = config.signs.user
     for role, sign_data in pairs(signs) do
+      -- Define the specific highlight group name for the sign
+      local sign_hl_group = "ClaudiusSign" .. role
+
+      -- Link the sign highlight group if highlighting is enabled
       if sign_data.config.hl ~= false then
+        local target_hl = sign_data.config.hl == true and sign_data.highlight or sign_data.config.hl
+        vim.cmd(string.format("highlight link %s %s", sign_hl_group, target_hl))
+
+        -- Define the sign using the new highlight group
         local sign_name = "claudius_" .. string.lower(role)
         vim.fn.sign_define(sign_name, {
           text = sign_data.config.char or config.signs.char,
-          texthl = sign_data.config.hl == true and sign_data.highlight or sign_data.config.hl,
+          texthl = sign_hl_group, -- Use the linked group
+        })
+      else
+        -- Define the sign without a highlight group if hl is false
+        local sign_name = "claudius_" .. string.lower(role)
+        vim.fn.sign_define(sign_name, {
+          text = sign_data.config.char or config.signs.char,
+          -- texthl is omitted
         })
       end
     end
