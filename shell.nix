@@ -83,6 +83,7 @@ pkgs.mkShell {
           lua/*/*/*.lua
 
         prettier --write \
+          CHANGELOG.md \
           README.md
       '';
     })
