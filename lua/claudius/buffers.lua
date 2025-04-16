@@ -49,4 +49,42 @@ function M.set_state(bufnr, key, value)
   buffer_state[bufnr][key] = value
 end
 
+-- Folding functions
+function M.get_fold_level(lnum)
+  local line = vim.fn.getline(lnum)
+  local last_line = vim.fn.line("$")
+
+  -- If line starts with @, it's the start of a fold
+  if line:match("^@[%w]+:") then
+    return ">1" -- vim: foldlevel string
+  end
+
+  -- If next line starts with @ or this is the last line, this is the end of the current fold
+  local next_line = vim.fn.getline(lnum + 1)
+  if next_line:match("^@[%w]+:") or lnum == last_line then
+    return "<1"
+  end
+
+  -- Otherwise, we're inside a fold
+  return "1"
+end
+
+function M.get_fold_text()
+  local foldstart = vim.v.foldstart
+  local line = vim.fn.getline(foldstart)
+  local lines_count = vim.v.foldend - vim.v.foldstart + 1
+
+  -- Extract the role type (@You:, @Assistant:, etc.)
+  local role_type = line:match("^(@[%w]+:)")
+  if not role_type then
+    return line
+  end
+
+  -- Get the first line of content (excluding the role type)
+  local content = line:sub(#role_type + 1):gsub("^%s*", "")
+
+  -- Create fold text: role type + first line + number of lines
+  return string.format("%s %s... (%d lines)", role_type, content:sub(1, 50), lines_count)
+end
+
 return M

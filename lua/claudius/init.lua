@@ -1,13 +1,47 @@
 --- Claudius plugin core functionality
---- Provides chat interface and Claude API integration
+--- Provides chat interface and API integration
 local M = {}
-local ns_id = vim.api.nvim_create_namespace("claudius")
-local api_key = nil
-local log = {}
+
 local buffers = require("claudius.buffers")
+local plugin_config = require("claudius.config")
+local log = require("claudius.logging")
+local provider_config = require("claudius.provider.config")
+local textobject = require("claudius.textobject")
+
+local provider = nil
+
+-- Helper function to set highlight groups
+-- Accepts either a highlight group name to link to, or a hex color string (e.g., "#ff0000")
+local function set_highlight(group_name, value)
+  if type(value) ~= "string" then
+    log.error(string.format("set_highlight(): Invalid value type for group %s: %s", group_name, type(value)))
+    return
+  end
+
+  if value:sub(1, 1) == "#" then
+    -- Assume it's a hex color for foreground
+    -- Add default = true to respect pre-existing user definitions
+    vim.api.nvim_set_hl(0, group_name, { fg = value, default = true })
+  else
+    -- Assume it's a highlight group name to link
+    -- Use the API function to link the highlight group in the global namespace (0)
+    vim.api.nvim_set_hl(0, group_name, { link = value, default = true })
+  end
+end
+
+-- Module configuration (will hold merged user opts and defaults)
+local config = {}
+
+local ns_id = vim.api.nvim_create_namespace("claudius")
+
+-- Session-wide usage tracking
+local session_usage = {
+  input_tokens = 0,
+  output_tokens = 0,
+}
 
 -- Execute a command in the context of a specific buffer
-function M.buffer_cmd(bufnr, cmd)
+local function buffer_cmd(bufnr, cmd)
   local winid = vim.fn.bufwinid(bufnr)
   if winid == -1 then
     -- If buffer has no window, do nothing
@@ -15,69 +49,6 @@ function M.buffer_cmd(bufnr, cmd)
   end
   vim.fn.win_execute(winid, "noautocmd " .. cmd)
 end
-
--- Session-wide usage tracking (intentionally kept global)
-local session_usage = {
-  input_tokens = 0,
-  output_tokens = 0,
-}
-
--- Utility functions for JSON encoding/decoding
-local function json_decode(str)
-  return vim.fn.json_decode(str)
-end
-
-local function json_encode(data)
-  return vim.fn.json_encode(data)
-end
-
--- Folding functions
-function M.get_fold_level(lnum)
-  local line = vim.fn.getline(lnum)
-  local last_line = vim.fn.line("$")
-
-  -- If line starts with @, it's the start of a fold
-  if line:match("^@[%w]+:") then
-    return ">1" -- vim: foldlevel string
-  end
-
-  -- If next line starts with @ or this is the last line, this is the end of the current fold
-  local next_line = vim.fn.getline(lnum + 1)
-  if next_line:match("^@[%w]+:") or lnum == last_line then
-    return "<1"
-  end
-
-  -- Otherwise, we're inside a fold
-  return "1"
-end
-
-function M.get_fold_text()
-  local foldstart = vim.v.foldstart
-  local line = vim.fn.getline(foldstart)
-  local lines_count = vim.v.foldend - vim.v.foldstart + 1
-
-  -- Extract the prefix (@You:, @Assistant:, etc.)
-  local prefix = line:match("^(@[%w]+:)")
-  if not prefix then
-    return line
-  end
-
-  -- Get the first line of content (excluding the prefix)
-  local content = line:sub(#prefix + 1):gsub("^%s*", "")
-
-  -- Create fold text: prefix + first line + number of lines
-  return string.format("%s %s... (%d lines)", prefix, content:sub(1, 50), lines_count)
-end
-
--- Message types
-local MSG_TYPE = {
-  SYSTEM = "System",
-  USER = "You",
-  ASSISTANT = "Assistant",
-}
-
--- Message selection and navigation functions
-local textobject = require("claudius.textobject")
 
 -- Navigation functions
 local function find_next_message()
@@ -121,69 +92,6 @@ local function find_prev_message()
   return false
 end
 
--- Module configuration
-local config = {}
-
--- Default configuration
-local default_config = {
-  highlights = {
-    system = "Special",
-    user = "Normal",
-    assistant = "Comment",
-  },
-  prefix_style = "bold,underline",
-  ruler = {
-    char = "─", -- The character to use for the ruler
-    style = "NonText", -- Highlight group for the ruler
-  },
-  signs = {
-    enabled = false, -- Enable sign column highlighting (disabled by default)
-    char = "▌", -- Default vertical bar character
-    system = {
-      char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.system
-    },
-    user = {
-      char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.user
-    },
-    assistant = {
-      char = nil, -- Use default char
-      hl = true, -- Inherit from highlights.assistant
-    },
-  },
-  notify = require("claudius.notify").default_opts,
-  pricing = {
-    enabled = true, -- Whether to show pricing information in notifications
-  },
-  model = "claude-3-7-sonnet-20250219", -- Default Claude model to use
-  parameters = {
-    max_tokens = 4000, -- Maximum tokens in response
-    temperature = 0.7, -- Response creativity (0.0-1.0)
-  },
-  text_object = "m", -- Default text object key, set to false to disable
-  editing = {
-    disable_textwidth = true, -- Whether to disable textwidth in chat buffers
-    auto_write = false, -- Whether to automatically write the buffer after changes
-  },
-  logging = {
-    enabled = false, -- Logging disabled by default
-    path = vim.fn.stdpath("cache") .. "/claudius.log", -- Default log path
-  },
-  keymaps = {
-    normal = {
-      send = "<C-]>",
-      cancel = "<C-c>",
-      next_message = "]m", -- Jump to next message
-      prev_message = "[m", -- Jump to previous message
-    },
-    insert = {
-      send = "<C-]>",
-    },
-    enabled = true, -- Set to false to disable all keymaps
-  },
-}
-
 -- Helper function to add rulers
 local function add_rulers(bufnr)
   -- Clear existing extmarks
@@ -196,10 +104,10 @@ local function add_rulers(bufnr)
     if line:match("^@[%w]+:") then
       -- If this isn't the first line, add a ruler before it
       if i > 1 then
-        -- Create virtual line with ruler
-        local ruler_text = string.rep(default_config.ruler.char, math.floor(vim.api.nvim_win_get_width(0) * 1))
+        -- Create virtual line with ruler using the ClaudiusRuler highlight group
+        local ruler_text = string.rep(config.ruler.char, math.floor(vim.api.nvim_win_get_width(0) * 1))
         vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
-          virt_lines = { { { ruler_text, default_config.ruler.style } } },
+          virt_lines = { { { ruler_text, "ClaudiusRuler" } } }, -- Use defined group
           virt_lines_above = true,
         })
       end
@@ -207,51 +115,126 @@ local function add_rulers(bufnr)
   end
 end
 
+-- Helper function to force UI update (rulers and signs)
+local function update_ui(bufnr)
+  -- Ensure buffer is valid before proceeding
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    log.debug("update_ui(): Invalid buffer: " .. bufnr)
+    return
+  end
+  add_rulers(bufnr)
+  -- Clear and reapply all signs
+  vim.fn.sign_unplace("claudius_ns", { buffer = bufnr })
+  M.parse_buffer(bufnr) -- This will reapply signs
+end
+
 -- Helper function to auto-write the buffer if enabled
 local function auto_write_buffer(bufnr)
   if config.editing.auto_write and vim.bo[bufnr].modified then
-    log.debug("Auto-writing buffer")
-    M.buffer_cmd(bufnr, "silent! write")
+    log.debug("auto_write_buffer(): bufnr = " .. bufnr)
+    buffer_cmd(bufnr, "silent! write")
   end
 end
 
--- Setup function to initialize the plugin
-M.setup = function(opts)
-  -- Merge user config with defaults
-  opts = opts or {}
-  config = vim.tbl_deep_extend("force", default_config, opts)
+-- Initialize or switch provider based on configuration
+local function initialize_provider(provider_name, model_name, parameters)
+  -- Validate and potentially update the model based on the provider
+  local original_model = model_name -- Could be nil
+  local validated_model = provider_config.get_appropriate_model(original_model, provider_name)
 
-  -- Setup logging
-  local function write_log(level, msg)
-    if config.logging and config.logging.enabled then
-      local f = io.open(config.logging.path, "a")
-      if f then
-        f:write(os.date("%Y-%m-%d %H:%M:%S") .. " [" .. level .. "] " .. msg .. "\n")
-        f:close()
-      end
+  -- Log if we had to switch models during initialization/switch
+  if validated_model ~= original_model and original_model ~= nil then
+    log.info(
+      "initialize_provider(): Model "
+        .. log.inspect(original_model)
+        .. " is not valid for provider "
+        .. log.inspect(provider_name)
+        .. ". Using default: "
+        .. log.inspect(validated_model)
+    )
+  elseif original_model == nil then
+    log.debug(
+      "initialize_provider(): Using default model for provider "
+        .. log.inspect(provider_name)
+        .. ": "
+        .. log.inspect(validated_model)
+    )
+  end
+
+  -- Use the validated model for the final provider configuration
+  -- Also update the global config table so format_usage gets the correct model
+  config.model = validated_model
+
+  -- Prepare the final parameters table by merging base and provider-specific settings
+  local merged_params = {}
+  local base_params = parameters or {}
+  local provider_overrides = base_params[provider_name] or {}
+
+  -- 1. Copy all non-provider-specific keys from the base parameters
+  for k, v in pairs(base_params) do
+    -- Only copy if it's not a provider-specific table or if it's a general parameter
+    if type(v) ~= "table" or plugin_config.is_general_parameter(k) then
+      merged_params[k] = v
     end
   end
-
-  function log.info(msg)
-    write_log("INFO", msg)
+  -- 2. Merge the provider-specific overrides, potentially overwriting general keys
+  for k, v in pairs(provider_overrides) do
+    merged_params[k] = v
   end
 
-  function log.error(msg)
-    write_log("ERROR", msg)
+  -- Set the validated model in the merged parameters
+  merged_params.model = validated_model
+
+  -- Log the final configuration being passed to the provider constructor
+  log.debug(
+    "initialize_provider(): Initializing provider "
+      .. log.inspect(provider_name)
+      .. " with config: "
+      .. log.inspect(merged_params)
+  )
+
+  -- Create a fresh provider instance with the merged parameters
+  local new_provider
+  if provider_name == "openai" then
+    new_provider = require("claudius.provider.openai").new(merged_params)
+  elseif provider_name == "vertex" then
+    new_provider = require("claudius.provider.vertex").new(merged_params)
+  else
+    -- Default to Claude if not specified (or if provider_name is 'claude')
+    new_provider = require("claudius.provider.claude").new(merged_params)
   end
 
-  function log.debug(msg)
-    write_log("DEBUG", msg)
-  end
+  -- Update the global provider reference
+  provider = new_provider
+
+  return new_provider
+end
+
+-- Setup function to initialize the plugin
+M.setup = function(user_opts)
+  -- Merge user config with defaults from the config module
+  user_opts = user_opts or {}
+  config = vim.tbl_deep_extend("force", plugin_config.defaults, user_opts)
+
+  -- Configure logging based on user settings
+  log.configure({
+    enabled = config.logging.enabled,
+    path = config.logging.path,
+  })
+
+  log.info("setup(): Claudius starting...")
+
+  -- Initialize provider based on the merged config
+  initialize_provider(config.provider, config.model, config.parameters)
 
   -- Helper function to toggle logging
   local function toggle_logging(enable)
     if enable == nil then
-      enable = not config.logging.enabled
+      enable = not log.is_enabled()
     end
-    config.logging.enabled = enable
+    log.set_enabled(enable)
     if enable then
-      vim.notify("Claudius: Logging enabled - " .. config.logging.path)
+      vim.notify("Claudius: Logging enabled - " .. log.get_path())
     else
       vim.notify("Claudius: Logging disabled")
     end
@@ -269,20 +252,34 @@ M.setup = function(opts)
 
   -- Define sign groups for each role
   if config.signs.enabled then
-    -- Define signs with proper casing to match message types
+    -- Define signs using internal keys ('user', 'system', 'assistant')
     local signs = {
-      ["You"] = { config = config.signs.user, highlight = config.highlights.user },
-      ["System"] = { config = config.signs.system, highlight = config.highlights.system },
-      ["Assistant"] = { config = config.signs.assistant, highlight = config.highlights.assistant },
+      ["user"] = { config = config.signs.user, highlight = config.highlights.user },
+      ["system"] = { config = config.signs.system, highlight = config.highlights.system },
+      ["assistant"] = { config = config.signs.assistant, highlight = config.highlights.assistant },
     }
-    -- Ensure we have lowercase versions of the role names for sign configs
-    config.signs.you = config.signs.user
-    for role, sign_data in pairs(signs) do
+    -- Iterate using internal keys
+    for internal_role_key, sign_data in pairs(signs) do
+      -- Define the specific highlight group name for the sign (e.g., ClaudiusSignUser)
+      local sign_hl_group = "ClaudiusSign" .. internal_role_key:sub(1, 1):upper() .. internal_role_key:sub(2)
+
+      -- Set the sign highlight group if highlighting is enabled
       if sign_data.config.hl ~= false then
-        local sign_name = "claudius_" .. string.lower(role)
+        local target_hl = sign_data.config.hl == true and sign_data.highlight or sign_data.config.hl
+        set_highlight(sign_hl_group, target_hl) -- Use the helper function
+
+        -- Define the sign using the internal key (e.g., claudius_user)
+        local sign_name = "claudius_" .. internal_role_key
         vim.fn.sign_define(sign_name, {
           text = sign_data.config.char or config.signs.char,
-          texthl = sign_data.config.hl == true and sign_data.highlight or sign_data.config.hl,
+          texthl = sign_hl_group, -- Use the linked group
+        })
+      else
+        -- Define the sign without a highlight group if hl is false
+        local sign_name = "claudius_" .. internal_role_key
+        vim.fn.sign_define(sign_name, {
+          text = sign_data.config.char or config.signs.char,
+          -- texthl is omitted
         })
       end
     end
@@ -298,47 +295,49 @@ M.setup = function(opts)
     -- Explicitly load our syntax file
     vim.cmd("runtime! syntax/chat.vim")
 
-    -- Link highlights to user config
-    vim.cmd(string.format("highlight link ChatSystem %s", config.highlights.system))
-    vim.cmd(string.format("highlight link ChatUser %s", config.highlights.user))
-    vim.cmd(string.format("highlight link ChatAssistant %s", config.highlights.assistant))
+    -- Set highlights based on user config (link or hex color)
+    set_highlight("ClaudiusSystem", config.highlights.system)
+    set_highlight("ClaudiusUser", config.highlights.user)
+    set_highlight("ClaudiusAssistant", config.highlights.assistant)
 
-    -- Set up prefix highlights
+    -- Set up role marker highlights (e.g., @You:, @System:)
+    -- Use existing highlight groups which are now correctly defined by set_highlight
     vim.cmd(string.format(
       [[
-      execute 'highlight ChatSystemPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatSystem")), "fg", "gui") . ' gui=%s'
-      execute 'highlight ChatUserPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatUser")), "fg", "gui") . ' gui=%s'
-      execute 'highlight ChatAssistantPrefix guifg=' . synIDattr(synIDtrans(hlID("ChatAssistant")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusRoleSystem guifg=' . synIDattr(synIDtrans(hlID("ClaudiusSystem")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusRoleUser guifg=' . synIDattr(synIDtrans(hlID("ClaudiusUser")), "fg", "gui") . ' gui=%s'
+      execute 'highlight ClaudiusRoleAssistant guifg=' . synIDattr(synIDtrans(hlID("ClaudiusAssistant")), "fg", "gui") . ' gui=%s'
     ]],
-      config.prefix_style,
-      config.prefix_style,
-      config.prefix_style
+      config.role_style,
+      config.role_style,
+      config.role_style
     ))
+
+    -- Set ruler highlight group
+    set_highlight("ClaudiusRuler", config.ruler.hl)
   end
 
   -- Set up folding expression
   local function setup_folding()
     vim.wo.foldmethod = "expr"
-    vim.wo.foldexpr = 'v:lua.require("claudius").get_fold_level(v:lnum)'
-    vim.wo.foldtext = 'v:lua.require("claudius").get_fold_text()'
+    vim.wo.foldexpr = 'v:lua.require("claudius.buffers").get_fold_level(v:lnum)'
+    vim.wo.foldtext = 'v:lua.require("claudius.buffers").get_fold_text()'
     -- Start with all folds open
     vim.wo.foldlevel = 99
   end
 
-  -- Add autocmd for updating rulers
-  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "VimResized", "TextChanged", "TextChangedI" }, {
+  -- Add autocmd for updating rulers and signs (debounced via CursorHold)
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "VimResized", "CursorHold", "CursorHoldI" }, {
     pattern = "*.chat",
     callback = function(ev)
-      add_rulers(ev.buf)
-      -- Clear and reapply all signs
-      vim.fn.sign_unplace("claudius_ns", { buffer = ev.buf })
-      M.parse_buffer(ev.buf) -- This will reapply signs
+      -- Use the new function for debounced updates
+      update_ui(ev.buf)
     end,
   })
 
   -- Create user commands
   vim.api.nvim_create_user_command("ClaudiusSend", function()
-    M.send_to_claude()
+    M.send_to_provider()
   end, {})
 
   vim.api.nvim_create_user_command("ClaudiusCancel", function()
@@ -351,13 +350,132 @@ M.setup = function(opts)
 
   vim.api.nvim_create_user_command("ClaudiusSendAndInsert", function()
     local bufnr = vim.api.nvim_get_current_buf()
-    M.buffer_cmd(bufnr, "stopinsert")
-    M.send_to_claude({
+    buffer_cmd(bufnr, "stopinsert")
+    M.send_to_provider({
       on_complete = function()
-        M.buffer_cmd(bufnr, "startinsert!")
+        buffer_cmd(bufnr, "startinsert!")
       end,
     })
   end, {})
+
+  -- Parse key=value arguments
+  local function parse_key_value_args(args, start_index)
+    local result = {}
+    for i = start_index or 3, #args do
+      local arg = args[i]
+      local key, value = arg:match("^([%w_]+)=(.+)$")
+
+      if key and value then
+        -- Convert value to appropriate type
+        if value == "true" then
+          value = true
+        elseif value == "false" then
+          value = false
+        elseif value == "nil" or value == "null" then
+          value = nil
+        elseif tonumber(value) then
+          value = tonumber(value)
+        end
+
+        result[key] = value
+      end
+    end
+    return result
+  end
+
+  -- Command to switch providers
+  vim.api.nvim_create_user_command("ClaudiusSwitch", function(opts)
+    local args = opts.fargs
+
+    if #args == 0 then
+      -- Interactive selection if no arguments are provided
+      local providers = {}
+      for name, _ in pairs(provider_config.models) do
+        table.insert(providers, name)
+      end
+      table.sort(providers) -- Sort providers for the selection list
+
+      vim.ui.select(providers, { prompt = "Select Provider:" }, function(selected_provider)
+        if not selected_provider then
+          vim.notify("Claudius: Provider selection cancelled", vim.log.levels.INFO)
+          return
+        end
+
+        -- Get models for the selected provider (unsorted)
+        local models = provider_config.models[selected_provider] or {}
+        if type(models) ~= "table" or #models == 0 then
+          vim.notify("Claudius: No models found for provider " .. selected_provider, vim.log.levels.WARN)
+          -- Switch to provider with default model
+          M.switch(selected_provider, nil, {})
+          return
+        end
+
+        vim.ui.select(models, { prompt = "Select Model for " .. selected_provider .. ":" }, function(selected_model)
+          if not selected_model then
+            vim.notify("Claudius: Model selection cancelled", vim.log.levels.INFO)
+            return
+          end
+          -- Call M.switch with selected provider and model, no extra params
+          M.switch(selected_provider, selected_model, {})
+        end)
+      end)
+    else
+      -- Existing logic for handling command-line arguments
+      local switch_opts = {
+        provider = args[1],
+      }
+
+      if args[2] and not args[2]:match("^[%w_]+=") then
+        switch_opts.model = args[2]
+      end
+
+      -- Parse any key=value pairs
+      local key_value_args = parse_key_value_args(args, switch_opts.model and 3 or 2)
+      for k, v in pairs(key_value_args) do
+        switch_opts[k] = v
+      end
+
+      -- Call the refactored M.switch function
+      M.switch(switch_opts.provider, switch_opts.model, key_value_args)
+    end
+  end, {
+    nargs = "*", -- Allow zero arguments for interactive mode
+    complete = function(arglead, cmdline, _)
+      local args = vim.split(cmdline, "%s+", { trimempty = true })
+      local num_args = #args
+      local trailing_space = cmdline:match("%s$")
+
+      -- If completing the provider name (argument 2)
+      if num_args == 1 or (num_args == 2 and not trailing_space) then
+        local providers = {}
+        for name, _ in pairs(provider_config.models) do
+          table.insert(providers, name)
+        end
+        table.sort(providers)
+        return vim.tbl_filter(function(p)
+          return vim.startswith(p, arglead)
+        end, providers)
+      -- If completing the model name (argument 3)
+      elseif (num_args == 2 and trailing_space) or (num_args == 3 and not trailing_space) then
+        local provider_name = args[2]
+        -- Access the model list directly from the new structure
+        local models = provider_config.models[provider_name] or {}
+
+        -- Ensure models is a table before sorting and filtering
+        if type(models) == "table" then
+          -- Filter the original (unsorted) list
+          return vim.tbl_filter(function(model)
+            return vim.startswith(model, arglead)
+          end, models)
+        end
+        -- If the provider doesn't exist or models isn't a table, return empty
+        return {}
+      end
+
+      -- Default: return empty list if no completion matches
+      return {}
+    end,
+  })
 
   -- Navigation commands
   vim.api.nvim_create_user_command("ClaudiusNextMessage", function()
@@ -378,14 +496,14 @@ M.setup = function(opts)
   end, {})
 
   vim.api.nvim_create_user_command("ClaudiusOpenLog", function()
-    if not config.logging.enabled then
+    if not log.is_enabled() then
       vim.notify("Claudius: Logging is currently disabled", vim.log.levels.WARN)
       -- Give user time to see the warning
       vim.defer_fn(function()
-        vim.cmd("tabedit " .. config.logging.path)
+        vim.cmd("tabedit " .. log.get_path())
       end, 1000)
     else
-      vim.cmd("tabedit " .. config.logging.path)
+      vim.cmd("tabedit " .. log.get_path())
     end
   end, {})
 
@@ -424,7 +542,7 @@ M.setup = function(opts)
     end,
   })
 
-  -- Set up the mappings for Claude interaction if enabled
+  -- Set up the mappings for Claudius interaction if enabled
   if config.keymaps.enabled then
     vim.api.nvim_create_autocmd("FileType", {
       pattern = "chat",
@@ -432,8 +550,8 @@ M.setup = function(opts)
         -- Normal mode mappings
         if config.keymaps.normal.send then
           vim.keymap.set("n", config.keymaps.normal.send, function()
-            M.send_to_claude()
-          end, { buffer = true, desc = "Send to Claude" })
+            M.send_to_provider()
+          end, { buffer = true, desc = "Send to Claudius" })
         end
 
         if config.keymaps.normal.cancel then
@@ -441,7 +559,7 @@ M.setup = function(opts)
             "n",
             config.keymaps.normal.cancel,
             M.cancel_request,
-            { buffer = true, desc = "Cancel Claude Request" }
+            { buffer = true, desc = "Cancel Claudius Request" }
           )
         end
 
@@ -471,13 +589,13 @@ M.setup = function(opts)
         if config.keymaps.insert.send then
           vim.keymap.set("i", config.keymaps.insert.send, function()
             local bufnr = vim.api.nvim_get_current_buf()
-            M.buffer_cmd(bufnr, "stopinsert")
-            M.send_to_claude({
+            buffer_cmd(bufnr, "stopinsert")
+            M.send_to_provider({
               on_complete = function()
-                M.buffer_cmd(bufnr, "startinsert!")
+                buffer_cmd(bufnr, "startinsert!")
               end,
             })
-          end, { buffer = true, desc = "Send to Claude and continue editing" })
+          end, { buffer = true, desc = "Send to Claudius and continue editing" })
         end
       end,
     })
@@ -490,8 +608,21 @@ local function place_signs(bufnr, start_line, end_line, role)
     return
   end
 
-  local sign_name = "claudius_" .. string.lower(role)
-  local sign_config = config.signs[string.lower(role)]
+  -- Map the display role ("You", "System", "Assistant") to the internal config key ("user", "system", "assistant")
+  local internal_role_key = string.lower(role) -- Default to lowercase
+  if role == "You" then
+    internal_role_key = "user" -- Map "You" specifically to "user"
+  end
+
+  local sign_name = "claudius_" .. internal_role_key -- Construct sign name like "claudius_user"
+  local sign_config = config.signs[internal_role_key] -- Look up config using "user", "system", etc.
+
+  -- Check if the sign is actually defined before trying to place it
+  if vim.fn.sign_getdefined(sign_name) == {} then
+    log.debug("place_signs(): Sign not defined: " .. sign_name .. " for role " .. role)
+    return
+  end
+
   if sign_config and sign_config.hl ~= false then
     for lnum = start_line, end_line do
       vim.fn.sign_place(0, "claudius_ns", sign_name, bufnr, { lnum = lnum })
@@ -509,14 +640,14 @@ local function parse_message(bufnr, lines, start_idx, frontmatter_offset)
 
   local content = {}
   local i = start_idx
-  -- Remove the prefix from first line
+  -- Remove the role marker (e.g., @You:) from the first line
   local first_content = line:sub(#msg_type + 3)
   if first_content:match("%S") then
     content[#content + 1] = first_content:gsub("^%s*", "")
   end
 
   i = i + 1
-  -- Collect lines until we hit another prefix or end of buffer
+  -- Collect lines until we hit another role marker or end of buffer
   while i <= #lines do
     local next_line = lines[i]
     if next_line:match("^@[%w]+:") then
@@ -574,87 +705,46 @@ function M.parse_buffer(bufnr)
   return messages, fm_code
 end
 
--- Format messages for Claude API
-local function format_messages(messages)
-  local formatted = {}
-  local system_message = nil
-
-  for _, msg in ipairs(messages) do
-    if msg.type == MSG_TYPE.SYSTEM then
-      system_message = msg.content:gsub("%s+$", "")
-    else
-      local role = msg.type == MSG_TYPE.USER and "user" or msg.type == MSG_TYPE.ASSISTANT and "assistant" or nil
-
-      if role then
-        table.insert(formatted, {
-          role = role,
-          content = msg.content:gsub("%s+$", ""),
-        })
-      end
-    end
-  end
-
-  return formatted, system_message
-end
-
 -- Cancel ongoing request if any
 function M.cancel_request()
   local bufnr = vim.api.nvim_get_current_buf()
   local state = buffers.get_state(bufnr)
 
   if state.current_request then
-    log.info("Cancelling request " .. tostring(state.current_request))
-
-    -- Get the process ID
-    local pid = vim.fn.jobpid(state.current_request)
+    log.info("cancel_request(): job_id = " .. tostring(state.current_request))
 
     -- Mark as cancelled
     state.request_cancelled = true
 
-    if pid then
-      -- Send SIGINT first for clean connection termination
-      vim.fn.system("kill -INT " .. pid)
-      log.info("Sent SIGINT to curl process " .. pid)
-
-      -- Give curl a moment to cleanup, then force kill if still running
-      vim.defer_fn(function()
-        if state.current_request then
-          vim.fn.jobstop(state.current_request)
-          vim.fn.system("kill -KILL " .. pid)
-          log.info("Sent SIGKILL to curl process " .. pid)
-          state.current_request = nil
-        end
-      end, 500)
-    else
-      -- Fallback to jobstop if we couldn't get PID
-      vim.fn.jobstop(state.current_request)
+    -- Use provider to cancel the request
+    if provider:cancel_request(state.current_request) then
       state.current_request = nil
+
+      -- Clean up the buffer
+      local last_line = vim.api.nvim_buf_line_count(bufnr)
+      local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
+
+      -- If we're still showing the thinking message, remove it
+      if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+        log.debug("cancel_request(): ... Cleaning up 'Thinking...' message")
+        M.cleanup_spinner(bufnr)
+      end
+
+      -- Auto-write if enabled and we've received some content
+      if state.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
+        auto_write_buffer(bufnr)
+      end
+
+      local msg = "Claudius: Request cancelled"
+      if log.is_enabled() then
+        msg = msg .. ". See " .. log.get_path() .. " for details"
+      end
+      vim.notify(msg, vim.log.levels.INFO)
+      -- Force UI update after cancellation
+      update_ui(bufnr)
     end
-
-    state.current_request = nil
-
-    -- Clean up the buffer
-    local last_line = vim.api.nvim_buf_line_count(bufnr)
-    local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
-
-    -- If we're still showing the thinking message, remove it
-    if last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
-      log.debug("Cleaning up thinking message")
-      M.cleanup_spinner(bufnr)
-    end
-
-    -- Auto-write if enabled and we've received some content
-    if state.request_cancelled and not last_line_content:match("^@Assistant:.*Thinking%.%.%.$") then
-      auto_write_buffer(bufnr)
-    end
-
-    local msg = "Claudius: Request cancelled"
-    if config.logging.enabled then
-      msg = msg .. ". See " .. config.logging.path .. " for details"
-    end
-    vim.notify(msg, vim.log.levels.INFO)
   else
-    log.debug("Cancel request called but no current request found")
+    log.debug("cancel_request(): No current request found")
   end
 end
 
@@ -679,6 +769,8 @@ M.cleanup_spinner = function(bufnr)
   else
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
   end
+  -- Force UI update after cleaning up spinner
+  update_ui(bufnr)
 end
 
 -- Show loading spinner
@@ -697,6 +789,8 @@ local function start_loading_spinner(bufnr)
   else
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "@Assistant: Thinking..." })
   end
+  -- Immediately update UI after adding the thinking message
+  update_ui(bufnr)
 
   local timer = vim.fn.timer_start(100, function()
     if not state.current_request then
@@ -705,16 +799,18 @@ local function start_loading_spinner(bufnr)
     frame = (frame % #spinner_frames) + 1
     local text = "@Assistant: " .. spinner_frames[frame] .. " Thinking..."
     local last_line = vim.api.nvim_buf_line_count(bufnr)
-    M.buffer_cmd(bufnr, "undojoin")
+    buffer_cmd(bufnr, "undojoin")
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
+    -- Force UI update during spinner animation
+    update_ui(bufnr)
   end, { ["repeat"] = -1 })
 
   state.spinner_timer = timer
   return timer
 end
 
--- Handle the Claude interaction
-function M.send_to_claude(opts)
+-- Handle the AI provider interaction
+function M.send_to_provider(opts)
   opts = opts or {}
   local bufnr = vim.api.nvim_get_current_buf()
   local state = buffers.get_state(bufnr)
@@ -725,56 +821,59 @@ function M.send_to_claude(opts)
     return
   end
 
-  log.info("Starting new Claude request")
+  log.info("send_to_provider(): Starting new request for buffer " .. bufnr)
   state.request_cancelled = false
 
   -- Auto-write the buffer before sending if enabled
   auto_write_buffer(bufnr)
 
-  -- Helper function to try getting API key from system keyring
-  local function try_keyring()
-    if vim.fn.has("linux") == 1 then
-      local handle = io.popen("secret-tool lookup service anthropic key api 2>/dev/null")
-      if handle then
-        local result = handle:read("*a")
-        handle:close()
-        if result and #result > 0 then
-          log.info("API key retrieved from system keyring")
-          return result:gsub("%s+$", "") -- Trim whitespace
-        end
-      end
+  -- Ensure we have a valid provider
+  if not provider then
+    log.error("send_to_provider(): Provider not initialized")
+    vim.notify("Claudius: Provider not initialized", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Check if we need to prompt for API key
+  local api_key_result, api_key_error = pcall(function()
+    return provider:get_api_key()
+  end)
+
+  if not api_key_result then
+    -- There was an error getting the API key
+    log.error("send_to_provider(): Error getting API key: " .. tostring(api_key_error))
+
+    -- Get provider-specific authentication notes if available
+    local auth_notes = provider_config.auth_notes and provider_config.auth_notes[config.provider]
+
+    if auth_notes then
+      -- Show a more detailed alert with the auth notes
+      require("claudius.notify").alert(
+        tostring(api_key_error):gsub("%s+$", "") .. "\n\n---\n\n" .. auth_notes,
+        { title = "Claudius - Authentication Error: " .. config.provider }
+      )
+    else
+      require("claudius.notify").alert(tostring(api_key_error), { title = "Claudius - Authentication Error" })
     end
-    return nil
+    return
   end
 
-  -- Try environment variable first
-  api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-  if api_key then
-    log.info("API key found in environment variable")
-  end
-
-  -- Try system keyring if no env var
-  if not api_key then
-    api_key = try_keyring()
-  end
-
-  -- If still no API key, prompt for it
-  if not api_key then
-    log.info("No API key found in environment or keyring, prompting user")
+  if not api_key_error and not provider.state.api_key then
+    log.info("send_to_provider(): No API key found, prompting user")
     vim.ui.input({
-      prompt = "Enter your Anthropic API key: ",
+      prompt = "Enter your API key: ",
       default = "",
       border = "rounded",
       title = " Claudius - API Key Required ",
       relative = "editor",
     }, function(input)
       if input then
-        api_key = input
-        log.info("API key set via prompt")
-        -- Continue with the Claude request immediately
-        M.send_to_claude()
+        provider.state.api_key = input
+        log.info("send_to_provider(): API key set via prompt")
+        -- Continue with the Claudius request immediately
+        M.send_to_provider()
       else
-        log.error("API key prompt cancelled")
+        log.error("send_to_provider(): API key prompt cancelled by user")
         vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
       end
     end)
@@ -792,17 +891,17 @@ function M.send_to_claude(opts)
   -- Execute frontmatter if present and get variables
   local template_vars = {}
   if frontmatter_code then
-    log.debug("Evaluating frontmatter code:\n" .. frontmatter_code)
+    log.debug("send_to_provider(): Evaluating frontmatter code: " .. log.inspect(frontmatter_code))
     local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code)
     if not ok then
       vim.notify("Claudius: Frontmatter error - " .. result, vim.log.levels.ERROR)
       return
     end
-    log.debug("Frontmatter evaluation result:\n" .. vim.inspect(result))
+    log.debug("send_to_provider(): ... Frontmatter evaluation result: " .. log.inspect(result))
     template_vars = result
   end
 
-  local formatted_messages, system_message = format_messages(messages)
+  local formatted_messages, system_message = provider:format_messages(messages, nil)
 
   -- Process template expressions in messages
   local eval = require("claudius.eval")
@@ -811,33 +910,35 @@ function M.send_to_claude(opts)
   for i, msg in ipairs(formatted_messages) do
     -- Look for {{expression}} patterns
     msg.content = msg.content:gsub("{{(.-)}}", function(expr)
-      log.debug(string.format("Evaluating template expression (message %d): %s", i, expr))
+      log.debug(
+        string.format("send_to_provider(): Evaluating template expression (message %d): %s", i, log.inspect(expr))
+      )
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
         local err_msg = string.format("Template error (message %d) - %s", i, result)
-        log.error(err_msg)
+        log.error("send_to_provider(): " .. err_msg)
         vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
       end
-      log.debug(string.format("Expression result (message %d): %s", i, tostring(result)))
+      log.debug(string.format("send_to_provider(): ... Expression result (message %d): %s", i, log.inspect(result)))
       return tostring(result)
     end)
   end
-  local request_body = {
-    model = config.model,
-    messages = formatted_messages,
-    system = system_message,
-    max_tokens = config.parameters.max_tokens,
-    temperature = config.parameters.temperature,
-    stream = true,
-  }
 
-  -- Log the outgoing request as JSON
-  log.debug("Sending request to Claude API:")
-  log.debug("Request body: " .. json_encode(request_body))
+  -- Create request body using the validated model stored in the provider
+  local request_body = provider:create_request_body(formatted_messages, system_message)
+
+  -- Log the request details (using the provider's stored model)
+  log.debug(
+    "send_to_provider(): Sending request for provider "
+      .. log.inspect(config.provider)
+      .. " with model "
+      .. log.inspect(provider.parameters.model)
+  )
 
   local spinner_timer = start_loading_spinner(bufnr)
   local response_started = false
+
   -- Format usage information for display
   local function format_usage(current, session)
     local pricing = require("claudius.pricing")
@@ -848,6 +949,8 @@ function M.send_to_claude(opts)
       local current_cost = config.pricing.enabled
         and pricing.calculate_cost(config.model, current.input_tokens, current.output_tokens)
       table.insert(lines, "Request:")
+      -- Add model and provider information
+      table.insert(lines, string.format("  Model:  `%s` (%s)", config.model, config.provider))
       if current_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", current.input_tokens or 0, current_cost.input))
         table.insert(
@@ -884,252 +987,56 @@ function M.send_to_claude(opts)
     return table.concat(lines, "\n")
   end
 
-  local function handle_response_line(line, timer)
-    -- First try parsing the line directly as JSON for error responses
-    local ok, error_data = pcall(json_decode, line)
-    if ok and error_data.type == "error" then
-      vim.schedule(function()
-        vim.fn.timer_stop(timer)
-        M.cleanup_spinner(bufnr)
-        state.current_request = nil
-
-        -- Auto-write on error if enabled
-        auto_write_buffer(bufnr)
-
-        local msg = "Claude API error"
-        if error_data.error and error_data.error.message then
-          msg = error_data.error.message
-        end
-        local notify_msg = "Claudius: " .. msg
-        if config.logging and config.logging.enabled then
-          notify_msg = notify_msg .. ". See " .. config.logging.path .. " for details"
-        end
-        vim.notify(notify_msg, vim.log.levels.ERROR)
-      end)
-      return
-    end
-
-    -- Otherwise handle normal event stream format
-    if not line:match("^data: ") then
-      return
-    end
-
-    local json_str = line:gsub("^data: ", "")
-    if json_str == "[DONE]" then
-      vim.schedule(function()
-        vim.fn.timer_stop(timer)
-        state.current_request = nil
-      end)
-      return
-    end
-
-    local parse_ok, data = pcall(json_decode, json_str)
-    if not parse_ok then
-      return
-    end
-
-    -- Handle error responses
-    if data.type == "error" then
-      vim.schedule(function()
-        vim.fn.timer_stop(timer)
-        M.cleanup_spinner(bufnr)
-        state.current_request = nil
-
-        -- Auto-write on error if enabled
-        auto_write_buffer(bufnr)
-
-        local msg = "Claude API error"
-        if data.error and data.error.message then
-          msg = data.error.message
-        end
-        local notify_msg = "Claudius: " .. msg
-        if config.logging and config.logging.enabled then
-          notify_msg = notify_msg .. ". See " .. config.logging.path .. " for details"
-        end
-        vim.notify(notify_msg, vim.log.levels.ERROR)
-      end)
-      return
-    end
-
-    -- Track usage information from all events
-    if data.type == "message_start" then
-      -- Get input tokens from message.usage in message_start event
-      if data.message and data.message.usage and data.message.usage.input_tokens then
-        state.current_usage.input_tokens = data.message.usage.input_tokens
-      end
-    end
-    -- Track output tokens from usage field in any event
-    if data.usage and data.usage.output_tokens then
-      state.current_usage.output_tokens = data.usage.output_tokens
-    end
-
-    -- Display final usage on message_stop
-    if data.type == "message_stop" and state.current_usage then
-      vim.schedule(function()
-        -- Update session totals
-        session_usage.input_tokens = session_usage.input_tokens + (state.current_usage.input_tokens or 0)
-        session_usage.output_tokens = session_usage.output_tokens + (state.current_usage.output_tokens or 0)
-
-        -- Auto-write when response is complete
-        auto_write_buffer(bufnr)
-
-        -- Format and display usage information using our custom notification
-        local usage_str = format_usage(state.current_usage, session_usage)
-        if usage_str ~= "" then
-          local notify_opts = vim.tbl_deep_extend("force", config.notify, {
-            title = "Claude Usage",
-          })
-          require("claudius.notify").show(usage_str, notify_opts)
-        end
-        -- Reset current usage for next request
-        state.current_usage = {
-          input_tokens = 0,
-          output_tokens = 0,
-        }
-      end)
-    end
-
-    if data.type == "content_block_delta" and data.delta and data.delta.text then
-      vim.schedule(function()
-        -- Stop spinner on first content
-        if not response_started then
-          vim.fn.timer_stop(timer)
-        end
-
-        -- Split content into lines
-        local lines = vim.split(data.delta.text, "\n", { plain = true })
-
-        if #lines > 0 then
-          local last_line = vim.api.nvim_buf_line_count(bufnr)
-
-          if not response_started then
-            -- Clean up spinner and ensure blank line
-            M.cleanup_spinner(bufnr)
-            last_line = vim.api.nvim_buf_line_count(bufnr)
-
-            -- Check if response starts with a code fence
-            if lines[1]:match("^```") then
-              -- Add a newline before the code fence
-              M.buffer_cmd(bufnr, "undojoin")
-              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant:", lines[1] })
-            else
-              -- Start with @Assistant: prefix as normal
-              M.buffer_cmd(bufnr, "undojoin")
-              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant: " .. lines[1] })
-            end
-
-            -- Add remaining lines if any
-            if #lines > 1 then
-              M.buffer_cmd(bufnr, "undojoin")
-              vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, { unpack(lines, 2) })
-            end
-          else
-            -- Get the last line's content
-            local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
-
-            if #lines == 1 then
-              -- Just append to the last line
-              M.buffer_cmd(bufnr, "undojoin")
-              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
-            else
-              -- First chunk goes to the end of the last line
-              M.buffer_cmd(bufnr, "undojoin")
-              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
-
-              -- Remaining lines get added as new lines
-              M.buffer_cmd(bufnr, "undojoin")
-              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { unpack(lines, 2) })
-            end
-          end
-
-          response_started = true
-        end
-      end)
-    end
-  end
-
-  -- Create temporary file for request body with claudius prefix
-  local tmp_file = os.tmpname()
-  -- Handle both Unix and Windows paths
-  local tmp_dir = tmp_file:match("^(.+)[/\\]")
-  local tmp_name = tmp_file:match("[/\\]([^/\\]+)$")
-  -- Use the same separator that was in the original path
-  local sep = tmp_file:match("[/\\]")
-  tmp_file = tmp_dir .. sep .. "claudius_" .. tmp_name
-  local f = io.open(tmp_file, "w")
-  if not f then
-    vim.notify("Claudius: Failed to create temporary file", vim.log.levels.ERROR)
-    return
-  end
-  f:write(json_encode(request_body))
-  f:close()
-
-  -- Prepare curl command with proper timeouts and signal handling
-  local cmd = {
-    "curl",
-    "-N", -- disable buffering
-    "-s", -- silent mode
-    "--connect-timeout",
-    "10", -- connection timeout
-    "--max-time",
-    "120", -- maximum time allowed
-    "--retry",
-    "0", -- disable retries
-    "--http1.1", -- force HTTP/1.1 for better interrupt handling
-    "-H",
-    "Connection: close", -- request connection close
-    "-H",
-    "x-api-key: " .. api_key,
-    "-H",
-    "anthropic-version: 2023-06-01",
-    "-H",
-    "content-type: application/json",
-    "-d",
-    "@" .. tmp_file,
-    "https://api.anthropic.com/v1/messages",
-  }
-
-  -- Start job in its own process group
   -- Reset usage tracking for this buffer
   state.current_usage = {
     input_tokens = 0,
     output_tokens = 0,
   }
 
-  state.current_request = vim.fn.jobstart(cmd, {
-    detach = true, -- Put process in its own group
-    on_stdout = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line and #line > 0 then
-            log.debug("Received: " .. line)
-            handle_response_line(line, spinner_timer)
-          end
-        end
-      end
+  -- Set up callbacks for the provider
+  local callbacks = {
+    on_data = function(line)
+      -- Don't log here as it's already logged in process_response_line
     end,
-    on_stderr = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line and #line > 0 then
-            log.error("stderr: " .. line)
-          end
-        end
-      end
+
+    on_stderr = function(line)
+      log.error("send_to_provider(): callbacks.on_stderr: " .. line)
     end,
-    on_exit = function(_, code)
-      log.info("Request completed with exit code: " .. tostring(code))
+
+    on_error = function(msg)
       vim.schedule(function()
-        -- Clean up temporary file
-        os.remove(tmp_file)
-
-        state.current_request = nil
         vim.fn.timer_stop(spinner_timer)
+        M.cleanup_spinner(bufnr)
+        state.current_request = nil
 
-        -- Only add the new prompt if the request wasn't cancelled and completed successfully
-        if not state.request_cancelled and code == 0 and response_started then
+        -- Auto-write on error if enabled
+        auto_write_buffer(bufnr)
+
+        local notify_msg = "Claudius: " .. msg
+        if log.is_enabled() then
+          notify_msg = notify_msg .. ". See " .. log.get_path() .. " for details"
+        end
+        vim.notify(notify_msg, vim.log.levels.ERROR)
+      end)
+    end,
+
+    on_done = function()
+      vim.schedule(function()
+        if spinner_timer then
+          vim.fn.timer_stop(spinner_timer)
+        end
+        state.current_request = nil
+
+        -- Clean up spinner if response never started
+        if not response_started then
+          M.cleanup_spinner(bufnr)
+
+          -- Auto-write if enabled
+          auto_write_buffer(bufnr)
+
+          -- Add new prompt if needed
           local last_line = vim.api.nvim_buf_line_count(bufnr)
-          M.buffer_cmd(bufnr, "undojoin")
+          buffer_cmd(bufnr, "undojoin")
           vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
 
           -- Move cursor to after the colon and any whitespace
@@ -1146,6 +1053,157 @@ function M.send_to_claude(opts)
             end
           end
 
+          -- Call the completion callback if provided
+          if opts.on_complete then
+            opts.on_complete()
+          end
+        end
+      end)
+    end,
+
+    on_usage = function(usage_data)
+      if usage_data.type == "input" then
+        state.current_usage.input_tokens = usage_data.tokens
+      elseif usage_data.type == "output" then
+        state.current_usage.output_tokens = usage_data.tokens
+      end
+    end,
+
+    on_message_complete = function()
+      vim.schedule(function()
+        -- Update session totals
+        session_usage.input_tokens = session_usage.input_tokens + (state.current_usage.input_tokens or 0)
+        session_usage.output_tokens = session_usage.output_tokens + (state.current_usage.output_tokens or 0)
+
+        -- Auto-write when response is complete
+        auto_write_buffer(bufnr)
+
+        -- Format and display usage information using our custom notification
+        local usage_str = format_usage(state.current_usage, session_usage)
+        if usage_str ~= "" then
+          local notify_opts = vim.tbl_deep_extend("force", config.notify, {
+            title = "Usage",
+          })
+          require("claudius.notify").show(usage_str, notify_opts)
+        end
+        -- Reset current usage for next request
+        state.current_usage = {
+          input_tokens = 0,
+          output_tokens = 0,
+        }
+      end)
+    end,
+
+    on_content = function(text)
+      vim.schedule(function()
+        -- Stop spinner on first content
+        if not response_started then
+          vim.fn.timer_stop(spinner_timer)
+        end
+
+        -- Split content into lines
+        local lines = vim.split(text, "\n", { plain = true })
+
+        if #lines > 0 then
+          local last_line = vim.api.nvim_buf_line_count(bufnr)
+
+          if not response_started then
+            -- Clean up spinner and ensure blank line
+            M.cleanup_spinner(bufnr)
+            last_line = vim.api.nvim_buf_line_count(bufnr)
+
+            -- Check if response starts with a code fence
+            if lines[1]:match("^```") then
+              -- Add a newline before the code fence
+              buffer_cmd(bufnr, "undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant:", lines[1] })
+            else
+              -- Start with @Assistant: prefix as normal
+              buffer_cmd(bufnr, "undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "@Assistant: " .. lines[1] })
+            end
+
+            -- Add remaining lines if any
+            if #lines > 1 then
+              buffer_cmd(bufnr, "undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line + 1, last_line + 1, false, { unpack(lines, 2) })
+            end
+          else
+            -- Get the last line's content
+            local last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1]
+
+            if #lines == 1 then
+              -- Just append to the last line
+              buffer_cmd(bufnr, "undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
+            else
+              -- First chunk goes to the end of the last line
+              buffer_cmd(bufnr, "undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { last_line_content .. lines[1] })
+
+              -- Remaining lines get added as new lines
+              buffer_cmd(bufnr, "undojoin")
+              vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { unpack(lines, 2) })
+            end
+          end
+
+          response_started = true
+          -- Force UI update after appending content
+          update_ui(bufnr)
+        end
+      end)
+    end,
+
+    on_complete = function(code)
+      vim.schedule(function()
+        state.current_request = nil
+        vim.fn.timer_stop(spinner_timer)
+
+        -- Only add the new prompt if the request wasn't cancelled and completed successfully
+        if not state.request_cancelled and code == 0 and response_started then
+          local last_line = vim.api.nvim_buf_line_count(bufnr)
+
+          -- Check if the last line is empty
+          local last_line_content = ""
+          if last_line > 0 then
+            last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1] or ""
+          end
+
+          -- Prepare lines to insert based on whether the last line is empty
+          local lines_to_insert = {}
+          local cursor_line_offset = 1
+
+          if last_line_content == "" then
+            -- Last line is already empty, just add the prompt
+            lines_to_insert = { "@You: " }
+          else
+            -- Last line has content, add a blank line then the prompt
+            lines_to_insert = { "", "@You: " }
+            cursor_line_offset = 2
+          end
+
+          -- Insert the lines
+          buffer_cmd(bufnr, "undojoin")
+          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines_to_insert)
+
+          -- Move cursor to after the colon and any whitespace
+          local new_line = last_line + cursor_line_offset - 1
+          local lines = vim.api.nvim_buf_get_lines(bufnr, new_line, new_line + 1, false)
+          if #lines > 0 then
+            local line = lines[1]
+            local col = line:find(":%s*") + 1 -- Find position after the colon
+            while line:sub(col, col) == " " do -- Skip any whitespace
+              col = col + 1
+            end
+            -- Only set cursor if we're still in the buffer
+            if vim.api.nvim_get_current_buf() == bufnr then
+              vim.api.nvim_win_set_cursor(0, { new_line + 1, col - 1 })
+            end
+          end
+
+          -- Force UI update after adding the prompt
+          update_ui(bufnr)
+
           -- Auto-write after adding the prompt if enabled
           auto_write_buffer(bufnr)
 
@@ -1156,7 +1214,81 @@ function M.send_to_claude(opts)
         end
       end)
     end,
-  })
+  }
+
+  -- Send the request using the provider
+  state.current_request = provider:send_request(request_body, callbacks)
+end
+
+-- Switch to a different provider or model
+function M.switch(provider_name, model_name, parameters)
+  if not provider_name then
+    vim.notify("Claudius: Provider name is required", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Check for ongoing requests
+  local bufnr = vim.api.nvim_get_current_buf()
+  local state = buffers.get_state(bufnr)
+  if state.current_request then
+    vim.notify("Claudius: Cannot switch providers while a request is in progress.", vim.log.levels.WARN)
+    return
+  end
+
+  -- Ensure parameters is a table if nil
+  parameters = parameters or {}
+
+  -- Create a new configuration by merging the current config with the provided options
+  local new_config = vim.tbl_deep_extend("force", {}, config)
+
+  -- Update provider
+  new_config.provider = provider_name
+
+  -- Update model if specified, otherwise reset to use provider default
+  new_config.model = model_name or nil
+
+  -- Ensure parameters table and provider-specific sub-table exist
+  new_config.parameters = new_config.parameters or {}
+  new_config.parameters[provider_name] = new_config.parameters[provider_name] or {}
+
+  -- Merge the provided parameters into the correct parameter locations
+  for k, v in pairs(parameters) do
+    -- Check if it's a general parameter
+    if plugin_config.is_general_parameter(k) then
+      new_config.parameters[k] = v
+    else
+      -- Assume it's a provider-specific parameter
+      new_config.parameters[provider_name][k] = v
+    end
+  end
+
+  -- Log the relevant configuration being used for the new provider
+  log.debug(
+    "switch(): provider = "
+      .. log.inspect(new_config.provider)
+      .. ", model = "
+      .. log.inspect(new_config.model)
+      .. ", parameters = "
+      .. log.inspect(new_config.parameters)
+  )
+
+  -- Update the global config
+  config = new_config
+
+  -- Initialize the new provider with a clean state using the updated config
+  provider = nil -- Clear the current provider
+  local new_provider = initialize_provider(new_config.provider, new_config.model, new_config.parameters) -- Pass individual args
+
+  -- Force the new provider to clear its API key cache
+  if new_provider and new_provider.state then
+    new_provider.state.api_key = nil
+  end
+
+  -- Notify the user
+  local model_info = config.model and (" with model " .. config.model) or ""
+  vim.notify("Claudius: Switched to " .. config.provider .. model_info, vim.log.levels.INFO)
+
+  return new_provider
 end
 
 return M

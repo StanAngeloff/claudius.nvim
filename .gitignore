@@ -1,2 +1,5 @@
+.direnv/
+
 .aider*
+!.aider.conf.yml
 .env
