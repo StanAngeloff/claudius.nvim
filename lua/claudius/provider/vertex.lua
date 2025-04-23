@@ -4,6 +4,9 @@ local base = require("claudius.provider.base")
 local log = require("claudius.logging")
 local M = {}
 
+-- Cache for file command availability check
+local file_command_available = nil
+
 -- Private helper to validate required configuration
 local function _validate_config(self)
   local project_id = self.parameters.project_id
@@ -97,6 +100,65 @@ local function generate_access_token(service_account_json)
   end
 
   return nil, err
+end
+
+-- Helper function to get MIME type using the 'file' command
+local function get_mime_type(filepath)
+  -- Check cache first
+  if file_command_available == false then
+    error("The 'file' command is required for @file references but was not found.", 0)
+  end
+
+  -- Check if file command exists if not cached yet
+  if file_command_available == nil then
+    local check_cmd = "command -v file >/dev/null 2>&1"
+    local check_result = os.execute(check_cmd)
+    if check_result == 0 then
+      file_command_available = true
+      log.debug("get_mime_type(): 'file' command found.")
+    else
+      file_command_available = false
+      log.error("get_mime_type(): 'file' command not found.")
+      error("The 'file' command is required for @file references but was not found.", 0)
+    end
+  end
+
+  -- Execute file command to get MIME type
+  -- Use -b for brief output and --mime-type for the type itself
+  -- Escape filename for shell safety
+  local escaped_filepath = vim.fn.shellescape(filepath)
+  local cmd = string.format("file -b --mime-type %s", escaped_filepath)
+  local handle = io.popen(cmd, "r") -- Read mode
+
+  if not handle then
+    log.error("get_mime_type(): Failed to execute 'file' command for: " .. filepath)
+    return nil, "Failed to execute 'file' command"
+  end
+
+  local output = handle:read("*a")
+  local success, _, code = handle:close()
+
+  if success and output and #output > 0 then
+    -- Trim whitespace from the output
+    local mime_type = output:match("^%s*(.-)%s*$")
+    if mime_type and #mime_type > 0 then
+      log.debug("get_mime_type(): Detected MIME type for " .. filepath .. ": " .. mime_type)
+      return mime_type, nil
+    else
+      log.error("get_mime_type(): 'file' command returned empty or invalid output for " .. filepath .. ": " .. output)
+      return nil, "Failed to determine MIME type (empty output)"
+    end
+  else
+    local err_msg = "Failed to get MIME type for " .. filepath
+    if code then
+      err_msg = err_msg .. " (exit code: " .. tostring(code) .. ")"
+    end
+    if output and #output > 0 then
+      err_msg = err_msg .. "\nOutput: " .. output
+    end
+    log.error("get_mime_type(): " .. err_msg)
+    return nil, err_msg
+  end
 end
 
 -- Create a new Google Vertex AI provider instance
@@ -236,13 +298,53 @@ function M.create_request_body(self, formatted_messages, system_message)
             table.insert(parts, { text = preceding_text })
           end
 
-          -- Extract the @file reference
-          local file_ref = string.sub(content, start_pos, end_pos)
-          -- TODO: This inlineData structure is a placeholder based on the request.
-          -- The actual Vertex AI API expects { inlineData = { mimeType = "...", data = "..." } }
-          -- or potentially { fileData = { mimeType = "...", fileUri = "..." } }.
-          -- This needs further implementation for actual file handling.
-          table.insert(parts, { inlineData = file_ref })
+          -- Extract the filename (remove '@')
+          local filename = string.sub(content, start_pos + 1, end_pos)
+          log.debug("create_request_body: Found @file reference: " .. filename)
+
+          -- Check if file exists and is readable relative to cwd
+          if vim.fn.filereadable(filename) == 1 then
+            log.debug("create_request_body: File exists and is readable: " .. filename)
+            local mime_type, mime_err = get_mime_type(filename)
+
+            if mime_type then
+              -- Read file content in binary mode
+              local file_handle, read_err = io.open(filename, "rb")
+              if file_handle then
+                local file_content = file_handle:read("*a")
+                file_handle:close()
+
+                if file_content then
+                  -- Base64 encode the content
+                  local encoded_data = vim.fn.base64encode(file_content) -- Use Neovim 0.10+ API
+
+                  -- Construct the inlineData part
+                  table.insert(parts, {
+                    inlineData = {
+                      mimeType = mime_type,
+                      data = encoded_data,
+                    },
+                  })
+                  log.debug(
+                    "create_request_body: Added inlineData part for " .. filename .. " (MIME: " .. mime_type .. ")"
+                  )
+                else
+                  log.error("create_request_body: Failed to read content from file: " .. filename)
+                end
+              else
+                log.error("create_request_body: Failed to open file for reading: " .. filename .. " Error: " .. read_err)
+              end
+            else
+              log.error(
+                "create_request_body: Failed to get MIME type for file: " .. filename .. " Error: " .. (mime_err or "unknown")
+              )
+              -- Optionally, insert a placeholder or skip? Skipping for now.
+            end
+          else
+            log.warn("create_request_body: @file reference not found or not readable: " .. filename .. ". Skipping.")
+            -- Optionally insert the original "@file" text as a fallback?
+            -- table.insert(parts, { text = "@" .. filename })
+          end
 
           -- Update current position
           current_pos = end_pos + 1
