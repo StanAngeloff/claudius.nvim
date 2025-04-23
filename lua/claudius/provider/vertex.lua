@@ -316,7 +316,7 @@ function M.create_request_body(self, formatted_messages, system_message)
 
                 if file_content then
                   -- Base64 encode the content
-                  local encoded_data = vim.fn.base64encode(file_content) -- Use Neovim 0.10+ API
+                  local encoded_data = vim.base64.encode(file_content) -- Use Neovim 0.10+ API
 
                   -- Construct the inlineData part
                   table.insert(parts, {
