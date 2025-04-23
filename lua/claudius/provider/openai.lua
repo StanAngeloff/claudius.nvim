@@ -27,26 +27,24 @@ function M.get_api_key(self)
 end
 
 -- Format messages for OpenAI API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
+  local system_message = nil
 
-  -- Add system message if provided
+  -- Look for system message in the messages
+  for _, msg in ipairs(messages) do
+    if msg.type == "System" then
+      system_message = msg.content:gsub("%s+$", "")
+      break -- Assuming only one system message is relevant
+    end
+  end
+
+  -- Add system message if found
   if system_message then
     table.insert(formatted, {
       role = "system",
       content = system_message,
     })
-  else
-    -- Look for system message in the messages
-    for _, msg in ipairs(messages) do
-      if msg.type == "System" then
-        table.insert(formatted, {
-          role = "system",
-          content = msg.content:gsub("%s+$", ""),
-        })
-        break
-      end
-    end
   end
 
   -- Add user and assistant messages
@@ -66,7 +64,7 @@ function M.format_messages(self, messages, system_message)
     end
   end
 
-  return formatted, nil -- OpenAI doesn't need a separate system message
+  return formatted, system_message -- Return formatted messages and the extracted system message
 end
 
 -- Create request body for OpenAI API

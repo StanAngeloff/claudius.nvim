@@ -179,7 +179,7 @@ function M.get_api_key(self)
 end
 
 -- Format messages for Vertex AI API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
   local system_content = nil
 
@@ -187,13 +187,8 @@ function M.format_messages(self, messages, system_message)
   for _, msg in ipairs(messages) do
     if msg.type == "System" then
       system_content = msg.content:gsub("%s+$", "")
-      break
+      break -- Assuming only one system message is relevant
     end
-  end
-
-  -- If system_message parameter is provided, it overrides any system message in messages
-  if system_message then
-    system_content = system_message
   end
 
   -- Add user and assistant messages

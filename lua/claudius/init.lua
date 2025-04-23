@@ -901,7 +901,7 @@ function M.send_to_provider(opts)
     template_vars = result
   end
 
-  local formatted_messages, system_message = provider:format_messages(messages, nil)
+  local formatted_messages, system_message = provider:format_messages(messages)
 
   -- Process template expressions in messages
   local eval = require("claudius.eval")

@@ -94,7 +94,7 @@ function M.get_api_key(self, opts)
 end
 
 -- Format messages for API (to be implemented by specific providers)
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   -- To be implemented by specific providers
 end
 

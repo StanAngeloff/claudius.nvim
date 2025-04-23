@@ -27,8 +27,9 @@ function M.get_api_key(self)
 end
 
 -- Format messages for Claude API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
+  local system_message = nil -- System message is handled in create_request_body
 
   for _, msg in ipairs(messages) do
     local role = msg.type == "You" and "user" or msg.type == "Assistant" and "assistant" or nil
@@ -38,6 +39,10 @@ function M.format_messages(self, messages, system_message)
         role = role,
         content = msg.content:gsub("%s+$", ""),
       })
+    end
+    -- Extract system message if found
+    if msg.type == "System" then
+      system_message = msg.content:gsub("%s+$", "")
     end
   end
 
