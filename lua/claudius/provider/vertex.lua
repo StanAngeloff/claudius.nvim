@@ -220,11 +220,70 @@ function M.create_request_body(self, formatted_messages, system_message)
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
   for _, msg in ipairs(formatted_messages) do
+    local parts = {}
+    if msg.role == "user" then
+      -- Parse user content for @file references
+      local content = msg.content
+      local current_pos = 1
+      while current_pos <= #content do
+        -- Find the next @ followed by non-whitespace characters
+        local start_pos, end_pos = string.find(content, "@[%S]+", current_pos)
+
+        if start_pos then
+          -- Add preceding text if any
+          local preceding_text = string.sub(content, current_pos, start_pos - 1)
+          if #preceding_text > 0 then
+            table.insert(parts, { text = preceding_text })
+          end
+
+          -- Extract the @file reference
+          local file_ref = string.sub(content, start_pos, end_pos)
+          -- TODO: This inlineData structure is a placeholder based on the request.
+          -- The actual Vertex AI API expects { inlineData = { mimeType = "...", data = "..." } }
+          -- or potentially { fileData = { mimeType = "...", fileUri = "..." } }.
+          -- This needs further implementation for actual file handling.
+          table.insert(parts, { inlineData = file_ref })
+
+          -- Update current position
+          current_pos = end_pos + 1
+        else
+          -- No more @file references found, add remaining text
+          local remaining_text = string.sub(content, current_pos)
+          if #remaining_text > 0 then
+            table.insert(parts, { text = remaining_text })
+          end
+          break -- Exit loop
+        end
+      end
+      -- Ensure parts is not empty if content was not empty
+      if #parts == 0 and #content > 0 then
+        -- This case might happen if content is only whitespace, but gsub should handle that.
+        -- Or if content is just "@file", the loop adds one inlineData part.
+        -- If content is empty after gsub, parts remains empty, which might be ok?
+        -- Let's add a fallback text part if content existed but parsing yielded nothing.
+        -- Reconsidering: If content was just "@file", parts will have one inlineData.
+        -- If content was " @file ", gsub makes it "@file", parts gets one inlineData.
+        -- If content was " text ", gsub makes it "text", parts gets one text part.
+        -- If content was " ", gsub makes it "", parts remains empty. Vertex might require non-empty parts.
+        -- Let's ensure at least one part if the original content wasn't empty.
+        if #content > 0 and #parts == 0 then
+           log.debug("create_request_body: User content resulted in empty parts, adding original content as text. Content: " .. msg.content)
+           table.insert(parts, { text = msg.content }) -- Use original content before parsing attempt
+        elseif #parts == 0 then
+           log.debug("create_request_body: User content resulted in empty parts (likely empty input). Content: " .. msg.content)
+           -- Add an empty text part? Vertex might require a part.
+           table.insert(parts, { text = "" })
+        end
+      end
+    else
+      -- For model messages, just add the content as a single text part
+      table.insert(parts, { text = msg.content })
+    end
+
+    -- Add the message with its role and parts to the contents list
     table.insert(contents, {
       role = msg.role,
-      parts = {
-        { text = msg.content },
-      },
+      parts = parts,
     })
   end
 
