@@ -332,11 +332,16 @@ function M.create_request_body(self, formatted_messages, system_message)
                   log.error("create_request_body: Failed to read content from file: " .. filename)
                 end
               else
-                log.error("create_request_body: Failed to open file for reading: " .. filename .. " Error: " .. read_err)
+                log.error(
+                  "create_request_body: Failed to open file for reading: " .. filename .. " Error: " .. read_err
+                )
               end
             else
               log.error(
-                "create_request_body: Failed to get MIME type for file: " .. filename .. " Error: " .. (mime_err or "unknown")
+                "create_request_body: Failed to get MIME type for file: "
+                  .. filename
+                  .. " Error: "
+                  .. (mime_err or "unknown")
               )
               -- Optionally, insert a placeholder or skip? Skipping for now.
             end
@@ -369,12 +374,17 @@ function M.create_request_body(self, formatted_messages, system_message)
         -- If content was " ", gsub makes it "", parts remains empty. Vertex might require non-empty parts.
         -- Let's ensure at least one part if the original content wasn't empty.
         if #content > 0 and #parts == 0 then
-           log.debug("create_request_body: User content resulted in empty parts, adding original content as text. Content: " .. msg.content)
-           table.insert(parts, { text = msg.content }) -- Use original content before parsing attempt
+          log.debug(
+            "create_request_body: User content resulted in empty parts, adding original content as text. Content: "
+              .. msg.content
+          )
+          table.insert(parts, { text = msg.content }) -- Use original content before parsing attempt
         elseif #parts == 0 then
-           log.debug("create_request_body: User content resulted in empty parts (likely empty input). Content: " .. msg.content)
-           -- Add an empty text part? Vertex might require a part.
-           table.insert(parts, { text = "" })
+          log.debug(
+            "create_request_body: User content resulted in empty parts (likely empty input). Content: " .. msg.content
+          )
+          -- Add an empty text part? Vertex might require a part.
+          table.insert(parts, { text = "" })
         end
       end
     else
