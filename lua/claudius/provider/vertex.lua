@@ -355,7 +355,7 @@ function M.create_request_body(self, formatted_messages, system_message)
               -- Optionally, insert a placeholder or skip? Skipping for now.
             end
           else
-            log.warn("create_request_body: @file reference not found or not readable: " .. filename .. ". Skipping.")
+            log.warn("create_request_body: @file reference not found or not readable: \"" .. filename .. "\". Skipping.")
             -- Optionally insert the original "@file" text as a fallback?
             -- table.insert(parts, { text = "@" .. filename })
           end
