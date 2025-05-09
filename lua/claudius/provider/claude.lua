@@ -27,17 +27,46 @@ function M.get_api_key(self)
 end
 
 -- Format messages for Claude API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
+  local system_message = nil -- System message is handled in create_request_body
 
   for _, msg in ipairs(messages) do
     local role = msg.type == "You" and "user" or msg.type == "Assistant" and "assistant" or nil
 
     if role then
+      local final_content_parts = {}
+      if role == "user" then
+        local content_parser_coro = self:parse_message_content_chunks(msg.content)
+        while true do
+          local status, chunk = coroutine.resume(content_parser_coro)
+          if not status or not chunk then -- Coroutine finished or errored
+            break
+          end
+
+          if chunk.type == "text" then
+            table.insert(final_content_parts, chunk.value)
+          elseif chunk.type == "file" then
+            vim.notify(
+              "Claudius (Claude): @file references are not yet supported. The reference will be sent as text.",
+              vim.log.levels.WARN,
+              { title = "Claudius Notification" }
+            )
+            table.insert(final_content_parts, "@" .. chunk.raw_filename) -- Send the raw reference as text
+          end
+        end
+      else -- For assistant messages, content is used as is
+        table.insert(final_content_parts, msg.content)
+      end
+
       table.insert(formatted, {
         role = role,
-        content = msg.content:gsub("%s+$", ""),
+        content = table.concat(final_content_parts):gsub("%s+$", ""),
       })
+    end
+    -- Extract system message if found
+    if msg.type == "System" then
+      system_message = msg.content:gsub("%s+$", "")
     end
   end
 

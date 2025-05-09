@@ -51,6 +51,11 @@ function M.debug(msg)
   write_log("DEBUG", msg)
 end
 
+-- Log a warning message
+function M.warn(msg)
+  write_log("WARN", msg)
+end
+
 -- Enable or disable logging
 function M.set_enabled(enabled)
   config.enabled = enabled

@@ -27,26 +27,24 @@ function M.get_api_key(self)
 end
 
 -- Format messages for OpenAI API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
+  local system_message = nil
 
-  -- Add system message if provided
+  -- Look for system message in the messages
+  for _, msg in ipairs(messages) do
+    if msg.type == "System" then
+      system_message = msg.content:gsub("%s+$", "")
+      break -- Assuming only one system message is relevant
+    end
+  end
+
+  -- Add system message if found
   if system_message then
     table.insert(formatted, {
       role = "system",
       content = system_message,
     })
-  else
-    -- Look for system message in the messages
-    for _, msg in ipairs(messages) do
-      if msg.type == "System" then
-        table.insert(formatted, {
-          role = "system",
-          content = msg.content:gsub("%s+$", ""),
-        })
-        break
-      end
-    end
   end
 
   -- Add user and assistant messages
@@ -59,14 +57,38 @@ function M.format_messages(self, messages, system_message)
     end
 
     if role and role ~= "system" then -- Skip system messages as we've handled them
+      local final_content_parts = {}
+      if role == "user" then
+        local content_parser_coro = self:parse_message_content_chunks(msg.content)
+        while true do
+          local status, chunk = coroutine.resume(content_parser_coro)
+          if not status or not chunk then -- Coroutine finished or errored
+            break
+          end
+
+          if chunk.type == "text" then
+            table.insert(final_content_parts, chunk.value)
+          elseif chunk.type == "file" then
+            vim.notify(
+              "Claudius (OpenAI): @file references are not yet supported. The reference will be sent as text.",
+              vim.log.levels.WARN,
+              { title = "Claudius Notification" }
+            )
+            table.insert(final_content_parts, "@" .. chunk.raw_filename) -- Send the raw reference as text
+          end
+        end
+      else -- For assistant messages, content is used as is
+        table.insert(final_content_parts, msg.content)
+      end
+
       table.insert(formatted, {
         role = role,
-        content = msg.content:gsub("%s+$", ""),
+        content = table.concat(final_content_parts):gsub("%s+$", ""),
       })
     end
   end
 
-  return formatted, nil -- OpenAI doesn't need a separate system message
+  return formatted, system_message -- Return formatted messages and the extracted system message
 end
 
 -- Create request body for OpenAI API

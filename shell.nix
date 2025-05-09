@@ -7,7 +7,9 @@ let
   pythonWithPackages = python.withPackages (p: [
     p.google-cloud-aiplatform
     p.google-generativeai
-    p.aider-chat
+    (p.aider-chat.withOptional {
+      withPlaywright = true;
+    })
   ]);
 in
 pkgs.mkShell {

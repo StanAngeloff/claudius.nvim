@@ -2,6 +2,7 @@
 --- Implements the Google Vertex AI API integration
 local base = require("claudius.provider.base")
 local log = require("claudius.logging")
+-- local mime_util = require("claudius.mime") -- Moved to base provider
 local M = {}
 
 -- Private helper to validate required configuration
@@ -179,7 +180,7 @@ function M.get_api_key(self)
 end
 
 -- Format messages for Vertex AI API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
   local system_content = nil
 
@@ -187,13 +188,8 @@ function M.format_messages(self, messages, system_message)
   for _, msg in ipairs(messages) do
     if msg.type == "System" then
       system_content = msg.content:gsub("%s+$", "")
-      break
+      break -- Assuming only one system message is relevant
     end
-  end
-
-  -- If system_message parameter is provided, it overrides any system message in messages
-  if system_message then
-    system_content = system_message
   end
 
   -- Add user and assistant messages
@@ -225,11 +221,87 @@ function M.create_request_body(self, formatted_messages, system_message)
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
   for _, msg in ipairs(formatted_messages) do
+    local parts = {}
+    if msg.role == "user" then
+      local content_parser_coro = self:parse_message_content_chunks(msg.content)
+      while true do
+        local status, chunk = coroutine.resume(content_parser_coro)
+        if not status or not chunk then -- Coroutine finished or errored
+          break
+        end
+
+        if chunk.type == "text" then
+          if chunk.value and #chunk.value > 0 then
+            table.insert(parts, { text = chunk.value })
+          end
+        elseif chunk.type == "file" then
+          if chunk.readable and chunk.content and chunk.mime_type then
+            if chunk.mime_type:sub(1, 5) == "text/" then
+              -- Send as text part
+              table.insert(parts, { text = chunk.content })
+              log.debug(
+                'create_request_body: Added text part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+              )
+            else
+              -- Send as inlineData part (binary)
+              local encoded_data = vim.base64.encode(chunk.content) -- Use Neovim 0.10+ API
+              table.insert(parts, {
+                inlineData = {
+                  mimeType = chunk.mime_type,
+                  data = encoded_data,
+                },
+              })
+              log.debug(
+                'create_request_body: Added inlineData part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            end
+          else
+            log.warn(
+              'create_request_body: @file reference "'
+                .. chunk.raw_filename
+                .. '" (cleaned: "'
+                .. chunk.filename
+                .. '") not readable or missing data. Error: '
+                .. (chunk.error or "unknown")
+                .. ". Inserting raw text."
+            )
+            table.insert(parts, { text = "@" .. chunk.raw_filename })
+          end
+        end
+      end
+
+      -- Ensure parts is not empty if the original message content was not empty.
+      -- This handles cases where content might be, e.g., only unreadable files
+      -- or if the parser yields nothing for some valid non-empty inputs.
+      if #parts == 0 and msg.content and #msg.content > 0 then
+        log.debug(
+          "create_request_body: User content resulted in empty 'parts' after parsing. Original content: \""
+            .. msg.content
+            .. '". Adding original content as a single text part as fallback.'
+        )
+        table.insert(parts, { text = msg.content })
+      elseif #parts == 0 then -- Original content was empty or only whitespace, or parser yielded nothing.
+        log.debug(
+          "create_request_body: User content resulted in empty 'parts' (likely empty or whitespace input). Original content: \""
+            .. (msg.content or "")
+            .. '". Adding an empty text part.'
+        )
+        -- Vertex might require a 'parts' array, even if it contains an empty text string.
+        table.insert(parts, { text = "" })
+      end
+    else
+      -- For model messages, just add the content as a single text part
+      table.insert(parts, { text = msg.content })
+    end
+
+    -- Add the message with its role and parts to the contents list
     table.insert(contents, {
       role = msg.role,
-      parts = {
-        { text = msg.content },
-      },
+      parts = parts,
     })
   end
 
