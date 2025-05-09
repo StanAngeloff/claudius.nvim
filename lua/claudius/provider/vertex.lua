@@ -131,7 +131,7 @@ local function get_mime_type(filepath)
   local handle = io.popen(cmd, "r") -- Read mode
 
   if not handle then
-    log.error("get_mime_type(): Failed to execute 'file' command for: " .. filepath)
+    log.error("get_mime_type(): Failed to execute 'file' command for: \"" .. filepath .. "\"")
     return nil, "Failed to execute 'file' command"
   end
 
@@ -142,14 +142,14 @@ local function get_mime_type(filepath)
     -- Trim whitespace from the output
     local mime_type = output:match("^%s*(.-)%s*$")
     if mime_type and #mime_type > 0 then
-      log.debug("get_mime_type(): Detected MIME type for " .. filepath .. ": " .. mime_type)
+      log.debug("get_mime_type(): Detected MIME type for \"" .. filepath .. "\": " .. mime_type)
       return mime_type, nil
     else
-      log.error("get_mime_type(): 'file' command returned empty or invalid output for " .. filepath .. ": " .. output)
+      log.error("get_mime_type(): 'file' command returned empty or invalid output for \"" .. filepath .. "\": " .. output)
       return nil, "Failed to determine MIME type (empty output)"
     end
   else
-    local err_msg = "Failed to get MIME type for " .. filepath
+    local err_msg = "Failed to get MIME type for \"" .. filepath .. "\""
     if code then
       err_msg = err_msg .. " (exit code: " .. tostring(code) .. ")"
     end
@@ -337,21 +337,21 @@ function M.create_request_body(self, formatted_messages, system_message)
                     },
                   })
                   log.debug(
-                    "create_request_body: Added inlineData part for " .. filename .. " (MIME: " .. mime_type .. ")"
+                    "create_request_body: Added inlineData part for \"" .. filename .. "\" (MIME: " .. mime_type .. ")"
                   )
                 else
-                  log.error("create_request_body: Failed to read content from file: " .. filename)
+                  log.error("create_request_body: Failed to read content from file: \"" .. filename .. "\"")
                 end
               else
                 log.error(
-                  "create_request_body: Failed to open file for reading: " .. filename .. " Error: " .. read_err
+                  "create_request_body: Failed to open file for reading: \"" .. filename .. "\" Error: " .. read_err
                 )
               end
             else
               log.error(
-                "create_request_body: Failed to get MIME type for file: "
+                "create_request_body: Failed to get MIME type for file: \""
                   .. filename
-                  .. " Error: "
+                  .. "\" Error: "
                   .. (mime_err or "unknown")
               )
               -- Optionally, insert a placeholder or skip? Skipping for now.
