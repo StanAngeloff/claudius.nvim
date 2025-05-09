@@ -288,13 +288,18 @@ function M.create_request_body(self, formatted_messages, system_message)
       local content = msg.content
       local current_pos = 1
       while current_pos <= #content do
-        -- Find the next @ followed by ./ or ../ and then non-whitespace characters
-        -- Pattern: @ ( ./<path> | ../<path> | ../../<path> ... )
-        --   %.%./          => ./
-        --   [^%s]+         => one or more non-whitespace chars (path/filename)
-        --   %.%.%/         => ../
-        --   (%.%.%/)*      => zero or more additional ../
-        local pattern = "@(%.%./[^%s]+|%.%.%/(%.%.%/)*[^%s]+)"
+        -- Find the next @ followed by ./ or one or more ../ and then non-whitespace characters
+        -- Pattern: @ ( ./<path> | (../)+<path> )
+        --   @              => literal "@"
+        --   (              => start of capture group
+        --     %.%/         => literal "./" (dot slash)
+        --     [^%s]+       => one or more non-whitespace chars (path/filename)
+        --   |              => OR
+        --     (%.%.%/)+    => one or more "../" sequences
+        --       %.%.%/     => literal "../" (dot dot slash)
+        --     [^%s]+       => one or more non-whitespace chars (path/filename)
+        --   )              => end of capture group
+        local pattern = "@(%.%/[^%s]+|(%.%.%/)+[^%s]+)"
         local start_pos, end_pos = string.find(content, pattern, current_pos)
 
         if start_pos then
