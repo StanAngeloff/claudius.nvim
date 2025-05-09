@@ -10,7 +10,7 @@ M.defaults = {
   },
   role_style = "bold,underline", -- style applied to role markers like @You:
   ruler = {
-    char = "─", -- The character to use for the ruler
+    char = "━", -- The character to use for the ruler
     hl = "NonText", -- Highlight group or hex color for the ruler
   },
   signs = {
@@ -21,7 +21,7 @@ M.defaults = {
       hl = true, -- Inherit from highlights.system, set false to disable, or provide specific group/hex color
     },
     user = {
-      char = nil, -- Use default char
+      char = "▏",
       hl = true, -- Inherit from highlights.user, set false to disable, or provide specific group/hex color
     },
     assistant = {
