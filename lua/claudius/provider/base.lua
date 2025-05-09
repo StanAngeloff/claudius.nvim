@@ -184,11 +184,15 @@ function M.prepare_curl_command(self, tmp_file, headers, endpoint)
     "curl",
     "-N", -- disable buffering
     "-s", -- silent mode
-    "--connect-timeout", tostring(connect_timeout), -- connection timeout
-    "--max-time", tostring(max_time), -- maximum time allowed
-    "--retry", "0", -- disable retries
+    "--connect-timeout",
+    tostring(connect_timeout), -- connection timeout
+    "--max-time",
+    tostring(max_time), -- maximum time allowed
+    "--retry",
+    "0", -- disable retries
     "--http1.1", -- force HTTP/1.1 for better interrupt handling
-    "-H", "Connection: close", -- request connection close
+    "-H",
+    "Connection: close", -- request connection close
   }
 
   -- Add headers

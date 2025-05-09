@@ -1190,7 +1190,8 @@ function M.send_to_provider(opts)
           vim.api.nvim_buf_set_lines(bufnr, last_line_idx, last_line_idx, false, lines_to_insert)
 
           local new_prompt_line_num = last_line_idx + cursor_line_offset - 1
-          local new_prompt_lines = vim.api.nvim_buf_get_lines(bufnr, new_prompt_line_num, new_prompt_line_num + 1, false)
+          local new_prompt_lines =
+            vim.api.nvim_buf_get_lines(bufnr, new_prompt_line_num, new_prompt_line_num + 1, false)
           if #new_prompt_lines > 0 then
             local line_text = new_prompt_lines[1]
             local col = line_text:find(":%s*") + 1
@@ -1214,9 +1215,13 @@ function M.send_to_provider(opts)
 
           local error_msg
           if code == 6 then -- CURLE_COULDNT_RESOLVE_HOST
-            error_msg = string.format("Claudius: cURL could not resolve host (exit code %d). Check network or hostname.", code)
+            error_msg =
+              string.format("Claudius: cURL could not resolve host (exit code %d). Check network or hostname.", code)
           elseif code == 7 then -- CURLE_COULDNT_CONNECT
-            error_msg = string.format("Claudius: cURL could not connect to host (exit code %d). Check network or if the host is up.", code)
+            error_msg = string.format(
+              "Claudius: cURL could not connect to host (exit code %d). Check network or if the host is up.",
+              code
+            )
           elseif code == 28 then -- cURL timeout error
             local timeout_value = provider.parameters.timeout or config.parameters.timeout -- Get effective timeout
             error_msg = string.format(
@@ -1234,7 +1239,7 @@ function M.send_to_provider(opts)
           vim.notify(error_msg, vim.log.levels.ERROR)
 
           auto_write_buffer(bufnr) -- Auto-write if enabled, even on error
-          update_ui(bufnr)         -- Update UI to remove any artifacts
+          update_ui(bufnr) -- Update UI to remove any artifacts
         end
       end)
     end,
