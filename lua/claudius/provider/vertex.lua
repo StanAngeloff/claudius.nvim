@@ -236,21 +236,29 @@ function M.create_request_body(self, formatted_messages, system_message)
           end
         elseif chunk.type == "file" then
           if chunk.readable and chunk.content and chunk.mime_type then
-            -- Base64 encode the content
-            local encoded_data = vim.base64.encode(chunk.content) -- Use Neovim 0.10+ API
-            table.insert(parts, {
-              inlineData = {
-                mimeType = chunk.mime_type,
-                data = encoded_data,
-              },
-            })
-            log.debug(
-              'create_request_body: Added inlineData part for "'
-                .. chunk.filename
-                .. '" (MIME: '
-                .. chunk.mime_type
-                .. ")"
-            )
+            if chunk.mime_type:sub(1, 5) == "text/" then
+              -- Send as text part
+              table.insert(parts, { text = chunk.content })
+              log.debug(
+                'create_request_body: Added text part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+              )
+            else
+              -- Send as inlineData part (binary)
+              local encoded_data = vim.base64.encode(chunk.content) -- Use Neovim 0.10+ API
+              table.insert(parts, {
+                inlineData = {
+                  mimeType = chunk.mime_type,
+                  data = encoded_data,
+                },
+              })
+              log.debug(
+                'create_request_body: Added inlineData part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            end
           else
             log.warn(
               'create_request_body: @file reference "'
