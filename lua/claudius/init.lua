@@ -841,6 +841,7 @@ function M.send_to_provider(opts)
 
   log.info("send_to_provider(): Starting new request for buffer " .. bufnr)
   state.request_cancelled = false
+  state.api_error_occurred = false -- Initialize flag for API errors
 
   -- Auto-write the buffer before sending if enabled
   auto_write_buffer(bufnr)
@@ -1026,6 +1027,7 @@ function M.send_to_provider(opts)
         vim.fn.timer_stop(spinner_timer)
         M.cleanup_spinner(bufnr)
         state.current_request = nil
+        state.api_error_occurred = true -- Set flag indicating API error
 
         -- Auto-write on error if enabled
         auto_write_buffer(bufnr)
@@ -1163,10 +1165,26 @@ function M.send_to_provider(opts)
 
         if code == 0 then
           -- cURL request completed successfully (exit code 0)
+          if state.api_error_occurred then
+            log.info(
+              "send_to_provider(): on_complete: cURL success (code 0), but an API error was previously handled. Skipping new prompt."
+            )
+            state.api_error_occurred = false -- Reset flag for next request
+            -- Ensure spinner is cleaned if it wasn't by on_error (though it should have been)
+            if not response_started then
+              M.cleanup_spinner(bufnr)
+            end
+            auto_write_buffer(bufnr) -- Still auto-write if configured
+            update_ui(bufnr) -- Update UI
+            return -- Do not proceed to add new prompt or call opts.on_complete
+          end
+
           if not response_started then
-            -- Successful cURL, but no content was processed by on_content callback.
+            -- Successful cURL, no API error, but no content was processed by on_content callback.
             -- This means the "Thinking..." message might still be there.
-            log.info("send_to_provider(): on_complete: cURL success (code 0), but no response content was processed.")
+            log.info(
+              "send_to_provider(): on_complete: cURL success (code 0), no API error, but no response content was processed."
+            )
             M.cleanup_spinner(bufnr) -- Clean up "Thinking..." message
           end
 
