@@ -288,8 +288,14 @@ function M.create_request_body(self, formatted_messages, system_message)
       local content = msg.content
       local current_pos = 1
       while current_pos <= #content do
-        -- Find the next @ followed by non-whitespace characters
-        local start_pos, end_pos = string.find(content, "@[%S]+", current_pos)
+        -- Find the next @ followed by ./ or ../ and then non-whitespace characters
+        -- Pattern: @ ( ./<path> | ../<path> | ../../<path> ... )
+        --   %.%./          => ./
+        --   [^%s]+         => one or more non-whitespace chars (path/filename)
+        --   %.%.%/         => ../
+        --   (%.%.%/)*      => zero or more additional ../
+        local pattern = "@(%.%./[^%s]+|%.%.%/(%.%.%/)*[^%s]+)"
+        local start_pos, end_pos = string.find(content, pattern, current_pos)
 
         if start_pos then
           -- Add preceding text if any
