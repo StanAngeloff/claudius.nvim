@@ -308,12 +308,14 @@ function M.create_request_body(self, formatted_messages, system_message)
           end
 
           -- Extract the filename (remove '@')
-          local filename = string.sub(content, start_pos + 1, end_pos)
-          log.debug("create_request_body: Found @file reference: " .. filename)
+          local raw_filename = string.sub(content, start_pos + 1, end_pos)
+          -- Remove trailing punctuation (e.g. "file.png." -> "file.png")
+          local filename = raw_filename:gsub("[%p]+$", "")
+          log.debug("create_request_body: Found @file reference (raw: \"" .. raw_filename .. "\", cleaned: \"" .. filename .. "\").")
 
           -- Check if file exists and is readable relative to cwd
           if vim.fn.filereadable(filename) == 1 then
-            log.debug("create_request_body: File exists and is readable: " .. filename)
+            log.debug("create_request_body: File exists and is readable: \"" .. filename .. "\"")
             local mime_type, mime_err = get_mime_type(filename)
 
             if mime_type then
