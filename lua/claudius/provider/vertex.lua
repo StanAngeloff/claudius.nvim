@@ -223,119 +223,67 @@ function M.create_request_body(self, formatted_messages, system_message)
   for _, msg in ipairs(formatted_messages) do
     local parts = {}
     if msg.role == "user" then
-      -- Parse user content for @file references
-      local content = msg.content
-      local current_pos = 1
-      while current_pos <= #content do
-        -- Find the next @file reference.
-        -- This pattern matches "@" followed by "./" or "../", then any combination of "." or "/",
-        -- and finally one or more non-whitespace characters.
-        --   @                 => literal "@"
-        --   (                 => start of capture group
-        --     %.%.?%/         => matches "./" or "../" (dot, optional dot, slash)
-        --     [%.%/]*         => matches any combination of "." or "/" zero or more times
-        --     %S+             => one or more non-whitespace chars (path/filename)
-        --   )                 => end of capture group
-        local pattern = "@(%.%.?%/[%.%/]*%S+)"
-        local start_pos, end_pos = string.find(content, pattern, current_pos)
+      local content_parser_coro = self:parse_message_content_chunks(msg.content)
+      while true do
+        local status, chunk = coroutine.resume(content_parser_coro)
+        if not status or not chunk then -- Coroutine finished or errored
+          break
+        end
 
-        if start_pos then
-          -- Add preceding text if any
-          local preceding_text = string.sub(content, current_pos, start_pos - 1)
-          if #preceding_text > 0 then
-            table.insert(parts, { text = preceding_text })
+        if chunk.type == "text" then
+          if chunk.value and #chunk.value > 0 then
+            table.insert(parts, { text = chunk.value })
           end
-
-          -- Extract the filename (remove '@')
-          local raw_filename = string.sub(content, start_pos + 1, end_pos)
-          -- Remove trailing punctuation (e.g. "file.png." -> "file.png")
-          local filename = raw_filename:gsub("[%p]+$", "")
-          log.debug("create_request_body: Found @file reference (raw: \"" .. raw_filename .. "\", cleaned: \"" .. filename .. "\").")
-
-          -- Check if file exists and is readable relative to cwd
-          if vim.fn.filereadable(filename) == 1 then
-            log.debug("create_request_body: File exists and is readable: \"" .. filename .. "\"")
-            local mime_type, mime_err = mime_util.get_mime_type(filename)
-
-            if mime_type then
-              -- Read file content in binary mode
-              local file_handle, read_err = io.open(filename, "rb")
-              if file_handle then
-                local file_content = file_handle:read("*a")
-                file_handle:close()
-
-                if file_content then
-                  -- Base64 encode the content
-                  local encoded_data = vim.base64.encode(file_content) -- Use Neovim 0.10+ API
-
-                  -- Construct the inlineData part
-                  table.insert(parts, {
-                    inlineData = {
-                      mimeType = mime_type,
-                      data = encoded_data,
-                    },
-                  })
-                  log.debug(
-                    "create_request_body: Added inlineData part for \"" .. filename .. "\" (MIME: " .. mime_type .. ")"
-                  )
-                else
-                  log.error("create_request_body: Failed to read content from file: \"" .. filename .. "\"")
-                end
-              else
-                log.error(
-                  "create_request_body: Failed to open file for reading: \"" .. filename .. "\" Error: " .. read_err
-                )
-              end
-            else
-              log.error(
-                "create_request_body: Failed to get MIME type for file: \""
-                  .. filename
-                  .. "\" Error: "
-                  .. (mime_err or "unknown")
-              )
-              -- Optionally, insert a placeholder or skip? Skipping for now.
-            end
+        elseif chunk.type == "file" then
+          if chunk.readable and chunk.content and chunk.mime_type then
+            -- Base64 encode the content
+            local encoded_data = vim.base64.encode(chunk.content) -- Use Neovim 0.10+ API
+            table.insert(parts, {
+              inlineData = {
+                mimeType = chunk.mime_type,
+                data = encoded_data,
+              },
+            })
+            log.debug(
+              "create_request_body: Added inlineData part for \""
+                .. chunk.filename
+                .. "\" (MIME: "
+                .. chunk.mime_type
+                .. ")"
+            )
           else
-            log.warn("create_request_body: @file reference not found or not readable: \"" .. filename .. "\". Skipping.")
-            -- Optionally insert the original "@file" text as a fallback?
-            -- table.insert(parts, { text = "@" .. filename })
+            log.warn(
+              "create_request_body: @file reference \""
+                .. chunk.raw_filename
+                .. "\" (cleaned: \""
+                .. chunk.filename
+                .. "\") not readable or missing data. Error: "
+                .. (chunk.error or "unknown")
+                .. ". Inserting raw text."
+            )
+            table.insert(parts, { text = "@" .. chunk.raw_filename })
           end
-
-          -- Update current position
-          current_pos = end_pos + 1
-        else
-          -- No more @file references found, add remaining text
-          local remaining_text = string.sub(content, current_pos)
-          if #remaining_text > 0 then
-            table.insert(parts, { text = remaining_text })
-          end
-          break -- Exit loop
         end
       end
-      -- Ensure parts is not empty if content was not empty
-      if #parts == 0 and #content > 0 then
-        -- This case might happen if content is only whitespace, but gsub should handle that.
-        -- Or if content is just "@file", the loop adds one inlineData part.
-        -- If content is empty after gsub, parts remains empty, which might be ok?
-        -- Let's add a fallback text part if content existed but parsing yielded nothing.
-        -- Reconsidering: If content was just "@file", parts will have one inlineData.
-        -- If content was " @file ", gsub makes it "@file", parts gets one inlineData.
-        -- If content was " text ", gsub makes it "text", parts gets one text part.
-        -- If content was " ", gsub makes it "", parts remains empty. Vertex might require non-empty parts.
-        -- Let's ensure at least one part if the original content wasn't empty.
-        if #content > 0 and #parts == 0 then
-          log.debug(
-            "create_request_body: User content resulted in empty parts, adding original content as text. Content: "
-              .. msg.content
-          )
-          table.insert(parts, { text = msg.content }) -- Use original content before parsing attempt
-        elseif #parts == 0 then
-          log.debug(
-            "create_request_body: User content resulted in empty parts (likely empty input). Content: " .. msg.content
-          )
-          -- Add an empty text part? Vertex might require a part.
-          table.insert(parts, { text = "" })
-        end
+
+      -- Ensure parts is not empty if the original message content was not empty.
+      -- This handles cases where content might be, e.g., only unreadable files
+      -- or if the parser yields nothing for some valid non-empty inputs.
+      if #parts == 0 and msg.content and #msg.content > 0 then
+        log.debug(
+          "create_request_body: User content resulted in empty 'parts' after parsing. Original content: \""
+            .. msg.content
+            .. "\". Adding original content as a single text part as fallback."
+        )
+        table.insert(parts, { text = msg.content })
+      elseif #parts == 0 then -- Original content was empty or only whitespace, or parser yielded nothing.
+        log.debug(
+          "create_request_body: User content resulted in empty 'parts' (likely empty or whitespace input). Original content: \""
+            .. (msg.content or "")
+            .. "\". Adding an empty text part."
+        )
+        -- Vertex might require a 'parts' array, even if it contains an empty text string.
+        table.insert(parts, { text = "" })
       end
     else
       -- For model messages, just add the content as a single text part
