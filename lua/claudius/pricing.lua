@@ -14,6 +14,10 @@ M.models = {
   },
 
   -- Vertex AI models (Gemini)
+  ["gemini-2.5-flash-preview-04-17"] = {
+    input = 0.15, -- $0.15 per million input tokens (text/image/video)
+    output = 0.60, -- $0.60 per million output tokens (no thinking)
+  },
   ["gemini-2.0-flash-001"] = {
     input = 0.10, -- $0.10 per million input tokens (text/image/video)
     output = 0.40, -- $0.40 per million output tokens
