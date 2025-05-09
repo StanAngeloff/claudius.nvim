@@ -388,15 +388,15 @@ function M.parse_message_content_chunks(self, content_string)
         -- Clean the matched filename (remove trailing punctuation)
         local cleaned_filename = raw_file_match:gsub("[%p]+$", "")
         log.debug(
-          "base.parse_message_content_chunks: Found @file reference (raw: \""
+          'base.parse_message_content_chunks: Found @file reference (raw: "'
             .. raw_file_match
-            .. "\", cleaned: \""
+            .. '", cleaned: "'
             .. cleaned_filename
-            .. "\")."
+            .. '").'
         )
 
         if vim.fn.filereadable(cleaned_filename) == 1 then
-          log.debug("base.parse_message_content_chunks: File exists and is readable: \"" .. cleaned_filename .. "\"")
+          log.debug('base.parse_message_content_chunks: File exists and is readable: "' .. cleaned_filename .. '"')
           local mime_type, mime_err = mime_util.get_mime_type(cleaned_filename)
 
           if mime_type then
@@ -416,7 +416,7 @@ function M.parse_message_content_chunks(self, content_string)
                 })
               else
                 log.error(
-                  "base.parse_message_content_chunks: Failed to read content from file: \"" .. cleaned_filename .. "\""
+                  'base.parse_message_content_chunks: Failed to read content from file: "' .. cleaned_filename .. '"'
                 )
                 coroutine.yield({
                   type = "file",
@@ -428,9 +428,9 @@ function M.parse_message_content_chunks(self, content_string)
               end
             else
               log.error(
-                "base.parse_message_content_chunks: Failed to open file for reading: \""
+                'base.parse_message_content_chunks: Failed to open file for reading: "'
                   .. cleaned_filename
-                  .. "\" Error: "
+                  .. '" Error: '
                   .. (read_err or "unknown")
               )
               coroutine.yield({
@@ -443,9 +443,9 @@ function M.parse_message_content_chunks(self, content_string)
             end
           else
             log.error(
-              "base.parse_message_content_chunks: Failed to get MIME type for file: \""
+              'base.parse_message_content_chunks: Failed to get MIME type for file: "'
                 .. cleaned_filename
-                .. "\" Error: "
+                .. '" Error: '
                 .. (mime_err or "unknown")
             )
             coroutine.yield({
@@ -458,9 +458,9 @@ function M.parse_message_content_chunks(self, content_string)
           end
         else
           log.warn(
-            "base.parse_message_content_chunks: @file reference not found or not readable: \""
+            'base.parse_message_content_chunks: @file reference not found or not readable: "'
               .. cleaned_filename
-              .. "\". Yielding as unreadable."
+              .. '". Yielding as unreadable.'
           )
           coroutine.yield({
             type = "file",

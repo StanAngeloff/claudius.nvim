@@ -37,7 +37,7 @@ function M.get_mime_type(filepath)
   local handle = io.popen(cmd, "r") -- Read mode
 
   if not handle then
-    log.error("get_mime_type(): Failed to execute 'file' command for: \"" .. filepath .. "\"")
+    log.error("get_mime_type(): Failed to execute 'file' command for: \"" .. filepath .. '"')
     return nil, "Failed to execute 'file' command"
   end
 
@@ -48,14 +48,16 @@ function M.get_mime_type(filepath)
     -- Trim whitespace from the output
     local mime_type = output:match("^%s*(.-)%s*$")
     if mime_type and #mime_type > 0 then
-      log.debug("get_mime_type(): Detected MIME type for \"" .. filepath .. "\": " .. mime_type)
+      log.debug('get_mime_type(): Detected MIME type for "' .. filepath .. '": ' .. mime_type)
       return mime_type, nil
     else
-      log.error("get_mime_type(): 'file' command returned empty or invalid output for \"" .. filepath .. "\": " .. output)
+      log.error(
+        "get_mime_type(): 'file' command returned empty or invalid output for \"" .. filepath .. '": ' .. output
+      )
       return nil, "Failed to determine MIME type (empty output)"
     end
   else
-    local err_msg = "Failed to get MIME type for \"" .. filepath .. "\""
+    local err_msg = 'Failed to get MIME type for "' .. filepath .. '"'
     if code then
       err_msg = err_msg .. " (exit code: " .. tostring(code) .. ")"
     end

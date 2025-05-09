@@ -245,19 +245,19 @@ function M.create_request_body(self, formatted_messages, system_message)
               },
             })
             log.debug(
-              "create_request_body: Added inlineData part for \""
+              'create_request_body: Added inlineData part for "'
                 .. chunk.filename
-                .. "\" (MIME: "
+                .. '" (MIME: '
                 .. chunk.mime_type
                 .. ")"
             )
           else
             log.warn(
-              "create_request_body: @file reference \""
+              'create_request_body: @file reference "'
                 .. chunk.raw_filename
-                .. "\" (cleaned: \""
+                .. '" (cleaned: "'
                 .. chunk.filename
-                .. "\") not readable or missing data. Error: "
+                .. '") not readable or missing data. Error: '
                 .. (chunk.error or "unknown")
                 .. ". Inserting raw text."
             )
@@ -273,14 +273,14 @@ function M.create_request_body(self, formatted_messages, system_message)
         log.debug(
           "create_request_body: User content resulted in empty 'parts' after parsing. Original content: \""
             .. msg.content
-            .. "\". Adding original content as a single text part as fallback."
+            .. '". Adding original content as a single text part as fallback.'
         )
         table.insert(parts, { text = msg.content })
       elseif #parts == 0 then -- Original content was empty or only whitespace, or parser yielded nothing.
         log.debug(
           "create_request_body: User content resulted in empty 'parts' (likely empty or whitespace input). Original content: \""
             .. (msg.content or "")
-            .. "\". Adding an empty text part."
+            .. '". Adding an empty text part.'
         )
         -- Vertex might require a 'parts' array, even if it contains an empty text string.
         table.insert(parts, { text = "" })
