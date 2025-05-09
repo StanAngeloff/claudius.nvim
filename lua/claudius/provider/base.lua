@@ -1,6 +1,7 @@
 --- Base provider for Claudius
 --- Defines the interface that all providers must implement
 local log = require("claudius.logging")
+local mime_util = require("claudius.mime")
 local M = {}
 
 -- Provider constructor
@@ -342,6 +343,127 @@ end
 function M.reset(self)
   -- Base implementation does nothing by default
   -- Providers can override this to reset their specific state
+end
+
+-- Parse message content into chunks of text or file references using a coroutine
+function M.parse_message_content_chunks(self, content_string)
+  local function parser_thread()
+    if not content_string or content_string == "" then
+      return
+    end
+
+    local current_pos = 1
+    -- Pattern matches "@" followed by "./" or "../", then any combination of "." or "/",
+    -- and finally one or more non-whitespace characters.
+    local file_pattern = "@(%.%.?%/[%.%/]*%S+)"
+
+    while current_pos <= #content_string do
+      local start_pos, end_pos, raw_file_match = string.find(content_string, file_pattern, current_pos)
+
+      if start_pos then
+        -- Add preceding text if any
+        local preceding_text = string.sub(content_string, current_pos, start_pos - 1)
+        if #preceding_text > 0 then
+          coroutine.yield({ type = "text", value = preceding_text })
+        end
+
+        -- Clean the matched filename (remove trailing punctuation)
+        local cleaned_filename = raw_file_match:gsub("[%p]+$", "")
+        log.debug(
+          "base.parse_message_content_chunks: Found @file reference (raw: \""
+            .. raw_file_match
+            .. "\", cleaned: \""
+            .. cleaned_filename
+            .. "\")."
+        )
+
+        if vim.fn.filereadable(cleaned_filename) == 1 then
+          log.debug("base.parse_message_content_chunks: File exists and is readable: \"" .. cleaned_filename .. "\"")
+          local mime_type, mime_err = mime_util.get_mime_type(cleaned_filename)
+
+          if mime_type then
+            local file_handle, read_err = io.open(cleaned_filename, "rb")
+            if file_handle then
+              local file_content_binary = file_handle:read("*a")
+              file_handle:close()
+
+              if file_content_binary then
+                coroutine.yield({
+                  type = "file",
+                  filename = cleaned_filename,
+                  raw_filename = raw_file_match,
+                  content = file_content_binary,
+                  mime_type = mime_type,
+                  readable = true,
+                })
+              else
+                log.error(
+                  "base.parse_message_content_chunks: Failed to read content from file: \"" .. cleaned_filename .. "\""
+                )
+                coroutine.yield({
+                  type = "file",
+                  filename = cleaned_filename,
+                  raw_filename = raw_file_match,
+                  readable = false,
+                  error = "Failed to read content",
+                })
+              end
+            else
+              log.error(
+                "base.parse_message_content_chunks: Failed to open file for reading: \""
+                  .. cleaned_filename
+                  .. "\" Error: "
+                  .. (read_err or "unknown")
+              )
+              coroutine.yield({
+                type = "file",
+                filename = cleaned_filename,
+                raw_filename = raw_file_match,
+                readable = false,
+                error = "Failed to open file: " .. (read_err or "unknown"),
+              })
+            end
+          else
+            log.error(
+              "base.parse_message_content_chunks: Failed to get MIME type for file: \""
+                .. cleaned_filename
+                .. "\" Error: "
+                .. (mime_err or "unknown")
+            )
+            coroutine.yield({
+              type = "file",
+              filename = cleaned_filename,
+              raw_filename = raw_file_match,
+              readable = false,
+              error = "Failed to get MIME type: " .. (mime_err or "unknown"),
+            })
+          end
+        else
+          log.warn(
+            "base.parse_message_content_chunks: @file reference not found or not readable: \""
+              .. cleaned_filename
+              .. "\". Yielding as unreadable."
+          )
+          coroutine.yield({
+            type = "file",
+            filename = cleaned_filename,
+            raw_filename = raw_file_match,
+            readable = false,
+            error = "File not found or not readable",
+          })
+        end
+        current_pos = end_pos + 1
+      else
+        -- No more @file references found, add remaining text
+        local remaining_text = string.sub(content_string, current_pos)
+        if #remaining_text > 0 then
+          coroutine.yield({ type = "text", value = remaining_text })
+        end
+        break -- Exit loop
+      end
+    end
+  end
+  return coroutine.create(parser_thread)
 end
 
 return M

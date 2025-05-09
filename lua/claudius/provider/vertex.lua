@@ -2,7 +2,7 @@
 --- Implements the Google Vertex AI API integration
 local base = require("claudius.provider.base")
 local log = require("claudius.logging")
-local mime_util = require("claudius.mime")
+-- local mime_util = require("claudius.mime") -- Moved to base provider
 local M = {}
 
 -- Private helper to validate required configuration
