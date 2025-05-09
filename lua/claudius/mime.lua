@@ -12,7 +12,7 @@ local file_command_available = nil
 function M.get_mime_type(filepath)
   -- Check cache first
   if file_command_available == false then
-    error("The 'file' command is required for @file references but was not found.", 0)
+    error("The 'file' command is required to determine file MIME types but was not found.", 0)
   end
 
   -- Check if file command exists if not cached yet
@@ -25,7 +25,7 @@ function M.get_mime_type(filepath)
     else
       file_command_available = false
       log.error("get_mime_type(): 'file' command not found.")
-      error("The 'file' command is required for @file references but was not found.", 0)
+      error("The 'file' command is required to determine file MIME types but was not found.", 0)
     end
   end
 
