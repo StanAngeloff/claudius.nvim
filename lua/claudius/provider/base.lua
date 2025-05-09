@@ -345,9 +345,27 @@ function M.reset(self)
   -- Providers can override this to reset their specific state
 end
 
--- Parse message content into chunks of text or file references using a coroutine
+-- Parse message content into chunks of text or file references using a coroutine.
+-- This function returns a coroutine that, when resumed, yields chunks of the input string.
+-- Chunks can be of type "text" or "file".
+--
+-- "text" chunks have a `value` field containing the text segment.
+-- "file" chunks represent `@./path/to/file.ext` references and include:
+--   - `filename`: The cleaned path to the file.
+--   - `raw_filename`: The originally matched filename string (e.g., "./path/to/file.ext").
+--   - `content`: The binary content of the file if readable.
+--   - `mime_type`: The detected MIME type of the file if readable.
+--   - `readable`: A boolean indicating if the file was found and readable.
+--   - `error`: An error message if the file was not readable or an error occurred.
+--
+-- @param self The provider instance (not directly used in this static-like method but kept for consistency).
+-- @param content_string string The string content to parse.
+-- @return coroutine A coroutine that yields parsed chunks.
 function M.parse_message_content_chunks(self, content_string)
-  local function parser_thread()
+  -- Inner function that implements the parsing logic for the coroutine.
+  -- It iterates through the content_string, identifying text segments and
+  -- file references, yielding them one by one.
+  local function chunkify()
     if not content_string or content_string == "" then
       return
     end
@@ -463,7 +481,7 @@ function M.parse_message_content_chunks(self, content_string)
       end
     end
   end
-  return coroutine.create(parser_thread)
+  return coroutine.create(chunkify)
 end
 
 return M
