@@ -38,6 +38,8 @@ M.defaults = {
   parameters = {
     max_tokens = 4000, -- Default max tokens for all providers
     temperature = 0.7, -- Default temperature for all providers
+    timeout = 120, -- Default response timeout for cURL requests
+    connect_timeout = 10, -- Default connection timeout for cURL requests
     vertex = {
       project_id = nil, -- Google Cloud project ID
       location = "us-central1", -- Google Cloud region
@@ -70,7 +72,10 @@ M.defaults = {
 
 -- Check if a parameter key is a general parameter applicable to all providers
 function M.is_general_parameter(key)
-  return key == "max_tokens" or key == "temperature"
+  return key == "max_tokens"
+    or key == "temperature"
+    or key == "timeout"
+    or key == "connect_timeout"
 end
 
 return M

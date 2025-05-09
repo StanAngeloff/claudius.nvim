@@ -176,12 +176,16 @@ end
 
 -- Prepare curl command with common options
 function M.prepare_curl_command(self, tmp_file, headers, endpoint)
+  -- Retrieve timeout values from parameters, with defaults
+  local connect_timeout = self.parameters and self.parameters.connect_timeout or 10
+  local max_time = self.parameters and self.parameters.timeout or 120
+
   local cmd = {
     "curl",
     "-N", -- disable buffering
     "-s", -- silent mode
-    "--connect-timeout", "10", -- connection timeout
-    "--max-time", "120", -- maximum time allowed
+    "--connect-timeout", tostring(connect_timeout), -- connection timeout
+    "--max-time", tostring(max_time), -- maximum time allowed
     "--retry", "0", -- disable retries
     "--http1.1", -- force HTTP/1.1 for better interrupt handling
     "-H", "Connection: close", -- request connection close
