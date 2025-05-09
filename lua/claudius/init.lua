@@ -1213,7 +1213,11 @@ function M.send_to_provider(opts)
           M.cleanup_spinner(bufnr) -- Clean up "Thinking..." message
 
           local error_msg
-          if code == 28 then -- cURL timeout error
+          if code == 6 then -- CURLE_COULDNT_RESOLVE_HOST
+            error_msg = string.format("Claudius: cURL could not resolve host (exit code %d). Check network or hostname.", code)
+          elseif code == 7 then -- CURLE_COULDNT_CONNECT
+            error_msg = string.format("Claudius: cURL could not connect to host (exit code %d). Check network or if the host is up.", code)
+          elseif code == 28 then -- cURL timeout error
             local timeout_value = provider.parameters.timeout or config.parameters.timeout -- Get effective timeout
             error_msg = string.format(
               "Claudius: cURL request timed out (exit code %d). Timeout is %s seconds.",
