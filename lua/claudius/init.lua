@@ -1339,9 +1339,9 @@ function M.switch(provider_name, model_name, parameters)
   local lualine_ok, lualine = pcall(require, "lualine")
   if lualine_ok and lualine.refresh then
     lualine.refresh()
-    log.debug("M.switch(): Lualine refreshed.")
+    log.debug("switch(): Lualine refreshed.")
   else
-    log.debug("M.switch(): Lualine not found or refresh function unavailable.")
+    log.debug("switch(): Lualine not found or refresh function unavailable.")
   end
 
   return new_provider
