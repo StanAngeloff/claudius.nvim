@@ -1335,6 +1335,15 @@ function M.switch(provider_name, model_name, parameters)
   local model_info = config.model and (" with model " .. config.model) or ""
   vim.notify("Claudius: Switched to " .. config.provider .. model_info, vim.log.levels.INFO)
 
+  -- Refresh lualine if available to update the model component
+  local lualine_ok, lualine = pcall(require, "lualine")
+  if lualine_ok and lualine.refresh then
+    lualine.refresh()
+    log.debug("M.switch(): Lualine refreshed.")
+  else
+    log.debug("M.switch(): Lualine not found or refresh function unavailable.")
+  end
+
   return new_provider
 end
 
