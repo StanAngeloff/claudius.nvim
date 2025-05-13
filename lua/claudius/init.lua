@@ -1338,4 +1338,12 @@ function M.switch(provider_name, model_name, parameters)
   return new_provider
 end
 
+-- Get the current model name
+function M.get_current_model_name()
+  if config and config.model then
+    return config.model
+  end
+  return nil -- Or an empty string, depending on desired behavior for uninitialized model
+end
+
 return M
