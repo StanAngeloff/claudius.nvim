@@ -72,7 +72,9 @@ function M.create_request_body(self, formatted_messages, _)
   local api_messages = {}
   for _, msg in ipairs(formatted_messages) do
     if msg.role == "user" then
-      local final_content_parts = {}
+      local content_parts_for_api = {} -- Holds {type="text", text=...} or other part types
+      local has_multimedia_part = false -- Flag if content must be an array (e.g., for images, PDFs)
+
       local content_parser_coro = self:parse_message_content_chunks(msg.content)
       while true do
         local status, chunk = coroutine.resume(content_parser_coro)
@@ -81,19 +83,100 @@ function M.create_request_body(self, formatted_messages, _)
         end
 
         if chunk.type == "text" then
-          table.insert(final_content_parts, chunk.value)
+          if chunk.value and #chunk.value > 0 then
+            table.insert(content_parts_for_api, { type = "text", text = chunk.value })
+          end
         elseif chunk.type == "file" then
-          vim.notify(
-            "Claudius (OpenAI): @file references are not yet supported. The reference will be sent as text.",
-            vim.log.levels.WARN,
-            { title = "Claudius Notification" }
-          )
-          table.insert(final_content_parts, "@" .. chunk.raw_filename) -- Send the raw reference as text
+          if chunk.readable and chunk.content and chunk.mime_type then
+            local encoded_data
+            if
+              chunk.mime_type == "image/jpeg"
+              or chunk.mime_type == "image/png"
+              or chunk.mime_type == "image/webp"
+              or chunk.mime_type == "image/gif"
+            then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_parts_for_api, {
+                type = "image_url",
+                image_url = {
+                  url = "data:" .. chunk.mime_type .. ";base64," .. encoded_data,
+                  detail = "auto", -- Or "low", "high" as per OpenAI docs
+                },
+              })
+              has_multimedia_part = true
+              log.debug(
+                'openai.create_request_body: Added image_url part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            elseif chunk.mime_type == "application/pdf" then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_parts_for_api, {
+                type = "file",
+                file = {
+                  filename = chunk.filename, -- The actual filename
+                  file_data = "data:application/pdf;base64," .. encoded_data,
+                },
+              })
+              has_multimedia_part = true
+              log.debug(
+                'openai.create_request_body: Added file part for PDF "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            elseif chunk.mime_type:sub(1, 5) == "text/" then
+              table.insert(content_parts_for_api, { type = "text", text = chunk.content })
+              log.debug(
+                'openai.create_request_body: Added text part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+              )
+            else
+              vim.notify(
+                "Claudius (OpenAI): @file reference with MIME type '"
+                  .. chunk.mime_type
+                  .. "' is not supported for direct inclusion. The reference will be sent as text.",
+                vim.log.levels.WARN,
+                { title = "Claudius Notification" }
+              )
+              table.insert(content_parts_for_api, { type = "text", text = "@" .. chunk.raw_filename })
+            end
+          else
+            log.warn(
+              'openai.create_request_body: @file reference "'
+                .. chunk.raw_filename
+                .. '" (cleaned: "'
+                .. chunk.filename
+                .. '") not readable or missing data. Error: '
+                .. (chunk.error or "unknown")
+                .. ". Inserting raw text."
+            )
+            table.insert(content_parts_for_api, { type = "text", text = "@" .. chunk.raw_filename })
+          end
         end
       end
+
+      local final_api_content
+      if #content_parts_for_api == 0 then
+        final_api_content = msg.content:gsub("%s+$", "") -- Original trimmed string if no parts generated
+      elseif has_multimedia_part then
+        final_api_content = content_parts_for_api -- Array of parts if multimedia content is present
+      else
+        -- Concatenate all text parts into a single string if only text parts exist
+        local text_only_accumulator = {}
+        for _, part in ipairs(content_parts_for_api) do
+          if part.type == "text" and part.text then
+            table.insert(text_only_accumulator, part.text)
+          end
+        end
+        final_api_content = table.concat(text_only_accumulator)
+      end
+
       table.insert(api_messages, {
         role = msg.role,
-        content = table.concat(final_content_parts):gsub("%s+$", ""),
+        content = final_api_content,
       })
     else -- Assistant or System messages
       table.insert(api_messages, {
