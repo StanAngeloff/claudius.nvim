@@ -129,16 +129,6 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Handle [DONE] message
-  if line == "data: [DONE]" then
-    log.debug("openai.process_response_line(): Received [DONE] message")
-
-    if callbacks.on_done then
-      callbacks.on_done()
-    end
-    return
-  end
-
   -- Handle final chunk with usage information (empty choices array with usage data)
   if line:match("^data: ") then
     local json_str = line:gsub("^data: ", "")
@@ -202,6 +192,17 @@ function M.process_response_line(self, line, callbacks)
 
   -- Extract JSON from data: prefix
   local json_str = line:gsub("^data: ", "")
+
+  -- Handle [DONE] message
+  if json_str == "[DONE]" then
+    log.debug("openai.process_response_line(): Received [DONE] message")
+
+    if callbacks.on_done then
+      callbacks.on_done()
+    end
+    return
+  end
+
   local parse_ok, data = pcall(vim.fn.json_decode, json_str)
   if not parse_ok then
     log.error("openai.process_response_line(): Failed to parse JSON from response: " .. json_str)
