@@ -57,33 +57,9 @@ function M.format_messages(self, messages)
     end
 
     if role and role ~= "system" then -- Skip system messages as we've handled them
-      local final_content_parts = {}
-      if role == "user" then
-        local content_parser_coro = self:parse_message_content_chunks(msg.content)
-        while true do
-          local status, chunk = coroutine.resume(content_parser_coro)
-          if not status or not chunk then -- Coroutine finished or errored
-            break
-          end
-
-          if chunk.type == "text" then
-            table.insert(final_content_parts, chunk.value)
-          elseif chunk.type == "file" then
-            vim.notify(
-              "Claudius (OpenAI): @file references are not yet supported. The reference will be sent as text.",
-              vim.log.levels.WARN,
-              { title = "Claudius Notification" }
-            )
-            table.insert(final_content_parts, "@" .. chunk.raw_filename) -- Send the raw reference as text
-          end
-        end
-      else -- For assistant messages, content is used as is
-        table.insert(final_content_parts, msg.content)
-      end
-
       table.insert(formatted, {
         role = role,
-        content = table.concat(final_content_parts):gsub("%s+$", ""),
+        content = msg.content:gsub("%s+$", ""), -- Content is passed through directly
       })
     end
   end
@@ -93,9 +69,43 @@ end
 
 -- Create request body for OpenAI API
 function M.create_request_body(self, formatted_messages, _)
+  local api_messages = {}
+  for _, msg in ipairs(formatted_messages) do
+    if msg.role == "user" then
+      local final_content_parts = {}
+      local content_parser_coro = self:parse_message_content_chunks(msg.content)
+      while true do
+        local status, chunk = coroutine.resume(content_parser_coro)
+        if not status or not chunk then -- Coroutine finished or errored
+          break
+        end
+
+        if chunk.type == "text" then
+          table.insert(final_content_parts, chunk.value)
+        elseif chunk.type == "file" then
+          vim.notify(
+            "Claudius (OpenAI): @file references are not yet supported. The reference will be sent as text.",
+            vim.log.levels.WARN,
+            { title = "Claudius Notification" }
+          )
+          table.insert(final_content_parts, "@" .. chunk.raw_filename) -- Send the raw reference as text
+        end
+      end
+      table.insert(api_messages, {
+        role = msg.role,
+        content = table.concat(final_content_parts):gsub("%s+$", ""),
+      })
+    else -- Assistant or System messages
+      table.insert(api_messages, {
+        role = msg.role,
+        content = msg.content, -- Already trimmed by format_messages
+      })
+    end
+  end
+
   local request_body = {
     model = self.parameters.model,
-    messages = formatted_messages,
+    messages = api_messages,
     max_tokens = self.parameters.max_tokens,
     temperature = self.parameters.temperature,
     stream = true,
