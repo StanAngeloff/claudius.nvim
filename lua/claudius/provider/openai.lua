@@ -131,7 +131,11 @@ function M.create_request_body(self, formatted_messages, _)
             elseif chunk.mime_type:sub(1, 5) == "text/" then
               table.insert(content_parts_for_api, { type = "text", text = chunk.content })
               log.debug(
-                'openai.create_request_body: Added text part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+                'openai.create_request_body: Added text part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
               )
             else
               vim.notify(

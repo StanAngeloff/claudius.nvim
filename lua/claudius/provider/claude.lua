@@ -86,7 +86,11 @@ function M.create_request_body(self, formatted_messages, system_message)
                 },
               })
               log.debug(
-                'claude.create_request_body: Added image part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+                'claude.create_request_body: Added image part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
               )
             elseif chunk.mime_type == "application/pdf" then
               encoded_data = vim.base64.encode(chunk.content)
@@ -109,7 +113,11 @@ function M.create_request_body(self, formatted_messages, system_message)
               -- Embed content of text files directly
               table.insert(content_blocks, { type = "text", text = chunk.content })
               log.debug(
-                'claude.create_request_body: Added text part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+                'claude.create_request_body: Added text part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
               )
             else
               -- Unsupported MIME type for direct inclusion
