@@ -54,8 +54,9 @@ function M.create_request_body(self, formatted_messages, system_message)
   local api_messages = {}
   for _, msg in ipairs(formatted_messages) do
     if msg.role == "user" then
-      local final_content_parts = {}
+      local content_blocks = {} -- Will hold {type="text", text=...} or {type="image", source=...} etc.
       local content_parser_coro = self:parse_message_content_chunks(msg.content)
+
       while true do
         local status, chunk = coroutine.resume(content_parser_coro)
         if not status or not chunk then -- Coroutine finished or errored
@@ -63,24 +64,103 @@ function M.create_request_body(self, formatted_messages, system_message)
         end
 
         if chunk.type == "text" then
-          table.insert(final_content_parts, chunk.value)
+          if chunk.value and #chunk.value > 0 then
+            table.insert(content_blocks, { type = "text", text = chunk.value })
+          end
         elseif chunk.type == "file" then
-          vim.notify(
-            "Claudius (Claude): @file references are not yet supported. The reference will be sent as text.",
-            vim.log.levels.WARN,
-            { title = "Claudius Notification" }
-          )
-          table.insert(final_content_parts, "@" .. chunk.raw_filename) -- Send the raw reference as text
+          if chunk.readable and chunk.content and chunk.mime_type then
+            local encoded_data
+            if
+              chunk.mime_type == "image/jpeg"
+              or chunk.mime_type == "image/png"
+              or chunk.mime_type == "image/gif"
+              or chunk.mime_type == "image/webp"
+            then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_blocks, {
+                type = "image",
+                source = {
+                  type = "base64",
+                  media_type = chunk.mime_type,
+                  data = encoded_data,
+                },
+              })
+              log.debug(
+                'claude.create_request_body: Added image part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+              )
+            elseif chunk.mime_type == "application/pdf" then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_blocks, {
+                type = "document",
+                source = {
+                  type = "base64",
+                  media_type = chunk.mime_type, -- API expects "application/pdf"
+                  data = encoded_data,
+                },
+              })
+              log.debug(
+                'claude.create_request_body: Added document part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            elseif chunk.mime_type:sub(1, 5) == "text/" then
+              -- Embed content of text files directly
+              table.insert(content_blocks, { type = "text", text = chunk.content })
+              log.debug(
+                'claude.create_request_body: Added text part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+              )
+            else
+              -- Unsupported MIME type for direct inclusion
+              vim.notify(
+                "Claudius (Claude): @file reference with MIME type '"
+                  .. chunk.mime_type
+                  .. "' is not supported for direct inclusion. The reference will be sent as text.",
+                vim.log.levels.WARN,
+                { title = "Claudius Notification" }
+              )
+              table.insert(content_blocks, { type = "text", text = "@" .. chunk.raw_filename })
+            end
+          else
+            -- File not readable or missing essential data
+            log.warn(
+              'claude.create_request_body: @file reference "'
+                .. chunk.raw_filename
+                .. '" (cleaned: "'
+                .. chunk.filename
+                .. '") not readable or missing data. Error: '
+                .. (chunk.error or "unknown")
+                .. ". Inserting raw text."
+            )
+            table.insert(content_blocks, { type = "text", text = "@" .. chunk.raw_filename })
+          end
         end
+      end
+
+      local final_user_content
+      if #content_blocks > 0 then
+        final_user_content = content_blocks
+      else
+        -- Original content was empty/whitespace, or resulted in no processable blocks.
+        -- Use the original string content, trimmed, as per Claude API (string | object[]).
+        final_user_content = msg.content:gsub("%s+$", "")
+        log.debug(
+          "claude.create_request_body: User content resulted in empty 'content_blocks'. Using original string content: \""
+            .. final_user_content
+            .. '"'
+        )
       end
       table.insert(api_messages, {
         role = msg.role,
-        content = table.concat(final_content_parts):gsub("%s+$", ""),
+        content = final_user_content,
       })
-    else -- Assistant messages
+    elseif msg.role == "assistant" then -- Assistant messages in the request history
+      -- Assistant message content should also be in the new block structure.
+      -- Assuming assistant messages are always text.
       table.insert(api_messages, {
         role = msg.role,
-        content = msg.content, -- Already trimmed by format_messages
+        content = { { type = "text", text = msg.content } }, -- Already trimmed by format_messages
       })
     end
   end
