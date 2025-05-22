@@ -93,15 +93,11 @@ end
 
 -- Create request body for OpenAI API
 function M.create_request_body(self, formatted_messages, _)
-  -- Access parameters directly from self.parameters
-  local max_tokens = self.parameters.max_tokens
-  local temperature = self.parameters.temperature
-
   local request_body = {
-    model = self.parameters.model, -- Model is already directly in self.parameters
+    model = self.parameters.model,
     messages = formatted_messages,
-    max_tokens = max_tokens,
-    temperature = temperature,
+    max_tokens = self.parameters.max_tokens,
+    temperature = self.parameters.temperature,
     stream = true,
     stream_options = {
       include_usage = true, -- Request usage information in the final chunk
@@ -114,6 +110,7 @@ end
 -- Get request headers for OpenAI API
 function M.get_request_headers(self)
   local api_key = self:get_api_key()
+
   return {
     "Authorization: Bearer " .. api_key,
     "Content-Type: application/json",

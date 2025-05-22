@@ -214,10 +214,6 @@ end
 
 -- Create request body for Vertex AI API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Access parameters directly from self.parameters
-  local max_tokens = self.parameters.max_tokens
-  local temperature = self.parameters.temperature
-
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
   for _, msg in ipairs(formatted_messages) do
@@ -307,10 +303,9 @@ function M.create_request_body(self, formatted_messages, system_message)
 
   local request_body = {
     contents = contents,
-    -- model = self.model, -- Model is part of the endpoint URL for Vertex
     generationConfig = {
-      maxOutputTokens = max_tokens,
-      temperature = temperature,
+      maxOutputTokens = self.parameters.max_tokens,
+      temperature = self.parameters.temperature,
     },
   }
 

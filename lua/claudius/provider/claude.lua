@@ -75,16 +75,12 @@ end
 
 -- Create request body for Claude API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Access parameters directly from self.parameters
-  local max_tokens = self.parameters.max_tokens
-  local temperature = self.parameters.temperature
-
   local request_body = {
-    model = self.parameters.model, -- Model is already directly in self.parameters
+    model = self.parameters.model,
     messages = formatted_messages,
     system = system_message,
-    max_tokens = max_tokens,
-    temperature = temperature,
+    max_tokens = self.parameters.max_tokens,
+    temperature = self.parameters.temperature,
     stream = true,
   }
 
@@ -94,6 +90,7 @@ end
 -- Get request headers for Claude API
 function M.get_request_headers(self)
   local api_key = self:get_api_key()
+
   return {
     "x-api-key: " .. api_key,
     "anthropic-version: " .. self.api_version,
