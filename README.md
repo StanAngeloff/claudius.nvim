@@ -69,7 +69,7 @@ require("claudius").setup({
     model = nil,  -- Uses provider defaults if nil (see below)
     -- Claude default: "claude-3-7-sonnet-20250219"
     -- OpenAI default: "gpt-4o"
-    -- Vertex default: "gemini-2.5-pro-exp-03-25"
+    -- Vertex default: "gemini-2.5-pro-preview-05-06"
     parameters = {
         max_tokens = nil,  -- Set to nil to use default (4000)
         temperature = nil,  -- Set to nil to use default (0.7)
@@ -283,7 +283,7 @@ You can switch between AI providers at any time using the `:ClaudiusSwitch` comm
 :ClaudiusSwitch	# Interactive provider/model selection
 :ClaudiusSwitch claude	# Switch to Claude with default model
 :ClaudiusSwitch openai gpt-4o	# Switch to OpenAI with specific model
-:ClaudiusSwitch vertex gemini-2.5-pro-exp-03-25 project_id=my-project	# Switch to Vertex AI with project ID
+:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project	# Switch to Vertex AI with project ID
 :ClaudiusSwitch claude claude-3-7-sonnet-20250219 temperature=0.2 max_tokens=1000	# Multiple parameters
 ```
 

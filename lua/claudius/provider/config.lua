@@ -6,7 +6,7 @@ local M = {}
 M.defaults = {
   claude = "claude-3-7-sonnet-20250219",
   openai = "gpt-4o",
-  vertex = "gemini-2.5-pro-exp-03-25",
+  vertex = "gemini-2.5-pro-preview-05-06",
 }
 
 -- Available models grouped by provider
