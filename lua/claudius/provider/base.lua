@@ -2,6 +2,19 @@
 --- Defines the interface that all providers must implement
 local log = require("claudius.logging")
 local mime_util = require("claudius.mime")
+
+-- Helper function to URL-decode a string
+local function url_decode(str)
+  if not str then
+    return nil
+  end
+  str = string.gsub(str, "+", " ")
+  str = string.gsub(str, "%%(%x%x)", function(h)
+    return string.char(tonumber(h, 16))
+  end)
+  return str
+end
+
 local M = {}
 
 -- Provider constructor
@@ -394,10 +407,15 @@ function M.parse_message_content_chunks(self, content_string)
         end
 
         -- Clean the matched filename (remove trailing punctuation)
-        local cleaned_filename = raw_file_match:gsub("[%p]+$", "")
+        local filename_no_punctuation = raw_file_match:gsub("[%p]+$", "")
+        -- URL-decode the filename
+        local cleaned_filename = url_decode(filename_no_punctuation)
+
         log.debug(
           'base.parse_message_content_chunks: Found @file reference (raw: "'
             .. raw_file_match
+            .. '", no_punct: "'
+            .. filename_no_punctuation
             .. '", cleaned: "'
             .. cleaned_filename
             .. '").'
