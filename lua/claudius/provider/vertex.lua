@@ -530,12 +530,12 @@ function M.process_response_line(self, line, callbacks)
       -- Strip leading/trailing whitespace (including newlines) from thoughts
       local stripped_thoughts = vim.trim(self.response_accumulator.accumulated_thoughts)
       -- Construct the thoughts block according to specified formatting:
-      -- - A newline for separation from previous content.
+      -- - Two newlines for separation (ensuring at least one blank line) from previous content.
       -- - <thinking> tag followed by a newline.
       -- - The stripped thoughts content.
       -- - A newline after the thoughts content.
       -- - </thinking> tag followed by a newline.
-      local thoughts_block = "\n<thinking>\n" .. stripped_thoughts .. "\n</thinking>\n"
+      local thoughts_block = "\n\n<thinking>\n" .. stripped_thoughts .. "\n</thinking>\n"
       log.debug("vertex.process_response_line(): Appending aggregated thoughts: " .. log.inspect(thoughts_block))
       if callbacks.on_content then
         callbacks.on_content(thoughts_block)
