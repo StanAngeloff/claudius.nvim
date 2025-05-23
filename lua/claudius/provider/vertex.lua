@@ -312,48 +312,56 @@ function M.create_request_body(self, formatted_messages, system_message)
 
   -- Add thinking budget if configured
   local configured_budget = self.parameters.thinking_budget
-  local add_thinking_config = false
+  local add_thinking_config = false -- Default to false, only set true if budget >= 1
   local api_budget_value
 
-  if configured_budget == nil or configured_budget == 0 then
-    api_budget_value = 0
-    add_thinking_config = true
-    log.debug(
-      "create_request_body: Vertex AI thinking_budget is "
-        .. tostring(configured_budget)
-        .. ". Disabling thinking (API thinkingBudget: 0)."
-    )
-  elseif type(configured_budget) == "number" and configured_budget >= 1 then
+  if type(configured_budget) == "number" and configured_budget >= 1 then
+    -- Thinking is enabled and budget is specified
     api_budget_value = math.floor(configured_budget)
-    add_thinking_config = true
+    add_thinking_config = true -- Set to true as budget is valid for thinking
     log.debug(
       "create_request_body: Vertex AI thinking_budget is "
         .. tostring(configured_budget)
-        .. ". Setting API thinkingBudget to: "
+        .. ". Enabling thinking and setting API thinkingBudget to: "
         .. api_budget_value
         .. "."
     )
+  elseif configured_budget == 0 then
+    -- Thinking is explicitly disabled by setting budget to 0
+    log.debug(
+      "create_request_body: Vertex AI thinking_budget is 0. Thinking is disabled. Not sending thinkingConfig."
+    )
+    -- add_thinking_config remains false
+  elseif configured_budget == nil then
+    -- Thinking budget is not set (nil), so default behavior (no thinkingConfig)
+    log.debug(
+      "create_request_body: Vertex AI thinking_budget is nil. Not sending thinkingConfig."
+    )
+    -- add_thinking_config remains false
   else
-    -- Handles negative numbers, or non-numeric types if they somehow get here.
+    -- Handles negative numbers or other invalid types if they somehow get here.
     log.warn(
       "create_request_body: Vertex AI thinking_budget ("
         .. log.inspect(configured_budget)
-        .. ") is invalid or not set to enable/disable thinking. Not sending thinkingConfig."
+        .. ") is invalid. Not sending thinkingConfig."
     )
+    -- add_thinking_config remains false
   end
 
   if add_thinking_config then
+    -- This block now only executes if configured_budget is a number and >= 1
     request_body.generationConfig = request_body.generationConfig or {}
     request_body.generationConfig.thinkingConfig = {
       thinkingBudget = api_budget_value,
+      includeThoughts = true, -- If thinkingConfig is sent, includeThoughts should be true
     }
-    -- Only include thoughts if budget is actually set for thinking (>=1)
-    if type(configured_budget) == "number" and configured_budget >= 1 then
-      request_body.generationConfig.thinkingConfig.includeThoughts = true
-      log.debug("create_request_body: Vertex AI includeThoughts set to true.")
-    else
-      log.debug("create_request_body: Vertex AI includeThoughts not set (budget is 0 or nil).")
-    end
+    log.debug(
+      "create_request_body: Vertex AI thinkingConfig included with thinkingBudget: "
+        .. api_budget_value
+        .. " and includeThoughts: true."
+    )
+  else
+    log.debug("create_request_body: Vertex AI thinkingConfig not included in the request.")
   end
 
   -- Add system instruction if provided
