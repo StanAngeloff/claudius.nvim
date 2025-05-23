@@ -346,6 +346,13 @@ function M.create_request_body(self, formatted_messages, system_message)
     request_body.generationConfig.thinkingConfig = {
       thinkingBudget = api_budget_value,
     }
+    -- Only include thoughts if budget is actually set for thinking (>=1)
+    if type(configured_budget) == "number" and configured_budget >= 1 then
+      request_body.generationConfig.thinkingConfig.includeThoughts = true
+      log.debug("create_request_body: Vertex AI includeThoughts set to true.")
+    else
+      log.debug("create_request_body: Vertex AI includeThoughts not set (budget is 0 or nil).")
+    end
   end
 
   -- Add system instruction if provided
@@ -477,87 +484,66 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Process usage information if available
-  if data.usageMetadata then
-    local usage = data.usageMetadata
-
-    -- Handle input tokens
-    if usage.promptTokenCount and callbacks.on_usage then
-      callbacks.on_usage({
-        type = "input",
-        tokens = usage.promptTokenCount,
-      })
-    end
-
-    -- Handle output tokens
-    if usage.candidatesTokenCount and callbacks.on_usage then
-      callbacks.on_usage({
-        type = "output",
-        tokens = usage.candidatesTokenCount,
-      })
-    end
-
-    -- Handle thoughts tokens
-    if usage.thoughtsTokenCount and callbacks.on_usage then
-      callbacks.on_usage({
-        type = "thoughts",
-        tokens = usage.thoughtsTokenCount,
-      })
-    end
-
-    -- Check if this is the final message with finish reason
-    if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
-      log.debug(
-        "vertex.process_response_line(): Received finish reason: " .. log.inspect(data.candidates[1].finishReason)
-      )
-
-      -- Process any content in the final message before signaling completion
-      if
-        data.candidates[1].content
-        and data.candidates[1].content.parts
-        and data.candidates[1].content.parts[1]
-        and data.candidates[1].content.parts[1].text
-      then
-        local text = data.candidates[1].content.parts[1].text
-        log.debug("vertex.process_response_line(): ... Final message content text: " .. log.inspect(text))
-
-        -- Mark that we've received valid content
+  -- Process content parts (thoughts or text)
+  if data.candidates and data.candidates[1] and data.candidates[1].content and data.candidates[1].content.parts then
+    for _, part in ipairs(data.candidates[1].content.parts) do
+      if part.thought and part.text and #part.text > 0 then
+        log.debug("vertex.process_response_line(): Accumulating thought text: " .. log.inspect(part.text))
+        self.response_accumulator.accumulated_thoughts = (self.response_accumulator.accumulated_thoughts or "")
+          .. part.text
+      elseif not part.thought and part.text and #part.text > 0 then -- Not a thought, but has text
+        log.debug("vertex.process_response_line(): ... Content text: " .. log.inspect(part.text))
         self.response_accumulator.has_processed_content = true
-
         if callbacks.on_content then
-          callbacks.on_content(text)
+          callbacks.on_content(part.text)
         end
       end
-
-      -- Signal message completion
-      if callbacks.on_message_complete then
-        callbacks.on_message_complete()
-      end
-
-      -- Signal done
-      if callbacks.on_done then
-        callbacks.on_done()
-      end
-      return
     end
   end
 
-  -- Handle content
-  if data.candidates and data.candidates[1] and data.candidates[1].content then
-    local content = data.candidates[1].content
-
-    -- Check if there's text content
-    if content.parts and content.parts[1] and content.parts[1].text then
-      local text = content.parts[1].text
-      log.debug("vertex.process_response_line(): ... Content text: " .. log.inspect(text))
-
-      -- Mark that we've received valid content
-      self.response_accumulator.has_processed_content = true
-
-      if callbacks.on_content then
-        callbacks.on_content(text)
-      end
+  -- Process usage information if available (can come with content or with finishReason)
+  if data.usageMetadata then
+    local usage = data.usageMetadata
+    -- Handle input tokens
+    if usage.promptTokenCount and callbacks.on_usage then
+      callbacks.on_usage({ type = "input", tokens = usage.promptTokenCount })
     end
+    -- Handle output tokens
+    if usage.candidatesTokenCount and callbacks.on_usage then
+      callbacks.on_usage({ type = "output", tokens = usage.candidatesTokenCount })
+    end
+    -- Handle thoughts tokens
+    if usage.thoughtsTokenCount and callbacks.on_usage then
+      callbacks.on_usage({ type = "thoughts", tokens = usage.thoughtsTokenCount })
+    end
+  end
+
+  -- Check for finish reason (this indicates the end of the stream for this candidate)
+  if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
+    log.debug(
+      "vertex.process_response_line(): Received finish reason: " .. log.inspect(data.candidates[1].finishReason)
+    )
+
+    -- Append aggregated thoughts if any
+    if self.response_accumulator.accumulated_thoughts and #self.response_accumulator.accumulated_thoughts > 0 then
+      local thoughts_block = "\n<thinking>\n" .. self.response_accumulator.accumulated_thoughts .. "\n</thinking>"
+      log.debug("vertex.process_response_line(): Appending aggregated thoughts: " .. log.inspect(thoughts_block))
+      if callbacks.on_content then
+        callbacks.on_content(thoughts_block)
+      end
+      self.response_accumulator.accumulated_thoughts = "" -- Reset for next potential full message
+    end
+
+    -- Signal message completion (after all content, including thoughts, has been sent)
+    if callbacks.on_message_complete then
+      callbacks.on_message_complete()
+    end
+
+    -- Signal done (end of this specific API call)
+    if callbacks.on_done then
+      callbacks.on_done()
+    end
+    return -- Important to return after handling finishReason
   end
 end
 
@@ -656,9 +642,10 @@ function M.reset(self)
   self.response_accumulator = {
     lines = {},
     has_processed_content = false,
+    accumulated_thoughts = "", -- Initialize for storing thought summaries
   }
 
-  log.debug("vertex.reset(): Reset Vertex AI provider state (response accumulator)")
+  log.debug("vertex.reset(): Reset Vertex AI provider state (response accumulator with thoughts)")
 end
 
 return M
