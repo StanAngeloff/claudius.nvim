@@ -977,9 +977,9 @@ function M.send_to_provider(opts)
         local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
         local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          output_display_string = string.format("  Output: %d tokens (⊂ %d thoughts) / $%.2f", display_output_tokens, current.thoughts_tokens, current_cost.output)
+          output_display_string = string.format(" Output:  %d tokens (⊂ %d thoughts) / $%.2f", display_output_tokens, current.thoughts_tokens, current_cost.output)
         else
-          output_display_string = string.format("  Output: %d tokens / $%.2f", display_output_tokens, current_cost.output)
+          output_display_string = string.format(" Output:  %d tokens / $%.2f", display_output_tokens, current_cost.output)
         end
         table.insert(lines, output_display_string)
         table.insert(lines, string.format("  Total:  $%.2f", current_cost.total))
@@ -988,9 +988,9 @@ function M.send_to_provider(opts)
         local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
         local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          output_display_string = string.format("  Output: %d tokens (⊂ %d thoughts)", display_output_tokens, current.thoughts_tokens)
+          output_display_string = string.format(" Output:  %d tokens (⊂ %d thoughts)", display_output_tokens, current.thoughts_tokens)
         else
-          output_display_string = string.format("  Output: %d tokens", display_output_tokens)
+          output_display_string = string.format(" Output:  %d tokens", display_output_tokens)
         end
         table.insert(lines, output_display_string)
       end
@@ -1010,13 +1010,13 @@ function M.send_to_provider(opts)
         local display_session_output_tokens = (session.output_tokens or 0) + (session.thoughts_tokens or 0)
         table.insert(
           lines,
-          string.format("  Output: %d tokens / $%.2f", display_session_output_tokens, session_cost.output)
+          string.format(" Output:  %d tokens / $%.2f", display_session_output_tokens, session_cost.output)
         )
         table.insert(lines, string.format("  Total:  $%.2f", session_cost.total))
       else
         table.insert(lines, string.format("  Input:  %d tokens", session.input_tokens or 0))
         local display_session_output_tokens = (session.output_tokens or 0) + (session.thoughts_tokens or 0)
-        table.insert(lines, string.format("  Output: %d tokens", display_session_output_tokens))
+        table.insert(lines, string.format(" Output:  %d tokens", display_session_output_tokens))
       end
     end
     return table.concat(lines, "\n")
