@@ -974,26 +974,28 @@ function M.send_to_provider(opts)
       table.insert(lines, string.format("  Model:  `%s` (%s)", config.model, config.provider))
       if current_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", current.input_tokens or 0, current_cost.input))
-        table.insert(lines, string.format("  Output: %d tokens", current.output_tokens or 0))
+        local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          table.insert(lines, string.format("  Thoughts: %d tokens", current.thoughts_tokens))
+          output_display_string = string.format("  Output: %d tokens (%d thoughts) / $%.2f", current.output_tokens or 0, current.thoughts_tokens, current_cost.output)
+        else
+          output_display_string = string.format("  Output: %d tokens / $%.2f", current.output_tokens or 0, current_cost.output)
         end
-        table.insert(
-          lines,
-          string.format("  Output Cost (incl. thoughts): $%.2f", current_cost.output)
-        )
+        table.insert(lines, output_display_string)
         table.insert(lines, string.format("  Total:  $%.2f", current_cost.total))
       else
         table.insert(lines, string.format("  Input:  %d tokens", current.input_tokens or 0))
-        table.insert(lines, string.format("  Output: %d tokens", current.output_tokens or 0))
+        local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          table.insert(lines, string.format("  Thoughts: %d tokens", current.thoughts_tokens))
+          output_display_string = string.format("  Output: %d tokens (%d thoughts)", current.output_tokens or 0, current.thoughts_tokens)
+        else
+          output_display_string = string.format("  Output: %d tokens", current.output_tokens or 0)
         end
+        table.insert(lines, output_display_string)
       end
     end
 
     -- Session totals
-    if session and (session.input_tokens > 0 or session.output_tokens > 0 or (session.thoughts_tokens and session.thoughts_tokens > 0)) then
+    if session and (session.input_tokens > 0 or session.output_tokens > 0) then
       local total_session_output_tokens_for_cost = (session.output_tokens or 0) + (session.thoughts_tokens or 0)
       local session_cost = config.pricing.enabled
         and pricing.calculate_cost(config.model, session.input_tokens, total_session_output_tokens_for_cost)
@@ -1003,21 +1005,14 @@ function M.send_to_provider(opts)
       table.insert(lines, "Session:")
       if session_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", session.input_tokens or 0, session_cost.input))
-        table.insert(lines, string.format("  Output: %d tokens", session.output_tokens or 0))
-        if session.thoughts_tokens and session.thoughts_tokens > 0 then
-          table.insert(lines, string.format("  Thoughts: %d tokens", session.thoughts_tokens))
-        end
         table.insert(
           lines,
-          string.format("  Output Cost (incl. thoughts): $%.2f", session_cost.output)
+          string.format("  Output: %d tokens / $%.2f", session.output_tokens or 0, session_cost.output)
         )
         table.insert(lines, string.format("  Total:  $%.2f", session_cost.total))
       else
         table.insert(lines, string.format("  Input:  %d tokens", session.input_tokens or 0))
         table.insert(lines, string.format("  Output: %d tokens", session.output_tokens or 0))
-        if session.thoughts_tokens and session.thoughts_tokens > 0 then
-          table.insert(lines, string.format("  Thoughts: %d tokens", session.thoughts_tokens))
-        end
       end
     end
     return table.concat(lines, "\n")
