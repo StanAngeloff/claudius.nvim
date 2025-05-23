@@ -977,7 +977,7 @@ function M.send_to_provider(opts)
         local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
         local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          output_display_string = string.format("  Output: %d tokens (%d thoughts) / $%.2f", display_output_tokens, current.thoughts_tokens, current_cost.output)
+          output_display_string = string.format("  Output: %d tokens (⊂ %d thoughts) / $%.2f", display_output_tokens, current.thoughts_tokens, current_cost.output)
         else
           output_display_string = string.format("  Output: %d tokens / $%.2f", display_output_tokens, current_cost.output)
         end
@@ -988,7 +988,7 @@ function M.send_to_provider(opts)
         local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
         local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          output_display_string = string.format("  Output: %d tokens (%d thoughts)", display_output_tokens, current.thoughts_tokens)
+          output_display_string = string.format("  Output: %d tokens (⊂ %d thoughts)", display_output_tokens, current.thoughts_tokens)
         else
           output_display_string = string.format("  Output: %d tokens", display_output_tokens)
         end
