@@ -290,8 +290,9 @@ function M.create_request_body(self, formatted_messages, system_message)
         table.insert(parts, { text = "" })
       end
     else
-      -- For model messages, just add the content as a single text part
-      table.insert(parts, { text = msg.content })
+      -- For model messages, strip out <thinking>...</thinking> blocks and add the content as a single text part
+      local content_without_thoughts = msg.content:gsub("\n?<thinking>.-</thinking>\n?", "")
+      table.insert(parts, { text = content_without_thoughts })
     end
 
     -- Add the message with its role and parts to the contents list
