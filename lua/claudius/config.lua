@@ -43,6 +43,7 @@ M.defaults = {
     vertex = {
       project_id = nil, -- Google Cloud project ID
       location = "us-central1", -- Google Cloud region
+      thinking_budget = nil, -- Optional. Budget for model thinking, in tokens. nil for model default, 0 to disable.
     },
     -- Add provider-specific parameter sections here if needed in the future
     -- e.g., claude = {}, openai = {}

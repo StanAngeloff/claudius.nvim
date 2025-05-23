@@ -309,6 +309,19 @@ function M.create_request_body(self, formatted_messages, system_message)
     },
   }
 
+  -- Add thinking budget if configured
+  local thinking_budget = self.parameters.thinking_budget
+  if type(thinking_budget) == "number" then -- Check if it's explicitly set
+    -- Ensure generationConfig exists
+    request_body.generationConfig = request_body.generationConfig or {}
+    request_body.generationConfig.thinkingConfig = {
+      thinkingBudget = thinking_budget,
+    }
+    log.debug("create_request_body: Vertex AI thinkingBudget set to: " .. thinking_budget)
+  else
+    log.debug("create_request_body: Vertex AI thinking_budget is nil, using model default.")
+  end
+
   -- Add system instruction if provided
   if system_message then
     request_body.systemInstruction = {
@@ -455,6 +468,14 @@ function M.process_response_line(self, line, callbacks)
       callbacks.on_usage({
         type = "output",
         tokens = usage.candidatesTokenCount,
+      })
+    end
+
+    -- Handle thoughts tokens
+    if usage.thoughtsTokenCount and callbacks.on_usage then
+      callbacks.on_usage({
+        type = "thoughts",
+        tokens = usage.thoughtsTokenCount,
       })
     end
 
