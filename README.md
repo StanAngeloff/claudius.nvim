@@ -350,7 +350,7 @@ require('lualine').setup {
   sections = {
     lualine_a = {'mode'},
     -- ... other sections
-    lualine_x = {require('lualine.components.claudius'), 'encoding', 'filetype'}, -- Add Claudius model component
+    lualine_x = {{ "claudius", icon = "🧠" }, 'encoding', 'filetype'}, -- Add Claudius model component with icon
     -- ... other sections
   },
   -- ...
