@@ -8,6 +8,7 @@ Transform Neovim into your AI conversation companion with a native interface to 
 | Support for Claude, OpenAI, and Google Vertex AI models        | Import/export compatibility with Claude Workbench                     | Code block syntax highlighting   |
 | Native Neovim feel with proper syntax highlighting and folding | Real-time token usage and cost tracking                               | Automatic buffer management      |
 | Automatic API key management via system keyring                | Message-based text objects and navigation                             | Customizable keymaps and styling |
+| `@file` references for embedding images, PDFs, and text        | Lualine component for model display                                   |                                  |
 
 <img src="assets/pretty_snap_2025_1_21_23_9.png" alt="A screenshot of Claudius in action" />
 
@@ -21,6 +22,7 @@ Claudius requires:
   - Google Vertex AI access token (via VERTEX_AI_ACCESS_TOKEN environment variable) or service account credentials
 - Neovim with Tree-sitter support (required for core functionality)
 - Tree-sitter markdown parser (required for message formatting and syntax highlighting)
+- The `file` command-line utility (for MIME type detection used by `@file` references)
 
 Optional Features:
 
@@ -85,7 +87,7 @@ require("claudius").setup({
     },
     role_style = "bold,underline",  -- style applied to role markers like @You:
     ruler = {
-        char = "─",           -- character used for the separator line
+        char = "━",           -- character used for the separator line
         hl = "NonText"        -- highlight group or hex color for the separator
     },
     signs = {
@@ -96,7 +98,7 @@ require("claudius").setup({
             hl = true,    -- inherit from highlights.system, set false to disable, or provide specific group/hex color
         },
         user = {
-            char = nil,   -- use default char
+            char = "▏",   -- use default char
             hl = true,    -- inherit from highlights.user, set false to disable, or provide specific group/hex color
         },
         assistant = {
@@ -193,6 +195,35 @@ end
 @You: {{greet("Claude")}}
 @Assistant: Hello! It's nice to meet you.
 ````
+
+### File References with `@file`
+
+You can embed content from local files directly into your messages using the `@./path/to/file` syntax. This feature requires the `file` command-line utility to be installed for MIME type detection.
+
+**Syntax:**
+
+-   File paths must start with `./` (current directory) or `../` (parent directory).
+-   Example: `@./images/diagram.png` or `@../documents/report.pdf`
+-   File paths can be URL-encoded (e.g., spaces as `%20`) and will be automatically decoded.
+-   Trailing punctuation in file paths (e.g., from ending a sentence with `@./file.txt.`) is ignored.
+
+**Provider Support:**
+
+-   **Claude & OpenAI:**
+    -   Images: JPEG, PNG, GIF, WebP
+    -   Documents: PDF
+    -   Text: Plain text files (e.g., `.txt`, `.md`, `.lua`) are embedded as text.
+-   **Vertex AI:**
+    -   Supports generic binary files (sent as `inlineData` with detected MIME type).
+    -   Text files (MIME type `text/*`) are embedded as text parts.
+
+If a file is not found, not readable, or its MIME type is unsupported by the provider for direct inclusion, the raw `@./path/to/file` reference will be sent as text, and a notification will be shown.
+
+Example:
+
+```markdown
+@You: Please analyze this image: @./screenshots/error.png and this document: @./specs/project%20brief.pdf
+```
 
 ## Usage
 
@@ -301,6 +332,27 @@ You can import conversations from the Claude Workbench (console.anthropic.com):
 6. Run `:ClaudiusImport` to convert it to a .chat file
 
 The command will parse the API call and convert it into Claudius's chat format.
+
+### Lualine Integration
+
+Claudius includes a component to display the currently active AI model in your Lualine status bar. To use it, add the component to your Lualine configuration:
+
+```lua
+-- Example Lualine setup
+require('lualine').setup {
+  options = {
+    -- ... your other options
+  },
+  sections = {
+    lualine_a = {'mode'},
+    -- ... other sections
+    lualine_x = {require('lualine.components.claudius'), 'encoding', 'filetype'}, -- Add Claudius model component
+    -- ... other sections
+  },
+  -- ...
+}
+```
+The model display is active only for `*.chat` buffers.
 
 ## About
 
