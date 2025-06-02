@@ -75,9 +75,12 @@ require("claudius").setup({
     parameters = {
         max_tokens = nil,  -- Set to nil to use default (4000)
         temperature = nil,  -- Set to nil to use default (0.7)
+        timeout = 120, -- Default cURL request timeout in seconds
+        connect_timeout = 10, -- Default cURL connection timeout in seconds
         vertex = {
             project_id = nil,  -- Google Cloud project ID (required for Vertex AI)
             location = "us-central1",  -- Google Cloud region
+            thinking_budget = nil, -- Optional. Budget for model thinking, in tokens. `nil` or `0` disables thinking. Values `>= 1` enable thinking with the specified budget (integer part taken).
         },
     },
     highlights = {
@@ -315,7 +318,8 @@ You can switch between AI providers at any time using the `:ClaudiusSwitch` comm
 :ClaudiusSwitch claude	# Switch to Claude with default model
 :ClaudiusSwitch openai gpt-4o	# Switch to OpenAI with specific model
 :ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project	# Switch to Vertex AI with project ID
-:ClaudiusSwitch claude claude-3-7-sonnet-20250219 temperature=0.2 max_tokens=1000	# Multiple parameters
+:ClaudiusSwitch claude claude-3-7-sonnet-20250219 temperature=0.2 max_tokens=1000 connect_timeout=5 timeout=60 # Multiple parameters, including general ones
+:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project thinking_budget=1000 # Vertex AI with thinking budget
 ```
 
 This allows you to compare responses from different AI models without restarting Neovim.
