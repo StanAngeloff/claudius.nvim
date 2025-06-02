@@ -1,5 +1,84 @@
 # Changelog
 
+## v25.06-1 – 2025-06-02
+
+### Added
+
+- **`@file` References:**
+  - Implemented robust support for `@./path/to/file` references in user messages across all providers (Claude, OpenAI, Vertex AI).
+  - Files are read, their MIME types detected (requires the `file` command-line utility), and content is base64 encoded for inclusion in API requests.
+  - **Claude Provider:** Supports images (JPEG, PNG, GIF, WebP) and PDFs as `image` and `document` source types respectively. Text files (`text/*`) are embedded as text blocks.
+  - **OpenAI Provider:** Supports images (JPEG, PNG, WebP, GIF) as `image_url` parts. Text files (`text/*`) are embedded as text parts. PDF files are also included as base64 encoded data (note: direct PDF support in chat completion API might vary by model).
+  - **Vertex AI Provider:** Supports generic binary files as `inlineData` parts. Text files (`text/*`) are now sent as distinct text parts rather than `inlineData`.
+  - File paths can be URL-encoded (e.g., spaces as `%20`) and will be automatically decoded.
+  - Trailing punctuation in file paths (e.g., from ending a sentence with `@./file.txt.`) is ignored for robustness.
+  - Notifications are shown if a file is not found, not readable, or its MIME type is unsupported by the provider for direct inclusion; in such cases, the raw `@./path/to/file` reference is sent as text.
+  - Extracted MIME type detection to a new utility module `lua/claudius/mime.lua`.
+- **Vertex AI "Thinking":**
+  - Added support for Vertex AI's "thinking" feature (experimental model capability).
+  - New `thinking_budget` parameter under `parameters.vertex` in `setup()` allows specifying a token budget for model thinking.
+    - `nil` or `0` disables thinking by not sending the `thinkingConfig` to the API.
+    - Values `>= 1` enable thinking with the specified budget (integer part taken).
+  - When enabled, "thinking" from the model are streamed and displayed in the chat buffer, wrapped in `<thinking>...</thinking>` tags.
+  - These `<thinking>` blocks are automatically stripped from assistant messages when they are part of the history sent in subsequent requests.
+  - Thinking token usage is tracked and included in request/session cost calculations and notifications.
+- **Lualine Integration:**
+  - Added a Lualine component to display the currently active Claudius AI model.
+  - The component is available as `require('lualine.components.claudius')` or simply `"claudius"`.
+  - The model display is active only for `*.chat` buffers.
+  - The display automatically refreshes when switching models/providers via `:ClaudiusSwitch`.
+- **Configurable Timeouts:**
+  - Made cURL `connect_timeout` (default: 10s) and `timeout` (response timeout, default: 120s) configurable.
+  - These can be set globally in `setup()` under `parameters` or overridden per call with `:ClaudiusSwitch ... connect_timeout=X timeout=Y`.
+- **New Models Supported:**
+  - **Vertex AI:**
+    - Added support for `gemini-2.5-pro-preview-05-06` (now the default Vertex AI model).
+    - Added support for `gemini-2.5-flash-preview-04-17`.
+  - Pricing information for these new models has been added.
+- **Logging:**
+  - Added `M.warn()` function to the logging module.
+
+### Changed
+
+- **README Overhaul:**
+  - Significantly restructured and updated the README for clarity and completeness.
+  - Added a new screenshot.
+  - Reorganized sections: Installation, Requirements, Configuration, Usage.
+  - Clarified API key storage with a `<details>` block for Linux `secret-tool`.
+  - Moved plugin defaults into a `<details>` block.
+  - Reordered and improved Usage sub-sections (Starting a New Chat, Commands and Keybindings, Switching Providers, Lualine Integration, Templating, File References, Importing).
+  - Updated Lualine example to show icon usage: `{{ "claudius", icon = "🧠" }}`.
+  - Documented new configuration options (`timeout`, `connect_timeout`, `thinking_budget`) and updated `:ClaudiusSwitch` examples.
+- **Default Model:**
+  - **Vertex AI:** Default model changed to `gemini-2.5-pro-preview-05-06`.
+- **Visuals & Styling:**
+  - Default ruler character (`ruler.char`) changed from `─` to `━` (Box Drawings Heavy Horizontal).
+  - Default user sign character (`signs.user.char`) changed from `nil` (which defaulted to `▌`) to `▏` (Box Drawings Light Vertical).
+  - Token usage and cost display in notifications is now better aligned for readability.
+  - "Thoughts" token count in usage notifications is prefixed with the subset symbol `⊂` (e.g., "Output: X tokens (⊂ Y thoughts)").
+- **Token Usage Display:**
+  - Output token count in usage notifications now correctly includes any "thoughts" tokens.
+  - Cost calculation for output tokens now correctly includes the cost of "thoughts" tokens.
+
+### Fixed
+
+- **Error Handling:**
+  - Prevented a new `@You:` prompt from being added if an API error occurred during a request, even if the cURL command itself exited successfully.
+  - Improved handling of cURL errors:
+    - Spinner (`Thinking...` message) is now reliably cleaned up on cURL errors.
+    - User is notified of cURL errors with more specific messages for common issues:
+      - Code 6 (`CURLE_COULDNT_RESOLVE_HOST`): "cURL could not resolve host..."
+      - Code 7 (`CURLE_COULDNT_CONNECT`): "cURL could not connect to host..."
+      - Code 28 (Timeout): Message now includes the configured timeout value.
+    - New `@You:` prompt is not added if the cURL request itself failed.
+  - Updated error message for when the `file` command-line utility (for `@file` MIME type detection) is not found.
+- **Internal:**
+  - Corrected debug log messages in the `:ClaudiusSwitch` function.
+  - Standardized API key parameter access within provider modules.
+  - Unified OpenAI `data: [DONE]` message handling.
+  - Switched from `vim.fn.base64encode` to `vim.base64.encode`.
+  - Quoted filenames in various log messages for clarity.
+
 ## v25.04-1 – 2025-04-16
 
 This release marks a major transition for Claudius, evolving from a Claude-specific plugin to a multi-provider AI chat interface within Neovim.
