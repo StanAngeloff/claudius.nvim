@@ -1,6 +1,9 @@
 # Claudius 🤖
 
-Transform Neovim into your AI conversation companion with a native interface to multiple AI providers. Key features:
+Transform Neovim into your AI conversation companion with a native interface to multiple AI providers.
+
+<img src="assets/pretty_snap_2025_5_2_22_53.png" alt="A screenshot of Claudius in action" />
+<br />
 
 | 🚀 Instant Integration                                         | ⚡ Power Features                                                     | 🛠️ Developer Experience          |
 | -------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
@@ -10,23 +13,37 @@ Transform Neovim into your AI conversation companion with a native interface to 
 | Automatic API key management via system keyring                | Message-based text objects and navigation                             | Customizable keymaps and styling |
 | `@file` references for embedding images, PDFs, and text        | Lualine component for model display                                   |                                  |
 
-<img src="assets/pretty_snap_2025_1_21_23_9.png" alt="A screenshot of Claudius in action" />
+## Installation
+
+Using your preferred package manager, for example with lazy.nvim:
+
+```lua
+{
+    "StanAngeloff/claudius.nvim",
+    opts = {},
+}
+```
 
 ## Requirements
 
 Claudius requires:
 
+- Neovim with Tree-sitter support _(required for core functionality)_
+- Tree-sitter markdown parser _(required for message formatting and syntax highlighting)_
+- The `file` command-line utility _(for MIME type detection used by `@file` references)_
 - An API key for your chosen provider:
-  - Anthropic API key (via ANTHROPIC_API_KEY environment variable)
-  - OpenAI API key (via OPENAI_API_KEY environment variable)
-  - Google Vertex AI access token (via VERTEX_AI_ACCESS_TOKEN environment variable) or service account credentials
-- Neovim with Tree-sitter support (required for core functionality)
-- Tree-sitter markdown parser (required for message formatting and syntax highlighting)
-- The `file` command-line utility (for MIME type detection used by `@file` references)
+  - Anthropic API key _(via `ANTHROPIC_API_KEY` environment variable)_
+  - OpenAI API key _(via `OPENAI_API_KEY` environment variable)_
+  - Google Vertex AI access token _(via `VERTEX_AI_ACCESS_TOKEN` environment variable)_ or service account credentials
 
 Optional Features:
 
-- On Linux systems with libsecret installed, your API key can be stored and retrieved from the system keyring:
+For Google Vertex AI, the Google Cloud CLI _(`gcloud`)_ is required if using service account authentication.
+
+<details>
+<summary>Linux systems with libsecret installed…</summary>
+
+Your API key can be stored and retrieved from the system keyring:
 
   For Anthropic:
 
@@ -40,7 +57,7 @@ Optional Features:
   secret-tool store --label="OpenAI API Key" service openai key api
   ```
 
-  For Google Vertex AI (store service account JSON):
+  For Google Vertex AI _(store service account JSON)_:
 
   ```bash
   secret-tool store --label="Vertex AI Service Account" service vertex key api project_id your_project_id
@@ -48,22 +65,14 @@ Optional Features:
 
   This will securely prompt for your API key and store it in the system keyring.
 
-- For Google Vertex AI, the Google Cloud CLI (`gcloud`) is required if using service account authentication.
-
-## Installation
-
-Using your preferred package manager, for example with lazy.nvim:
-
-```lua
-{
-    "StanAngeloff/claudius.nvim",
-    opts = {},
-}
-```
+</details>
 
 ## Configuration
 
-The plugin works out of the box with sensible defaults, but you can customize various aspects:
+The plugin works out of the box with sensible defaults, but you can customize various aspects.
+
+<details>
+<summary>Plugin defaults…</summary>
 
 ```lua
 require("claudius").setup({
@@ -140,147 +149,41 @@ require("claudius").setup({
 })
 ```
 
-### Templating and Dynamic Content
-
-Chat files support two powerful features for dynamic content:
-
-1. Lua Frontmatter - Define variables and functions at the start of your chat file
-2. Expression Templates - Use `{{expressions}}` inside messages to evaluate Lua code
-
-#### Lua Frontmatter
-
-Start your chat file with a Lua code block between ` ```lua ` and ` ``` ` markers:
-
-````markdown
-```lua
-greeting = "Hello, World!"  -- Must be global (no local keyword)
-count = 42
-```
-
-@You: The greeting is: {{greeting}}
-@Assistant: The greeting mentioned is: "Hello, World!"
-
-@You: The count is: {{count}}
-@Assistant: The count is: 42
-````
-
-Variables defined in the frontmatter are available to all expression templates in the file. Note that variables must be global (do not use the `local` keyword).
-
-#### Expression Templates
-
-Use `{{expression}}` syntax inside any message to evaluate Lua code:
-
-```markdown
-@You: Convert this to uppercase: {{string.upper("hello")}}
-@Assistant: The text "HELLO" is already in uppercase.
-
-@You: Calculate: {{math.floor(3.14159 * 2)}}
-@Assistant: You've provided the number 6
-```
-
-The expression environment is restricted to safe operations focused on string manipulation, basic math, and table operations. Available functions include:
-
-- String operations (upper, lower, sub, gsub, etc)
-- Table operations (concat, insert, remove, sort)
-- Math functions (abs, ceil, floor, max, min, etc)
-- UTF-8 support
-- Essential functions (assert, error, ipairs, pairs, etc)
-
-While you can define functions in the frontmatter, the focus is on simple templating rather than complex programming:
-
-````markdown
-```lua
-function greet(name)
-    return string.format("Hello, %s!", name)
-end
-```
-
-@You: {{greet("Claude")}}
-@Assistant: Hello! It's nice to meet you.
-````
-
-### File References with `@file`
-
-You can embed content from local files directly into your messages using the `@./path/to/file` syntax. This feature requires the `file` command-line utility to be installed for MIME type detection.
-
-**Syntax:**
-
--   File paths must start with `./` (current directory) or `../` (parent directory).
--   Example: `@./images/diagram.png` or `@../documents/report.pdf`
--   File paths can be URL-encoded (e.g., spaces as `%20`) and will be automatically decoded.
--   Trailing punctuation in file paths (e.g., from ending a sentence with `@./file.txt.`) is ignored.
-
-**Provider Support:**
-
--   **Claude & OpenAI:**
-    -   Images: JPEG, PNG, GIF, WebP
-    -   Documents: PDF
-    -   Text: Plain text files (e.g., `.txt`, `.md`, `.lua`) are embedded as text.
--   **Vertex AI:**
-    -   Supports generic binary files (sent as `inlineData` with detected MIME type).
-    -   Text files (MIME type `text/*`) are embedded as text parts.
-
-If a file is not found, not readable, or its MIME type is unsupported by the provider for direct inclusion, the raw `@./path/to/file` reference will be sent as text, and a notification will be shown.
-
-Example:
-
-```markdown
-@You: Please analyze this image: @./screenshots/error.png and this document: @./specs/project%20brief.pdf
-```
+</details>
 
 ## Usage
 
-The plugin only works with files having the .chat extension. Create or open a .chat file and the plugin will automatically set up syntax highlighting and keybindings.
+> [!IMPORTANT]
+> The plugin only works with files having the **.chat** extension. Create or open a **.chat** file and the plugin will automatically set up syntax highlighting and keybindings.
+
+### Starting a New Chat
+
+Create a new empty `Conversation.chat` file and add your first message:
+
+```markdown
+@You: Hello Claude!
+```
+
+You may optionally start your conversation with a system prompt _(must be the first message in the file)_:
+
+```markdown
+@System: You are a helpful AI assistant.
+```
+
+Messages can be folded for better overview. Press <kbd>za</kbd> to toggle folds.
 
 ### Commands and Keybindings
 
 The plugin provides several commands for interacting with AI providers and managing chat content:
 
-#### Core Commands
-
-- `ClaudiusSend` - Send the current conversation to the configured AI provider
-- `ClaudiusCancel` - Cancel an ongoing request
-- `ClaudiusSendAndInsert` - Send to AI and return to insert mode
-- `ClaudiusSwitch` - Switch between providers (e.g., `:ClaudiusSwitch openai gpt-4o`). If called with no arguments, it provides an interactive selection menu.
-- `ClaudiusRecallNotification` - Recall the last notification (useful for reviewing usage statistics)
-
-#### Navigation Commands
-
-- `ClaudiusNextMessage` - Jump to next message (<kbd>]m</kbd> by default)
-- `ClaudiusPrevMessage` - Jump to previous message (<kbd>[m</kbd> by default)
-
-#### Import Command
-
-- `ClaudiusImport` - Convert a Claude Workbench API call into chat format
-
-#### Logging Commands
-
-- `ClaudiusEnableLogging` - Enable logging of API requests and responses
-- `ClaudiusDisableLogging` - Disable logging (default state)
-- `ClaudiusOpenLog` - Open the log file in a new tab
-
-Logging is disabled by default to prevent sensitive data from being written to disk. When troubleshooting issues:
-
-1. Enable logging with `:ClaudiusEnableLogging`
-2. Reproduce the problem
-3. Check the log with `:ClaudiusOpenLog`
-4. Disable logging with `:ClaudiusDisableLogging` when done
-
-The log file is stored at `~/.cache/nvim/claudius.log` (or equivalent on your system) and contains:
-
-- API request details
-- Response data
-- Error messages
-- Timing information
-
 By default, the following keybindings are active in chat files:
 
-- <kbd>Ctrl-]</kbd> - Send conversation (normal and insert mode)
+- <kbd>Ctrl-]</kbd> - Send conversation _(normal and insert mode)_
 - <kbd>Ctrl-C</kbd> - Cancel ongoing request
 - <kbd>]m</kbd> - Jump to next message
 - <kbd>[m</kbd> - Jump to previous message
-- <kbd>im</kbd> - Text object for inside message content (customizable key)
-- <kbd>am</kbd> - Text object for around message (customizable key)
+- <kbd>im</kbd> - Text object for inside message content _(customizable key)_
+- <kbd>am</kbd> - Text object for around message _(customizable key)_
 
 You can disable the default keymaps by setting `keymaps.enable = false` and define your own:
 
@@ -293,49 +196,57 @@ vim.keymap.set('n', '<Leader>cn', '<cmd>ClaudiusNextMessage<cr>')
 vim.keymap.set('n', '<Leader>cp', '<cmd>ClaudiusPrevMessage<cr>')
 ```
 
-### Starting a New Chat
+#### Core Commands
 
-Start your conversation with a system message (optional):
+- `ClaudiusSend` - Send the current conversation to the configured AI provider
+- `ClaudiusCancel` - Cancel an ongoing request
+- `ClaudiusSendAndInsert` - Send to AI and return to insert mode
+- `ClaudiusSwitch` - Switch between providers _(e.g., `:ClaudiusSwitch openai gpt-4o`)_. If called with no arguments, it provides an interactive selection menu.
+- `ClaudiusRecallNotification` - Recall the last notification _(useful for reviewing usage statistics)_
 
-```markdown
-@System: You are a helpful AI assistant.
-```
+#### Navigation Commands
 
-Then add your first message:
+- `ClaudiusNextMessage` - Jump to next message _(<kbd>]m</kbd> by default)_
+- `ClaudiusPrevMessage` - Jump to previous message _(<kbd>[m</kbd> by default)_
 
-```markdown
-@You: Hello Claude!
-```
+#### Import Command
 
-Messages are automatically folded for better overview. Press <kbd>za</kbd> to toggle folds.
+- `ClaudiusImport` - Convert a Claude Workbench API call into chat format
+
+#### Logging Commands
+
+- `ClaudiusEnableLogging` - Enable logging of API requests and responses
+- `ClaudiusDisableLogging` - Disable logging _(default state)_
+- `ClaudiusOpenLog` - Open the log file in a new tab
+
+Logging is disabled by default to prevent sensitive data from being written to disk. When troubleshooting issues:
+
+1. Enable logging with `:ClaudiusEnableLogging`
+2. Reproduce the problem
+3. Check the log with `:ClaudiusOpenLog`
+4. Disable logging with `:ClaudiusDisableLogging` when done
+
+The log file is stored at `~/.cache/nvim/claudius.log` _(or equivalent on your system)_ and contains:
+
+- API request details
+- Response data
+- Error messages
+- Timing information
 
 ### Switching Providers
 
 You can switch between AI providers at any time using the `:ClaudiusSwitch` command:
 
-```
-:ClaudiusSwitch	# Interactive provider/model selection
-:ClaudiusSwitch claude	# Switch to Claude with default model
-:ClaudiusSwitch openai gpt-4o	# Switch to OpenAI with specific model
-:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project	# Switch to Vertex AI with project ID
+```yaml
+:ClaudiusSwitch # Interactive provider/model selection
+:ClaudiusSwitch claude # Switch to Claude with default model
+:ClaudiusSwitch openai gpt-4o # Switch to OpenAI with specific model
+:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project # Switch to Vertex AI with project ID
 :ClaudiusSwitch claude claude-3-7-sonnet-20250219 temperature=0.2 max_tokens=1000 connect_timeout=5 timeout=60 # Multiple parameters, including general ones
 :ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project thinking_budget=1000 # Vertex AI with thinking budget
 ```
 
 This allows you to compare responses from different AI models without restarting Neovim.
-
-### Importing from Claude Workbench
-
-You can import conversations from the Claude Workbench (console.anthropic.com):
-
-1. Open your saved prompt in the Workbench
-2. Click the "Get Code" button
-3. Change the language to TypeScript
-4. Use the "Copy Code" button to copy the code snippet
-5. Paste the code into a new buffer in Neovim
-6. Run `:ClaudiusImport` to convert it to a .chat file
-
-The command will parse the API call and convert it into Claudius's chat format.
 
 ### Lualine Integration
 
@@ -356,11 +267,110 @@ require('lualine').setup {
   -- ...
 }
 ```
-The model display is active only for `*.chat` buffers.
+The model display is active only for **.chat** buffers.
+
+### Templating and Dynamic Content
+
+Chat files support two powerful features for dynamic content:
+
+- Lua Frontmatter - Define variables and functions at the start of your chat file
+- Expression Templates - Use `{{expressions}}` inside messages to evaluate Lua code
+
+#### Lua Frontmatter
+
+Start your chat file with a Lua code block between ` ```lua ` and ` ``` ` markers:
+
+````markdown
+```lua
+greeting = "Hello, World!"  -- Must be global (no local keyword)
+count = 42
+```
+
+@You: The greeting is: {{greeting}}
+@Assistant: The greeting mentioned is: "Hello, World!"
+
+@You: The count is: {{count}}
+@Assistant: The count is: 42
+````
+
+Variables defined in the frontmatter are available to all expression templates in the file. Note that variables must be global _(do not use the `local` keyword)_.
+
+#### Expression Templates
+
+Use `{{expression}}` syntax inside any message to evaluate Lua code:
+
+```markdown
+@You: Convert this to uppercase: {{string.upper("hello")}}
+@Assistant: The text "HELLO" is already in uppercase.
+
+@You: Calculate: {{math.floor(3.14159 * 2)}}
+@Assistant: You've provided the number 6
+```
+
+The expression environment is restricted to safe operations focused on string manipulation, basic math, and table operations. Available functions include:
+
+- String operations *(upper, lower, sub, gsub, etc)*
+- Table operations *(concat, insert, remove, sort)*
+- Math functions *(abs, ceil, floor, max, min, etc)*
+- UTF-8 support
+- Essential functions *(assert, error, ipairs, pairs, etc)*
+
+While you can define functions in the frontmatter, the focus is on simple templating rather than complex programming:
+
+````markdown
+```lua
+function greet(name)
+    return string.format("Hello, %s!", name)
+end
+```
+
+@You: {{greet("Claude")}}
+@Assistant: Hello! It's nice to meet you.
+````
+
+### File References with `@file`
+
+You can embed content from local files directly into your messages using the `@./path/to/file` syntax. This feature requires the `file` command-line utility to be installed for MIME type detection.
+
+**Syntax:**
+
+-   File paths must start with `./` _(current directory)_ or `../` _(parent directory)_.
+-   Example: `@./images/diagram.png` or `@../documents/report.pdf`
+-   File paths can be URL-encoded _(e.g., spaces as `%20`)_ and will be automatically decoded.
+-   Trailing punctuation in file paths _(e.g., from ending a sentence with `@./file.txt.`)_ is ignored.
+
+If a file is not found, not readable, or its MIME type is unsupported by the provider for direct inclusion, the raw `@./path/to/file` reference will be sent as text, and a notification will be shown.
+
+Example:
+
+```markdown
+@You: OCR this image: @./screenshots/error.png and this document: @./specs/project%20brief.pdf
+```
+
+**Provider Support:**
+
+| **Claude & OpenAI** | **Vertex AI** |
+| --- | --- |
+| Text: Plain text files <em>(e.g., `.txt`, `.md`, `.lua`)</em> are embedded as text | Text files <em>(MIME type `text/*`)</em> are embedded as text parts |
+| Images: JPEG, PNG, GIF, WebP | Supports generic binary files <em>(sent as `inlineData` with detected MIME type)</em> |
+| Documents: PDF | |
+
+### Importing from Claude Workbench
+
+You can import conversations from the Claude Workbench _(console.anthropic.com)_:
+
+1. Open your saved prompt in the Workbench
+2. Click the "Get Code" button
+3. Change the language to TypeScript
+4. Use the "Copy Code" button to copy the code snippet
+5. Paste the code into a new buffer in Neovim
+6. Run `:ClaudiusImport` to convert it to a .chat file
+
+The command will parse the API call and convert it into Claudius's chat format.
 
 ## About
 
-Claudius aims to provide a simple, native-feeling interface for having conversations with AI models directly in Neovim. Originally built for Claude (hence the name), it now supports multiple AI providers including OpenAI and Google Vertex AI. The plugin focuses on being lightweight and following Vim/Neovim conventions.
+Claudius aims to provide a simple, native-feeling interface for having conversations with AI models directly in Neovim. Originally built for Claude _(hence the name)_, it now supports multiple AI providers including OpenAI and Google Vertex AI. The plugin focuses on being lightweight and following Vim/Neovim conventions.
 
 ## Contributing
 
@@ -411,13 +421,14 @@ This project represents a unique experiment in AI-driven development. From its i
 
 While I encourage contributors to explore AI-assisted development, particularly with Aider, I welcome all forms of quality contributions. The project's development guidelines are:
 
-1. **Consider Using Aider**: I recommend trying [Aider](https://aider.chat) for making changes - it's how this entire project was built
-2. **Document AI Interactions**: If using AI tools, keep chat logs of significant conversations
-3. **Use Formatting Tools**: Run `claudius-fmt` before committing to maintain consistent style
-4. **Test Changes**: Use the quick testing command above to verify functionality
-5. **Keep Focus**: Make small, focused changes in each development session
+- **Consider Using Aider**: I recommend trying [Aider](https://aider.chat) for making changes - it's how this entire project was built
+- **Document AI Interactions**: If using AI tools, keep chat logs of significant conversations
+- **Use Formatting Tools**: Run `claudius-fmt` before committing to maintain consistent style
+- **Test Changes**: Use the quick testing command above to verify functionality
+- **Keep Focus**: Make small, focused changes in each development session
 
-> **Note**: This project started as an experiment in pure AI-driven development, and to this day, every line of code has been written exclusively through Aider. I continue to maintain this approach in my own development while welcoming contributions from all developers who share a commitment to quality.
+> [!NOTE]
+> This project started as an experiment in pure AI-driven development, and to this day, every line of code has been written exclusively through Aider. I continue to maintain this approach in my own development while welcoming contributions from all developers who share a commitment to quality.
 
 The goal is to demonstrate how far we can push AI-assisted development while maintaining code quality. Whether you choose to work with AI or write code directly, focus on creating clear, maintainable solutions.
 
