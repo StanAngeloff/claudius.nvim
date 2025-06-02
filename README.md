@@ -2,7 +2,7 @@
 
 Transform Neovim into your AI conversation companion with a native interface to multiple AI providers.
 
-<img src="assets/pretty_snap_2025_5_2_22_53.png" alt="A screenshot of Claudius in action" />
+<img src="assets/screenshoty.png" alt="A screenshot of Claudius in action" />
 <br />
 
 | 🚀 Instant Integration                                         | ⚡ Power Features                                                     | 🛠️ Developer Experience          |
