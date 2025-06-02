@@ -2,6 +2,7 @@
 --- Implements the Google Vertex AI API integration
 local base = require("claudius.provider.base")
 local log = require("claudius.logging")
+-- local mime_util = require("claudius.mime") -- Moved to base provider
 local M = {}
 
 -- Private helper to validate required configuration
@@ -179,7 +180,7 @@ function M.get_api_key(self)
 end
 
 -- Format messages for Vertex AI API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
   local system_content = nil
 
@@ -187,13 +188,8 @@ function M.format_messages(self, messages, system_message)
   for _, msg in ipairs(messages) do
     if msg.type == "System" then
       system_content = msg.content:gsub("%s+$", "")
-      break
+      break -- Assuming only one system message is relevant
     end
-  end
-
-  -- If system_message parameter is provided, it overrides any system message in messages
-  if system_message then
-    system_content = system_message
   end
 
   -- Add user and assistant messages
@@ -218,29 +214,155 @@ end
 
 -- Create request body for Vertex AI API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Access parameters directly from self.parameters
-  local max_tokens = self.parameters.max_tokens
-  local temperature = self.parameters.temperature
-
   -- Convert formatted_messages to Vertex AI format
   local contents = {}
   for _, msg in ipairs(formatted_messages) do
+    local parts = {}
+    if msg.role == "user" then
+      local content_parser_coro = self:parse_message_content_chunks(msg.content)
+      while true do
+        local status, chunk = coroutine.resume(content_parser_coro)
+        if not status or not chunk then -- Coroutine finished or errored
+          break
+        end
+
+        if chunk.type == "text" then
+          if chunk.value and #chunk.value > 0 then
+            table.insert(parts, { text = chunk.value })
+          end
+        elseif chunk.type == "file" then
+          if chunk.readable and chunk.content and chunk.mime_type then
+            if chunk.mime_type:sub(1, 5) == "text/" then
+              -- Send as text part
+              table.insert(parts, { text = chunk.content })
+              log.debug(
+                'create_request_body: Added text part for "' .. chunk.filename .. '" (MIME: ' .. chunk.mime_type .. ")"
+              )
+            else
+              -- Send as inlineData part (binary)
+              local encoded_data = vim.base64.encode(chunk.content) -- Use Neovim 0.10+ API
+              table.insert(parts, {
+                inlineData = {
+                  mimeType = chunk.mime_type,
+                  data = encoded_data,
+                },
+              })
+              log.debug(
+                'create_request_body: Added inlineData part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            end
+          else
+            log.warn(
+              'create_request_body: @file reference "'
+                .. chunk.raw_filename
+                .. '" (cleaned: "'
+                .. chunk.filename
+                .. '") not readable or missing data. Error: '
+                .. (chunk.error or "unknown")
+                .. ". Inserting raw text."
+            )
+            table.insert(parts, { text = "@" .. chunk.raw_filename })
+          end
+        end
+      end
+
+      -- Ensure parts is not empty if the original message content was not empty.
+      -- This handles cases where content might be, e.g., only unreadable files
+      -- or if the parser yields nothing for some valid non-empty inputs.
+      if #parts == 0 and msg.content and #msg.content > 0 then
+        log.debug(
+          "create_request_body: User content resulted in empty 'parts' after parsing. Original content: \""
+            .. msg.content
+            .. '". Adding original content as a single text part as fallback.'
+        )
+        table.insert(parts, { text = msg.content })
+      elseif #parts == 0 then -- Original content was empty or only whitespace, or parser yielded nothing.
+        log.debug(
+          "create_request_body: User content resulted in empty 'parts' (likely empty or whitespace input). Original content: \""
+            .. (msg.content or "")
+            .. '". Adding an empty text part.'
+        )
+        -- Vertex might require a 'parts' array, even if it contains an empty text string.
+        table.insert(parts, { text = "" })
+      end
+    else
+      -- For model messages, strip out <thinking>...</thinking> blocks and add the content as a single text part
+      local content_without_thoughts = msg.content:gsub("\n?<thinking>.-</thinking>\n?", "")
+      table.insert(parts, { text = content_without_thoughts })
+    end
+
+    -- Add the message with its role and parts to the contents list
     table.insert(contents, {
       role = msg.role,
-      parts = {
-        { text = msg.content },
-      },
+      parts = parts,
     })
   end
 
   local request_body = {
     contents = contents,
-    -- model = self.model, -- Model is part of the endpoint URL for Vertex
     generationConfig = {
-      maxOutputTokens = max_tokens,
-      temperature = temperature,
+      maxOutputTokens = self.parameters.max_tokens,
+      temperature = self.parameters.temperature,
     },
   }
+
+  -- Add thinking budget if configured
+  local configured_budget = self.parameters.thinking_budget
+  local add_thinking_config = false -- Default to false, only set true if budget >= 1
+  local api_budget_value
+
+  if type(configured_budget) == "number" and configured_budget >= 1 then
+    -- Thinking is enabled and budget is specified
+    api_budget_value = math.floor(configured_budget)
+    add_thinking_config = true -- Set to true as budget is valid for thinking
+    log.debug(
+      "create_request_body: Vertex AI thinking_budget is "
+        .. tostring(configured_budget)
+        .. ". Enabling thinking and setting API thinkingBudget to: "
+        .. api_budget_value
+        .. "."
+    )
+  elseif configured_budget == 0 then
+    -- Thinking is explicitly disabled by setting budget to 0
+    log.debug(
+      "create_request_body: Vertex AI thinking_budget is 0. Thinking is disabled. Not sending thinkingConfig."
+    )
+    -- add_thinking_config remains false
+  elseif configured_budget == nil then
+    -- Thinking budget is not set (nil), so default behavior (no thinkingConfig)
+    log.debug(
+      "create_request_body: Vertex AI thinking_budget is nil. Not sending thinkingConfig."
+    )
+    -- add_thinking_config remains false
+  else
+    -- Handles negative numbers or other invalid types if they somehow get here.
+    log.warn(
+      "create_request_body: Vertex AI thinking_budget ("
+        .. log.inspect(configured_budget)
+        .. ") is invalid. Not sending thinkingConfig."
+    )
+    -- add_thinking_config remains false
+  end
+
+  if add_thinking_config then
+    -- This block now only executes if configured_budget is a number and >= 1
+    request_body.generationConfig = request_body.generationConfig or {}
+    request_body.generationConfig.thinkingConfig = {
+      thinkingBudget = api_budget_value,
+      includeThoughts = true, -- If thinkingConfig is sent, includeThoughts should be true
+    }
+    log.debug(
+      "create_request_body: Vertex AI thinkingConfig included with thinkingBudget: "
+        .. api_budget_value
+        .. " and includeThoughts: true."
+    )
+  else
+    log.debug("create_request_body: Vertex AI thinkingConfig not included in the request.")
+  end
 
   -- Add system instruction if provided
   if system_message then
@@ -371,79 +493,74 @@ function M.process_response_line(self, line, callbacks)
     return
   end
 
-  -- Process usage information if available
-  if data.usageMetadata then
-    local usage = data.usageMetadata
-
-    -- Handle input tokens
-    if usage.promptTokenCount and callbacks.on_usage then
-      callbacks.on_usage({
-        type = "input",
-        tokens = usage.promptTokenCount,
-      })
-    end
-
-    -- Handle output tokens
-    if usage.candidatesTokenCount and callbacks.on_usage then
-      callbacks.on_usage({
-        type = "output",
-        tokens = usage.candidatesTokenCount,
-      })
-    end
-
-    -- Check if this is the final message with finish reason
-    if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
-      log.debug(
-        "vertex.process_response_line(): Received finish reason: " .. log.inspect(data.candidates[1].finishReason)
-      )
-
-      -- Process any content in the final message before signaling completion
-      if
-        data.candidates[1].content
-        and data.candidates[1].content.parts
-        and data.candidates[1].content.parts[1]
-        and data.candidates[1].content.parts[1].text
-      then
-        local text = data.candidates[1].content.parts[1].text
-        log.debug("vertex.process_response_line(): ... Final message content text: " .. log.inspect(text))
-
-        -- Mark that we've received valid content
+  -- Process content parts (thoughts or text)
+  if data.candidates and data.candidates[1] and data.candidates[1].content and data.candidates[1].content.parts then
+    for _, part in ipairs(data.candidates[1].content.parts) do
+      if part.thought and part.text and #part.text > 0 then
+        log.debug("vertex.process_response_line(): Accumulating thought text: " .. log.inspect(part.text))
+        self.response_accumulator.accumulated_thoughts = (self.response_accumulator.accumulated_thoughts or "")
+          .. part.text
+      elseif not part.thought and part.text and #part.text > 0 then -- Not a thought, but has text
+        log.debug("vertex.process_response_line(): ... Content text: " .. log.inspect(part.text))
         self.response_accumulator.has_processed_content = true
-
         if callbacks.on_content then
-          callbacks.on_content(text)
+          callbacks.on_content(part.text)
         end
       end
-
-      -- Signal message completion
-      if callbacks.on_message_complete then
-        callbacks.on_message_complete()
-      end
-
-      -- Signal done
-      if callbacks.on_done then
-        callbacks.on_done()
-      end
-      return
     end
   end
 
-  -- Handle content
-  if data.candidates and data.candidates[1] and data.candidates[1].content then
-    local content = data.candidates[1].content
-
-    -- Check if there's text content
-    if content.parts and content.parts[1] and content.parts[1].text then
-      local text = content.parts[1].text
-      log.debug("vertex.process_response_line(): ... Content text: " .. log.inspect(text))
-
-      -- Mark that we've received valid content
-      self.response_accumulator.has_processed_content = true
-
-      if callbacks.on_content then
-        callbacks.on_content(text)
-      end
+  -- Process usage information if available (can come with content or with finishReason)
+  if data.usageMetadata then
+    local usage = data.usageMetadata
+    -- Handle input tokens
+    if usage.promptTokenCount and callbacks.on_usage then
+      callbacks.on_usage({ type = "input", tokens = usage.promptTokenCount })
     end
+    -- Handle output tokens
+    if usage.candidatesTokenCount and callbacks.on_usage then
+      callbacks.on_usage({ type = "output", tokens = usage.candidatesTokenCount })
+    end
+    -- Handle thoughts tokens
+    if usage.thoughtsTokenCount and callbacks.on_usage then
+      callbacks.on_usage({ type = "thoughts", tokens = usage.thoughtsTokenCount })
+    end
+  end
+
+  -- Check for finish reason (this indicates the end of the stream for this candidate)
+  if data.candidates and data.candidates[1] and data.candidates[1].finishReason then
+    log.debug(
+      "vertex.process_response_line(): Received finish reason: " .. log.inspect(data.candidates[1].finishReason)
+    )
+
+    -- Append aggregated thoughts if any
+    if self.response_accumulator.accumulated_thoughts and #self.response_accumulator.accumulated_thoughts > 0 then
+      -- Strip leading/trailing whitespace (including newlines) from thoughts
+      local stripped_thoughts = vim.trim(self.response_accumulator.accumulated_thoughts)
+      -- Construct the thoughts block according to specified formatting:
+      -- - Two newlines for separation (ensuring at least one blank line) from previous content.
+      -- - <thinking> tag followed by a newline.
+      -- - The stripped thoughts content.
+      -- - A newline after the thoughts content.
+      -- - </thinking> tag followed by a newline.
+      local thoughts_block = "\n\n<thinking>\n" .. stripped_thoughts .. "\n</thinking>\n"
+      log.debug("vertex.process_response_line(): Appending aggregated thoughts: " .. log.inspect(thoughts_block))
+      if callbacks.on_content then
+        callbacks.on_content(thoughts_block)
+      end
+      self.response_accumulator.accumulated_thoughts = "" -- Reset for next potential full message
+    end
+
+    -- Signal message completion (after all content, including thoughts, has been sent)
+    if callbacks.on_message_complete then
+      callbacks.on_message_complete()
+    end
+
+    -- Signal done (end of this specific API call)
+    if callbacks.on_done then
+      callbacks.on_done()
+    end
+    return -- Important to return after handling finishReason
   end
 end
 
@@ -542,9 +659,10 @@ function M.reset(self)
   self.response_accumulator = {
     lines = {},
     has_processed_content = false,
+    accumulated_thoughts = "", -- Initialize for storing thought summaries
   }
 
-  log.debug("vertex.reset(): Reset Vertex AI provider state (response accumulator)")
+  log.debug("vertex.reset(): Reset Vertex AI provider state (response accumulator with thoughts)")
 end
 
 return M

@@ -27,8 +27,9 @@ function M.get_api_key(self)
 end
 
 -- Format messages for Claude API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
+  local system_message = nil -- System message is handled in create_request_body
 
   for _, msg in ipairs(messages) do
     local role = msg.type == "You" and "user" or msg.type == "Assistant" and "assistant" or nil
@@ -36,8 +37,12 @@ function M.format_messages(self, messages, system_message)
     if role then
       table.insert(formatted, {
         role = role,
-        content = msg.content:gsub("%s+$", ""),
+        content = msg.content:gsub("%s+$", ""), -- Content is passed through directly
       })
+    end
+    -- Extract system message if found
+    if msg.type == "System" then
+      system_message = msg.content:gsub("%s+$", "")
     end
   end
 
@@ -46,16 +51,134 @@ end
 
 -- Create request body for Claude API
 function M.create_request_body(self, formatted_messages, system_message)
-  -- Access parameters directly from self.parameters
-  local max_tokens = self.parameters.max_tokens
-  local temperature = self.parameters.temperature
+  local api_messages = {}
+  for _, msg in ipairs(formatted_messages) do
+    if msg.role == "user" then
+      local content_blocks = {} -- Will hold {type="text", text=...} or {type="image", source=...} etc.
+      local content_parser_coro = self:parse_message_content_chunks(msg.content)
+
+      while true do
+        local status, chunk = coroutine.resume(content_parser_coro)
+        if not status or not chunk then -- Coroutine finished or errored
+          break
+        end
+
+        if chunk.type == "text" then
+          if chunk.value and #chunk.value > 0 then
+            table.insert(content_blocks, { type = "text", text = chunk.value })
+          end
+        elseif chunk.type == "file" then
+          if chunk.readable and chunk.content and chunk.mime_type then
+            local encoded_data
+            if
+              chunk.mime_type == "image/jpeg"
+              or chunk.mime_type == "image/png"
+              or chunk.mime_type == "image/gif"
+              or chunk.mime_type == "image/webp"
+            then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_blocks, {
+                type = "image",
+                source = {
+                  type = "base64",
+                  media_type = chunk.mime_type,
+                  data = encoded_data,
+                },
+              })
+              log.debug(
+                'claude.create_request_body: Added image part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            elseif chunk.mime_type == "application/pdf" then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_blocks, {
+                type = "document",
+                source = {
+                  type = "base64",
+                  media_type = chunk.mime_type, -- API expects "application/pdf"
+                  data = encoded_data,
+                },
+              })
+              log.debug(
+                'claude.create_request_body: Added document part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            elseif chunk.mime_type:sub(1, 5) == "text/" then
+              -- Embed content of text files directly
+              table.insert(content_blocks, { type = "text", text = chunk.content })
+              log.debug(
+                'claude.create_request_body: Added text part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            else
+              -- Unsupported MIME type for direct inclusion
+              vim.notify(
+                "Claudius (Claude): @file reference with MIME type '"
+                  .. chunk.mime_type
+                  .. "' is not supported for direct inclusion. The reference will be sent as text.",
+                vim.log.levels.WARN,
+                { title = "Claudius Notification" }
+              )
+              table.insert(content_blocks, { type = "text", text = "@" .. chunk.raw_filename })
+            end
+          else
+            -- File not readable or missing essential data
+            log.warn(
+              'claude.create_request_body: @file reference "'
+                .. chunk.raw_filename
+                .. '" (cleaned: "'
+                .. chunk.filename
+                .. '") not readable or missing data. Error: '
+                .. (chunk.error or "unknown")
+                .. ". Inserting raw text."
+            )
+            table.insert(content_blocks, { type = "text", text = "@" .. chunk.raw_filename })
+          end
+        end
+      end
+
+      local final_user_content
+      if #content_blocks > 0 then
+        final_user_content = content_blocks
+      else
+        -- Original content was empty/whitespace, or resulted in no processable blocks.
+        -- Use the original string content, trimmed, as per Claude API (string | object[]).
+        final_user_content = msg.content:gsub("%s+$", "")
+        log.debug(
+          "claude.create_request_body: User content resulted in empty 'content_blocks'. Using original string content: \""
+            .. final_user_content
+            .. '"'
+        )
+      end
+      table.insert(api_messages, {
+        role = msg.role,
+        content = final_user_content,
+      })
+    elseif msg.role == "assistant" then -- Assistant messages in the request history
+      -- Assistant message content should also be in the new block structure.
+      -- Assuming assistant messages are always text.
+      table.insert(api_messages, {
+        role = msg.role,
+        content = { { type = "text", text = msg.content } }, -- Already trimmed by format_messages
+      })
+    end
+  end
 
   local request_body = {
-    model = self.parameters.model, -- Model is already directly in self.parameters
-    messages = formatted_messages,
+    model = self.parameters.model,
+    messages = api_messages,
     system = system_message,
-    max_tokens = max_tokens,
-    temperature = temperature,
+    max_tokens = self.parameters.max_tokens,
+    temperature = self.parameters.temperature,
     stream = true,
   }
 
@@ -65,6 +188,7 @@ end
 -- Get request headers for Claude API
 function M.get_request_headers(self)
   local api_key = self:get_api_key()
+
   return {
     "x-api-key: " .. api_key,
     "anthropic-version: " .. self.api_version,

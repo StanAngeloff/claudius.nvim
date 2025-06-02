@@ -27,26 +27,24 @@ function M.get_api_key(self)
 end
 
 -- Format messages for OpenAI API
-function M.format_messages(self, messages, system_message)
+function M.format_messages(self, messages)
   local formatted = {}
+  local system_message = nil
 
-  -- Add system message if provided
+  -- Look for system message in the messages
+  for _, msg in ipairs(messages) do
+    if msg.type == "System" then
+      system_message = msg.content:gsub("%s+$", "")
+      break -- Assuming only one system message is relevant
+    end
+  end
+
+  -- Add system message if found
   if system_message then
     table.insert(formatted, {
       role = "system",
       content = system_message,
     })
-  else
-    -- Look for system message in the messages
-    for _, msg in ipairs(messages) do
-      if msg.type == "System" then
-        table.insert(formatted, {
-          role = "system",
-          content = msg.content:gsub("%s+$", ""),
-        })
-        break
-      end
-    end
   end
 
   -- Add user and assistant messages
@@ -61,25 +59,142 @@ function M.format_messages(self, messages, system_message)
     if role and role ~= "system" then -- Skip system messages as we've handled them
       table.insert(formatted, {
         role = role,
-        content = msg.content:gsub("%s+$", ""),
+        content = msg.content:gsub("%s+$", ""), -- Content is passed through directly
       })
     end
   end
 
-  return formatted, nil -- OpenAI doesn't need a separate system message
+  return formatted, system_message -- Return formatted messages and the extracted system message
 end
 
 -- Create request body for OpenAI API
 function M.create_request_body(self, formatted_messages, _)
-  -- Access parameters directly from self.parameters
-  local max_tokens = self.parameters.max_tokens
-  local temperature = self.parameters.temperature
+  local api_messages = {}
+  for _, msg in ipairs(formatted_messages) do
+    if msg.role == "user" then
+      local content_parts_for_api = {} -- Holds {type="text", text=...} or other part types
+      local has_multimedia_part = false -- Flag if content must be an array (e.g., for images, PDFs)
+
+      local content_parser_coro = self:parse_message_content_chunks(msg.content)
+      while true do
+        local status, chunk = coroutine.resume(content_parser_coro)
+        if not status or not chunk then -- Coroutine finished or errored
+          break
+        end
+
+        if chunk.type == "text" then
+          if chunk.value and #chunk.value > 0 then
+            table.insert(content_parts_for_api, { type = "text", text = chunk.value })
+          end
+        elseif chunk.type == "file" then
+          if chunk.readable and chunk.content and chunk.mime_type then
+            local encoded_data
+            if
+              chunk.mime_type == "image/jpeg"
+              or chunk.mime_type == "image/png"
+              or chunk.mime_type == "image/webp"
+              or chunk.mime_type == "image/gif"
+            then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_parts_for_api, {
+                type = "image_url",
+                image_url = {
+                  url = "data:" .. chunk.mime_type .. ";base64," .. encoded_data,
+                  detail = "auto", -- Or "low", "high" as per OpenAI docs
+                },
+              })
+              has_multimedia_part = true
+              log.debug(
+                'openai.create_request_body: Added image_url part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            elseif chunk.mime_type == "application/pdf" then
+              encoded_data = vim.base64.encode(chunk.content)
+              table.insert(content_parts_for_api, {
+                type = "file",
+                file = {
+                  filename = chunk.filename, -- The actual filename
+                  file_data = "data:application/pdf;base64," .. encoded_data,
+                },
+              })
+              has_multimedia_part = true
+              log.debug(
+                'openai.create_request_body: Added file part for PDF "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            elseif chunk.mime_type:sub(1, 5) == "text/" then
+              table.insert(content_parts_for_api, { type = "text", text = chunk.content })
+              log.debug(
+                'openai.create_request_body: Added text part for "'
+                  .. chunk.filename
+                  .. '" (MIME: '
+                  .. chunk.mime_type
+                  .. ")"
+              )
+            else
+              vim.notify(
+                "Claudius (OpenAI): @file reference with MIME type '"
+                  .. chunk.mime_type
+                  .. "' is not supported for direct inclusion. The reference will be sent as text.",
+                vim.log.levels.WARN,
+                { title = "Claudius Notification" }
+              )
+              table.insert(content_parts_for_api, { type = "text", text = "@" .. chunk.raw_filename })
+            end
+          else
+            log.warn(
+              'openai.create_request_body: @file reference "'
+                .. chunk.raw_filename
+                .. '" (cleaned: "'
+                .. chunk.filename
+                .. '") not readable or missing data. Error: '
+                .. (chunk.error or "unknown")
+                .. ". Inserting raw text."
+            )
+            table.insert(content_parts_for_api, { type = "text", text = "@" .. chunk.raw_filename })
+          end
+        end
+      end
+
+      local final_api_content
+      if #content_parts_for_api == 0 then
+        final_api_content = msg.content:gsub("%s+$", "") -- Original trimmed string if no parts generated
+      elseif has_multimedia_part then
+        final_api_content = content_parts_for_api -- Array of parts if multimedia content is present
+      else
+        -- Concatenate all text parts into a single string if only text parts exist
+        local text_only_accumulator = {}
+        for _, part in ipairs(content_parts_for_api) do
+          if part.type == "text" and part.text then
+            table.insert(text_only_accumulator, part.text)
+          end
+        end
+        final_api_content = table.concat(text_only_accumulator)
+      end
+
+      table.insert(api_messages, {
+        role = msg.role,
+        content = final_api_content,
+      })
+    else -- Assistant or System messages
+      table.insert(api_messages, {
+        role = msg.role,
+        content = msg.content, -- Already trimmed by format_messages
+      })
+    end
+  end
 
   local request_body = {
-    model = self.parameters.model, -- Model is already directly in self.parameters
-    messages = formatted_messages,
-    max_tokens = max_tokens,
-    temperature = temperature,
+    model = self.parameters.model,
+    messages = api_messages,
+    max_tokens = self.parameters.max_tokens,
+    temperature = self.parameters.temperature,
     stream = true,
     stream_options = {
       include_usage = true, -- Request usage information in the final chunk
@@ -92,6 +207,7 @@ end
 -- Get request headers for OpenAI API
 function M.get_request_headers(self)
   local api_key = self:get_api_key()
+
   return {
     "Authorization: Bearer " .. api_key,
     "Content-Type: application/json",
@@ -107,16 +223,6 @@ end
 function M.process_response_line(self, line, callbacks)
   -- Skip empty lines
   if not line or line == "" then
-    return
-  end
-
-  -- Handle [DONE] message
-  if line == "data: [DONE]" then
-    log.debug("openai.process_response_line(): Received [DONE] message")
-
-    if callbacks.on_done then
-      callbacks.on_done()
-    end
     return
   end
 
@@ -183,6 +289,17 @@ function M.process_response_line(self, line, callbacks)
 
   -- Extract JSON from data: prefix
   local json_str = line:gsub("^data: ", "")
+
+  -- Handle [DONE] message
+  if json_str == "[DONE]" then
+    log.debug("openai.process_response_line(): Received [DONE] message")
+
+    if callbacks.on_done then
+      callbacks.on_done()
+    end
+    return
+  end
+
   local parse_ok, data = pcall(vim.fn.json_decode, json_str)
   if not parse_ok then
     log.error("openai.process_response_line(): Failed to parse JSON from response: " .. json_str)

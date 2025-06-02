@@ -10,7 +10,7 @@ M.defaults = {
   },
   role_style = "bold,underline", -- style applied to role markers like @You:
   ruler = {
-    char = "─", -- The character to use for the ruler
+    char = "━", -- The character to use for the ruler
     hl = "NonText", -- Highlight group or hex color for the ruler
   },
   signs = {
@@ -21,7 +21,7 @@ M.defaults = {
       hl = true, -- Inherit from highlights.system, set false to disable, or provide specific group/hex color
     },
     user = {
-      char = nil, -- Use default char
+      char = "▏",
       hl = true, -- Inherit from highlights.user, set false to disable, or provide specific group/hex color
     },
     assistant = {
@@ -38,9 +38,12 @@ M.defaults = {
   parameters = {
     max_tokens = 4000, -- Default max tokens for all providers
     temperature = 0.7, -- Default temperature for all providers
+    timeout = 120, -- Default response timeout for cURL requests
+    connect_timeout = 10, -- Default connection timeout for cURL requests
     vertex = {
       project_id = nil, -- Google Cloud project ID
       location = "us-central1", -- Google Cloud region
+      thinking_budget = nil, -- Optional. Budget for model thinking, in tokens. nil or 0 disables thinking. Values >= 1 enable thinking with the specified budget.
     },
     -- Add provider-specific parameter sections here if needed in the future
     -- e.g., claude = {}, openai = {}
@@ -70,7 +73,7 @@ M.defaults = {
 
 -- Check if a parameter key is a general parameter applicable to all providers
 function M.is_general_parameter(key)
-  return key == "max_tokens" or key == "temperature"
+  return key == "max_tokens" or key == "temperature" or key == "timeout" or key == "connect_timeout"
 end
 
 return M

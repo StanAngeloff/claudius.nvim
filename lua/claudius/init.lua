@@ -38,6 +38,7 @@ local ns_id = vim.api.nvim_create_namespace("claudius")
 local session_usage = {
   input_tokens = 0,
   output_tokens = 0,
+  thoughts_tokens = 0,
 }
 
 -- Execute a command in the context of a specific buffer
@@ -756,21 +757,39 @@ M.cleanup_spinner = function(bufnr)
     state.spinner_timer = nil
   end
 
-  -- Stop any existing rulers/virtual text
-  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1) -- Clear rulers/virtual text
 
-  -- Remove the "Thinking..." line
-  local last_line = vim.api.nvim_buf_line_count(bufnr)
-  local prev_line = vim.api.nvim_buf_get_lines(bufnr, last_line - 2, last_line - 1, false)[1]
-
-  -- Ensure we maintain a blank line if needed
-  if prev_line and prev_line:match("%S") then
-    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { "" })
-  else
-    vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  if line_count == 0 then
+    update_ui(bufnr) -- Ensure UI is clean even if buffer is empty
+    return
   end
-  -- Force UI update after cleaning up spinner
-  update_ui(bufnr)
+
+  local last_line_content = vim.api.nvim_buf_get_lines(bufnr, line_count - 1, line_count, false)[1]
+
+  -- Only modify lines if the last line is actually the spinner message
+  if last_line_content and last_line_content:match("^@Assistant: .*Thinking%.%.%.$") then
+    buffer_cmd(bufnr, "undojoin") -- Group changes for undo
+
+    -- Get the line before the "Thinking..." message (if it exists)
+    local prev_line_actual_content = nil
+    if line_count > 1 then
+      prev_line_actual_content = vim.api.nvim_buf_get_lines(bufnr, line_count - 2, line_count - 1, false)[1]
+    end
+
+    -- Ensure we maintain a blank line if needed, or remove the spinner line
+    if prev_line_actual_content and prev_line_actual_content:match("%S") then
+      -- Previous line has content, replace spinner line with a blank line
+      vim.api.nvim_buf_set_lines(bufnr, line_count - 1, line_count, false, { "" })
+    else
+      -- Previous line is blank or doesn't exist, remove the spinner line entirely
+      vim.api.nvim_buf_set_lines(bufnr, line_count - 1, line_count, false, {})
+    end
+  else
+    log.debug("cleanup_spinner(): Last line is not the 'Thinking...' message, not modifying lines.")
+  end
+
+  update_ui(bufnr) -- Force UI update after cleaning up spinner
 end
 
 -- Show loading spinner
@@ -823,6 +842,7 @@ function M.send_to_provider(opts)
 
   log.info("send_to_provider(): Starting new request for buffer " .. bufnr)
   state.request_cancelled = false
+  state.api_error_occurred = false -- Initialize flag for API errors
 
   -- Auto-write the buffer before sending if enabled
   auto_write_buffer(bufnr)
@@ -901,7 +921,7 @@ function M.send_to_provider(opts)
     template_vars = result
   end
 
-  local formatted_messages, system_message = provider:format_messages(messages, nil)
+  local formatted_messages, system_message = provider:format_messages(messages)
 
   -- Process template expressions in messages
   local eval = require("claudius.eval")
@@ -945,43 +965,58 @@ function M.send_to_provider(opts)
     local lines = {}
 
     -- Request usage
-    if current and (current.input_tokens > 0 or current.output_tokens > 0) then
+    if current and (current.input_tokens > 0 or current.output_tokens > 0 or (current.thoughts_tokens and current.thoughts_tokens > 0)) then
+      local total_output_tokens_for_cost = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
       local current_cost = config.pricing.enabled
-        and pricing.calculate_cost(config.model, current.input_tokens, current.output_tokens)
+        and pricing.calculate_cost(config.model, current.input_tokens, total_output_tokens_for_cost)
       table.insert(lines, "Request:")
       -- Add model and provider information
       table.insert(lines, string.format("  Model:  `%s` (%s)", config.model, config.provider))
       if current_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", current.input_tokens or 0, current_cost.input))
-        table.insert(
-          lines,
-          string.format(" Output:  %d tokens / $%.2f", current.output_tokens or 0, current_cost.output)
-        )
+        local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
+        local output_display_string
+        if current.thoughts_tokens and current.thoughts_tokens > 0 then
+          output_display_string = string.format(" Output:  %d tokens (⊂ %d thoughts) / $%.2f", display_output_tokens, current.thoughts_tokens, current_cost.output)
+        else
+          output_display_string = string.format(" Output:  %d tokens / $%.2f", display_output_tokens, current_cost.output)
+        end
+        table.insert(lines, output_display_string)
         table.insert(lines, string.format("  Total:  $%.2f", current_cost.total))
       else
         table.insert(lines, string.format("  Input:  %d tokens", current.input_tokens or 0))
-        table.insert(lines, string.format(" Output:  %d tokens", current.output_tokens or 0))
+        local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
+        local output_display_string
+        if current.thoughts_tokens and current.thoughts_tokens > 0 then
+          output_display_string = string.format(" Output:  %d tokens (⊂ %d thoughts)", display_output_tokens, current.thoughts_tokens)
+        else
+          output_display_string = string.format(" Output:  %d tokens", display_output_tokens)
+        end
+        table.insert(lines, output_display_string)
       end
     end
 
     -- Session totals
     if session and (session.input_tokens > 0 or session.output_tokens > 0) then
+      local total_session_output_tokens_for_cost = (session.output_tokens or 0) + (session.thoughts_tokens or 0)
       local session_cost = config.pricing.enabled
-        and pricing.calculate_cost(config.model, session.input_tokens, session.output_tokens)
+        and pricing.calculate_cost(config.model, session.input_tokens, total_session_output_tokens_for_cost)
       if #lines > 0 then
         table.insert(lines, "")
       end
       table.insert(lines, "Session:")
       if session_cost then
         table.insert(lines, string.format("  Input:  %d tokens / $%.2f", session.input_tokens or 0, session_cost.input))
+        local display_session_output_tokens = (session.output_tokens or 0) + (session.thoughts_tokens or 0)
         table.insert(
           lines,
-          string.format(" Output:  %d tokens / $%.2f", session.output_tokens or 0, session_cost.output)
+          string.format(" Output:  %d tokens / $%.2f", display_session_output_tokens, session_cost.output)
         )
         table.insert(lines, string.format("  Total:  $%.2f", session_cost.total))
       else
         table.insert(lines, string.format("  Input:  %d tokens", session.input_tokens or 0))
-        table.insert(lines, string.format(" Output:  %d tokens", session.output_tokens or 0))
+        local display_session_output_tokens = (session.output_tokens or 0) + (session.thoughts_tokens or 0)
+        table.insert(lines, string.format(" Output:  %d tokens", display_session_output_tokens))
       end
     end
     return table.concat(lines, "\n")
@@ -991,6 +1026,7 @@ function M.send_to_provider(opts)
   state.current_usage = {
     input_tokens = 0,
     output_tokens = 0,
+    thoughts_tokens = 0,
   }
 
   -- Set up callbacks for the provider
@@ -1008,6 +1044,7 @@ function M.send_to_provider(opts)
         vim.fn.timer_stop(spinner_timer)
         M.cleanup_spinner(bufnr)
         state.current_request = nil
+        state.api_error_occurred = true -- Set flag indicating API error
 
         -- Auto-write on error if enabled
         auto_write_buffer(bufnr)
@@ -1022,42 +1059,10 @@ function M.send_to_provider(opts)
 
     on_done = function()
       vim.schedule(function()
-        if spinner_timer then
-          vim.fn.timer_stop(spinner_timer)
-        end
-        state.current_request = nil
-
-        -- Clean up spinner if response never started
-        if not response_started then
-          M.cleanup_spinner(bufnr)
-
-          -- Auto-write if enabled
-          auto_write_buffer(bufnr)
-
-          -- Add new prompt if needed
-          local last_line = vim.api.nvim_buf_line_count(bufnr)
-          buffer_cmd(bufnr, "undojoin")
-          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, { "", "@You: " })
-
-          -- Move cursor to after the colon and any whitespace
-          local lines = vim.api.nvim_buf_get_lines(bufnr, last_line + 1, last_line + 2, false)
-          if #lines > 0 then
-            local line = lines[1]
-            local col = line:find(":%s*") + 1 -- Find position after the colon
-            while line:sub(col, col) == " " do -- Skip any whitespace
-              col = col + 1
-            end
-            -- Only set cursor if we're still in the buffer
-            if vim.api.nvim_get_current_buf() == bufnr then
-              vim.api.nvim_win_set_cursor(0, { last_line + 2, col - 1 })
-            end
-          end
-
-          -- Call the completion callback if provided
-          if opts.on_complete then
-            opts.on_complete()
-          end
-        end
+        -- This callback is called by the provider's on_exit handler.
+        -- Most finalization logic (spinner, state, UI, prompt) is now handled
+        -- in on_complete based on the cURL exit code and response_started state.
+        log.debug("send_to_provider(): callbacks.on_done called.")
       end)
     end,
 
@@ -1066,6 +1071,8 @@ function M.send_to_provider(opts)
         state.current_usage.input_tokens = usage_data.tokens
       elseif usage_data.type == "output" then
         state.current_usage.output_tokens = usage_data.tokens
+      elseif usage_data.type == "thoughts" then
+        state.current_usage.thoughts_tokens = usage_data.tokens
       end
     end,
 
@@ -1074,6 +1081,7 @@ function M.send_to_provider(opts)
         -- Update session totals
         session_usage.input_tokens = session_usage.input_tokens + (state.current_usage.input_tokens or 0)
         session_usage.output_tokens = session_usage.output_tokens + (state.current_usage.output_tokens or 0)
+        session_usage.thoughts_tokens = session_usage.thoughts_tokens + (state.current_usage.thoughts_tokens or 0)
 
         -- Auto-write when response is complete
         auto_write_buffer(bufnr)
@@ -1090,6 +1098,7 @@ function M.send_to_provider(opts)
         state.current_usage = {
           input_tokens = 0,
           output_tokens = 0,
+          thoughts_tokens = 0,
         }
       end)
     end,
@@ -1156,61 +1165,120 @@ function M.send_to_provider(opts)
 
     on_complete = function(code)
       vim.schedule(function()
-        state.current_request = nil
-        vim.fn.timer_stop(spinner_timer)
+        -- If the request was cancelled, M.cancel_request() handles cleanup.
+        if state.request_cancelled then
+          if spinner_timer then -- Ensure timer is stopped if cancel was very fast
+            vim.fn.timer_stop(spinner_timer)
+            spinner_timer = nil
+          end
+          -- state.current_request is set to nil by M.cancel_request()
+          return
+        end
 
-        -- Only add the new prompt if the request wasn't cancelled and completed successfully
-        if not state.request_cancelled and code == 0 and response_started then
-          local last_line = vim.api.nvim_buf_line_count(bufnr)
+        -- Stop the spinner timer if it's still active.
+        -- on_content might have already stopped it if response_started.
+        -- M.cleanup_spinner will also try to stop state.spinner_timer.
+        if spinner_timer then
+          vim.fn.timer_stop(spinner_timer)
+          spinner_timer = nil
+        end
+        state.current_request = nil -- Mark request as no longer current
 
-          -- Check if the last line is empty
-          local last_line_content = ""
-          if last_line > 0 then
-            last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line - 1, last_line, false)[1] or ""
+        if code == 0 then
+          -- cURL request completed successfully (exit code 0)
+          if state.api_error_occurred then
+            log.info(
+              "send_to_provider(): on_complete: cURL success (code 0), but an API error was previously handled. Skipping new prompt."
+            )
+            state.api_error_occurred = false -- Reset flag for next request
+            -- Ensure spinner is cleaned if it wasn't by on_error (though it should have been)
+            if not response_started then
+              M.cleanup_spinner(bufnr)
+            end
+            auto_write_buffer(bufnr) -- Still auto-write if configured
+            update_ui(bufnr) -- Update UI
+            return -- Do not proceed to add new prompt or call opts.on_complete
           end
 
-          -- Prepare lines to insert based on whether the last line is empty
+          if not response_started then
+            -- Successful cURL, no API error, but no content was processed by on_content callback.
+            -- This means the "Thinking..." message might still be there.
+            log.info(
+              "send_to_provider(): on_complete: cURL success (code 0), no API error, but no response content was processed."
+            )
+            M.cleanup_spinner(bufnr) -- Clean up "Thinking..." message
+          end
+
+          -- Add new "@You:" prompt for the next message
+          local last_line_idx = vim.api.nvim_buf_line_count(bufnr)
+          local last_line_content = ""
+          if last_line_idx > 0 then
+            last_line_content = vim.api.nvim_buf_get_lines(bufnr, last_line_idx - 1, last_line_idx, false)[1] or ""
+          end
+
           local lines_to_insert = {}
           local cursor_line_offset = 1
-
           if last_line_content == "" then
-            -- Last line is already empty, just add the prompt
             lines_to_insert = { "@You: " }
           else
-            -- Last line has content, add a blank line then the prompt
             lines_to_insert = { "", "@You: " }
             cursor_line_offset = 2
           end
 
-          -- Insert the lines
           buffer_cmd(bufnr, "undojoin")
-          vim.api.nvim_buf_set_lines(bufnr, last_line, last_line, false, lines_to_insert)
+          vim.api.nvim_buf_set_lines(bufnr, last_line_idx, last_line_idx, false, lines_to_insert)
 
-          -- Move cursor to after the colon and any whitespace
-          local new_line = last_line + cursor_line_offset - 1
-          local lines = vim.api.nvim_buf_get_lines(bufnr, new_line, new_line + 1, false)
-          if #lines > 0 then
-            local line = lines[1]
-            local col = line:find(":%s*") + 1 -- Find position after the colon
-            while line:sub(col, col) == " " do -- Skip any whitespace
+          local new_prompt_line_num = last_line_idx + cursor_line_offset - 1
+          local new_prompt_lines =
+            vim.api.nvim_buf_get_lines(bufnr, new_prompt_line_num, new_prompt_line_num + 1, false)
+          if #new_prompt_lines > 0 then
+            local line_text = new_prompt_lines[1]
+            local col = line_text:find(":%s*") + 1
+            while line_text:sub(col, col) == " " do
               col = col + 1
             end
-            -- Only set cursor if we're still in the buffer
             if vim.api.nvim_get_current_buf() == bufnr then
-              vim.api.nvim_win_set_cursor(0, { new_line + 1, col - 1 })
+              vim.api.nvim_win_set_cursor(0, { new_prompt_line_num + 1, col - 1 })
             end
           end
 
-          -- Force UI update after adding the prompt
+          auto_write_buffer(bufnr)
           update_ui(bufnr)
 
-          -- Auto-write after adding the prompt if enabled
-          auto_write_buffer(bufnr)
-
-          -- Call the completion callback if provided
-          if opts.on_complete then
+          if opts.on_complete then -- For ClaudiusSendAndInsert
             opts.on_complete()
           end
+        else
+          -- cURL request failed (exit code ~= 0)
+          M.cleanup_spinner(bufnr) -- Clean up "Thinking..." message
+
+          local error_msg
+          if code == 6 then -- CURLE_COULDNT_RESOLVE_HOST
+            error_msg =
+              string.format("Claudius: cURL could not resolve host (exit code %d). Check network or hostname.", code)
+          elseif code == 7 then -- CURLE_COULDNT_CONNECT
+            error_msg = string.format(
+              "Claudius: cURL could not connect to host (exit code %d). Check network or if the host is up.",
+              code
+            )
+          elseif code == 28 then -- cURL timeout error
+            local timeout_value = provider.parameters.timeout or config.parameters.timeout -- Get effective timeout
+            error_msg = string.format(
+              "Claudius: cURL request timed out (exit code %d). Timeout is %s seconds.",
+              code,
+              tostring(timeout_value)
+            )
+          else -- Other cURL errors
+            error_msg = string.format("Claudius: cURL request failed (exit code %d).", code)
+          end
+
+          if log.is_enabled() then
+            error_msg = error_msg .. " See " .. log.get_path() .. " for details."
+          end
+          vim.notify(error_msg, vim.log.levels.ERROR)
+
+          auto_write_buffer(bufnr) -- Auto-write if enabled, even on error
+          update_ui(bufnr) -- Update UI to remove any artifacts
         end
       end)
     end,
@@ -1288,7 +1356,24 @@ function M.switch(provider_name, model_name, parameters)
   local model_info = config.model and (" with model " .. config.model) or ""
   vim.notify("Claudius: Switched to " .. config.provider .. model_info, vim.log.levels.INFO)
 
+  -- Refresh lualine if available to update the model component
+  local lualine_ok, lualine = pcall(require, "lualine")
+  if lualine_ok and lualine.refresh then
+    lualine.refresh()
+    log.debug("switch(): Lualine refreshed.")
+  else
+    log.debug("switch(): Lualine not found or refresh function unavailable.")
+  end
+
   return new_provider
+end
+
+-- Get the current model name
+function M.get_current_model_name()
+  if config and config.model then
+    return config.model
+  end
+  return nil -- Or an empty string, depending on desired behavior for uninitialized model
 end
 
 return M
