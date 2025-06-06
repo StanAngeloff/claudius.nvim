@@ -42,7 +42,7 @@ M.defaults = {
     connect_timeout = 10, -- Default connection timeout for cURL requests
     vertex = {
       project_id = nil, -- Google Cloud project ID
-      location = "us-central1", -- Google Cloud region
+      location = "global", -- Google Cloud region
       thinking_budget = nil, -- Optional. Budget for model thinking, in tokens. nil or 0 disables thinking. Values >= 1 enable thinking with the specified budget.
     },
     -- Add provider-specific parameter sections here if needed in the future
