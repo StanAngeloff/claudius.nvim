@@ -410,9 +410,16 @@ function M.get_endpoint(self)
   end
 
   -- Ensure we're using the streamGenerateContent endpoint with SSE format
+  local hostname
+  if location == "global" then
+    hostname = "aiplatform.googleapis.com"
+  else
+    hostname = location .. "-aiplatform.googleapis.com"
+  end
+
   local endpoint = string.format(
-    "https://%s-aiplatform.googleapis.com/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
-    location,
+    "https://%s/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
+    hostname,
     self.api_version,
     project_id,
     location,
