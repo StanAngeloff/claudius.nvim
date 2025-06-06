@@ -328,15 +328,11 @@ function M.create_request_body(self, formatted_messages, system_message)
     )
   elseif configured_budget == 0 then
     -- Thinking is explicitly disabled by setting budget to 0
-    log.debug(
-      "create_request_body: Vertex AI thinking_budget is 0. Thinking is disabled. Not sending thinkingConfig."
-    )
+    log.debug("create_request_body: Vertex AI thinking_budget is 0. Thinking is disabled. Not sending thinkingConfig.")
     -- add_thinking_config remains false
   elseif configured_budget == nil then
     -- Thinking budget is not set (nil), so default behavior (no thinkingConfig)
-    log.debug(
-      "create_request_body: Vertex AI thinking_budget is nil. Not sending thinkingConfig."
-    )
+    log.debug("create_request_body: Vertex AI thinking_budget is nil. Not sending thinkingConfig.")
     -- add_thinking_config remains false
   else
     -- Handles negative numbers or other invalid types if they somehow get here.

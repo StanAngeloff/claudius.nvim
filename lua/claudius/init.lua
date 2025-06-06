@@ -965,7 +965,14 @@ function M.send_to_provider(opts)
     local lines = {}
 
     -- Request usage
-    if current and (current.input_tokens > 0 or current.output_tokens > 0 or (current.thoughts_tokens and current.thoughts_tokens > 0)) then
+    if
+      current
+      and (
+        current.input_tokens > 0
+        or current.output_tokens > 0
+        or (current.thoughts_tokens and current.thoughts_tokens > 0)
+      )
+    then
       local total_output_tokens_for_cost = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
       local current_cost = config.pricing.enabled
         and pricing.calculate_cost(config.model, current.input_tokens, total_output_tokens_for_cost)
@@ -977,9 +984,15 @@ function M.send_to_provider(opts)
         local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
         local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          output_display_string = string.format(" Output:  %d tokens (⊂ %d thoughts) / $%.2f", display_output_tokens, current.thoughts_tokens, current_cost.output)
+          output_display_string = string.format(
+            " Output:  %d tokens (⊂ %d thoughts) / $%.2f",
+            display_output_tokens,
+            current.thoughts_tokens,
+            current_cost.output
+          )
         else
-          output_display_string = string.format(" Output:  %d tokens / $%.2f", display_output_tokens, current_cost.output)
+          output_display_string =
+            string.format(" Output:  %d tokens / $%.2f", display_output_tokens, current_cost.output)
         end
         table.insert(lines, output_display_string)
         table.insert(lines, string.format("  Total:  $%.2f", current_cost.total))
@@ -988,7 +1001,8 @@ function M.send_to_provider(opts)
         local display_output_tokens = (current.output_tokens or 0) + (current.thoughts_tokens or 0)
         local output_display_string
         if current.thoughts_tokens and current.thoughts_tokens > 0 then
-          output_display_string = string.format(" Output:  %d tokens (⊂ %d thoughts)", display_output_tokens, current.thoughts_tokens)
+          output_display_string =
+            string.format(" Output:  %d tokens (⊂ %d thoughts)", display_output_tokens, current.thoughts_tokens)
         else
           output_display_string = string.format(" Output:  %d tokens", display_output_tokens)
         end
