@@ -80,7 +80,7 @@ require("claudius").setup({
     model = nil,  -- Uses provider defaults if nil (see below)
     -- Claude default: "claude-3-7-sonnet-20250219"
     -- OpenAI default: "gpt-4o"
-    -- Vertex default: "gemini-2.5-pro-preview-05-06"
+    -- Vertex default: "gemini-2.5-pro-preview-06-05"
     parameters = {
         max_tokens = nil,  -- Set to nil to use default (4000)
         temperature = nil,  -- Set to nil to use default (0.7)
@@ -241,9 +241,9 @@ You can switch between AI providers at any time using the `:ClaudiusSwitch` comm
 :ClaudiusSwitch # Interactive provider/model selection
 :ClaudiusSwitch claude # Switch to Claude with default model
 :ClaudiusSwitch openai gpt-4o # Switch to OpenAI with specific model
-:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project # Switch to Vertex AI with project ID
+:ClaudiusSwitch vertex gemini-2.5-pro-preview-06-05 project_id=my-project # Switch to Vertex AI with project ID
 :ClaudiusSwitch claude claude-3-7-sonnet-20250219 temperature=0.2 max_tokens=1000 connect_timeout=5 timeout=60 # Multiple parameters, including general ones
-:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project thinking_budget=1000 # Vertex AI with thinking budget
+:ClaudiusSwitch vertex gemini-2.5-pro-preview-06-05 project_id=my-project thinking_budget=1000 # Vertex AI with thinking budget
 ```
 
 This allows you to compare responses from different AI models without restarting Neovim.
