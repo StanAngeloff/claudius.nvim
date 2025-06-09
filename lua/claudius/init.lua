@@ -223,6 +223,9 @@ M.setup = function(user_opts)
     path = config.logging.path,
   })
 
+  -- Associate .chat files with the markdown treesitter parser
+  vim.treesitter.language.register("markdown", { "chat" })
+
   log.info("setup(): Claudius starting...")
 
   -- Initialize provider based on the merged config
@@ -289,9 +292,6 @@ M.setup = function(user_opts)
   -- Define syntax highlighting and Tree-sitter configuration
   local function set_syntax()
     local bufnr = vim.api.nvim_get_current_buf()
-
-    -- Enable Tree-sitter for the buffer
-    vim.treesitter.start(bufnr, "markdown")
 
     -- Explicitly load our syntax file
     vim.cmd("runtime! syntax/chat.vim")
