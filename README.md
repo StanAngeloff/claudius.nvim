@@ -95,7 +95,9 @@ require("claudius").setup({
     highlights = {
         system = "Special",    -- highlight group or hex color (e.g., "#80a0ff") for system messages
         user = "Normal",       -- highlight group or hex color for user messages
-        assistant = "Comment"  -- highlight group or hex color for assistant messages
+        assistant = "Comment",  -- highlight group or hex color for assistant messages
+        user_lua_expression = "PreProc", -- highlight group or hex color for {{expression}} in user messages
+        user_file_reference = "Include"  -- highlight group or hex color for @./file references in user messages
     },
     role_style = "bold,underline",  -- style applied to role markers like @You:
     ruler = {
