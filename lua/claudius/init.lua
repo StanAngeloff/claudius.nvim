@@ -1257,8 +1257,8 @@ function M.send_to_provider(opts)
           -- M.cancel_request should have already set modifiable = true
           -- and stopped the spinner.
           if spinner_timer then
-             vim.fn.timer_stop(spinner_timer)
-             spinner_timer = nil
+            vim.fn.timer_stop(spinner_timer)
+            spinner_timer = nil
           end
           return
         end

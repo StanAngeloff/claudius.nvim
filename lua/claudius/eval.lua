@@ -31,23 +31,27 @@ local function include_delegate(relative_path, env_of_caller, eval_expression_fu
 
   for _, path_in_stack in ipairs(env_of_caller.__include_stack) do
     if path_in_stack == target_path then
-      error(string.format(
-        "Circular include for '%s' (requested by '%s'). Include stack: %s",
-        target_path,
-        calling_file_path,
-        table.concat(env_of_caller.__include_stack, " -> ")
-      ))
+      error(
+        string.format(
+          "Circular include for '%s' (requested by '%s'). Include stack: %s",
+          target_path,
+          calling_file_path,
+          table.concat(env_of_caller.__include_stack, " -> ")
+        )
+      )
     end
   end
 
   local file, err_msg = io.open(target_path, "r")
   if not file then
-    error(string.format(
-      "Failed to open include file '%s' (requested by '%s'): %s",
-      target_path,
-      calling_file_path,
-      (err_msg or "unknown error")
-    ))
+    error(
+      string.format(
+        "Failed to open include file '%s' (requested by '%s'): %s",
+        target_path,
+        calling_file_path,
+        (err_msg or "unknown error")
+      )
+    )
   end
   local content = file:read("*a")
   file:close()
@@ -172,11 +176,7 @@ function M.execute_safe(code, env_param)
 
   local chunk, load_err = load(code, "safe_env", "t", env)
   if not chunk then
-    error(string.format(
-      "Load error in frontmatter of '%s': %s",
-      (env.__filename or "N/A"),
-      load_err
-    ))
+    error(string.format("Load error in frontmatter of '%s': %s", (env.__filename or "N/A"), load_err))
   end
 
   local ok, exec_err = pcall(chunk)
@@ -216,23 +216,20 @@ function M.eval_expression(expr, env)
 
   local chunk, parse_err = load(expr, "expression", "t", env)
   if not chunk then
-    error(string.format(
-      "Parse error in '%s' for expression '{{%s}}': %s",
-      (env.__filename or "N/A"),
-      expr,
-      parse_err
-    ))
+    error(string.format("Parse error in '%s' for expression '{{%s}}': %s", (env.__filename or "N/A"), expr, parse_err))
   end
 
   local ok, eval_result = pcall(chunk)
   if not ok then
     -- eval_result here could be a simple Lua error or a contextualized error from include_delegate
-    error(string.format(
-      "Evaluation error in '%s' for expression '{{%s}}': %s",
-      (env.__filename or "N/A"),
-      expr,
-      eval_result
-    ))
+    error(
+      string.format(
+        "Evaluation error in '%s' for expression '{{%s}}': %s",
+        (env.__filename or "N/A"),
+        expr,
+        eval_result
+      )
+    )
   end
 
   return eval_result
