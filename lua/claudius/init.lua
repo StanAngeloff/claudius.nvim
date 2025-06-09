@@ -736,6 +736,8 @@ function M.cancel_request()
         auto_write_buffer(bufnr)
       end
 
+      vim.bo[bufnr].modifiable = true -- Restore modifiable state
+
       local msg = "Claudius: Request cancelled"
       if log.is_enabled() then
         msg = msg .. ". See " .. log.get_path() .. " for details"
@@ -746,11 +748,18 @@ function M.cancel_request()
     end
   else
     log.debug("cancel_request(): No current request found")
+    -- If there was no request, ensure buffer is modifiable if it somehow got stuck
+    if not vim.bo[bufnr].modifiable then
+      vim.bo[bufnr].modifiable = true
+    end
   end
 end
 
 -- Clean up spinner and prepare for response
 M.cleanup_spinner = function(bufnr)
+  local original_modifiable = vim.bo[bufnr].modifiable
+  vim.bo[bufnr].modifiable = true -- Allow plugin modifications
+
   local state = buffers.get_state(bufnr)
   if state.spinner_timer then
     vim.fn.timer_stop(state.spinner_timer)
@@ -790,10 +799,14 @@ M.cleanup_spinner = function(bufnr)
   end
 
   update_ui(bufnr) -- Force UI update after cleaning up spinner
+  vim.bo[bufnr].modifiable = original_modifiable -- Restore previous modifiable state
 end
 
 -- Show loading spinner
 local function start_loading_spinner(bufnr)
+  local original_modifiable_initial = vim.bo[bufnr].modifiable
+  vim.bo[bufnr].modifiable = true -- Allow plugin modifications for initial message
+
   local state = buffers.get_state(bufnr)
   local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
   local frame = 1
@@ -810,11 +823,16 @@ local function start_loading_spinner(bufnr)
   end
   -- Immediately update UI after adding the thinking message
   update_ui(bufnr)
+  vim.bo[bufnr].modifiable = original_modifiable_initial -- Restore state after initial message
 
   local timer = vim.fn.timer_start(100, function()
     if not state.current_request then
       return
     end
+
+    local original_modifiable_timer = vim.bo[bufnr].modifiable
+    vim.bo[bufnr].modifiable = true -- Allow plugin modifications for spinner update
+
     frame = (frame % #spinner_frames) + 1
     local text = "@Assistant: " .. spinner_frames[frame] .. " Thinking..."
     local last_line = vim.api.nvim_buf_line_count(bufnr)
@@ -822,6 +840,8 @@ local function start_loading_spinner(bufnr)
     vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { text })
     -- Force UI update during spinner animation
     update_ui(bufnr)
+
+    vim.bo[bufnr].modifiable = original_modifiable_timer -- Restore state after spinner update
   end, { ["repeat"] = -1 })
 
   state.spinner_timer = timer
@@ -844,6 +864,9 @@ function M.send_to_provider(opts)
   state.request_cancelled = false
   state.api_error_occurred = false -- Initialize flag for API errors
 
+  -- Make buffer non-modifiable by user during request
+  vim.bo[bufnr].modifiable = false
+
   -- Auto-write the buffer before sending if enabled
   auto_write_buffer(bufnr)
 
@@ -851,6 +874,7 @@ function M.send_to_provider(opts)
   if not provider then
     log.error("send_to_provider(): Provider not initialized")
     vim.notify("Claudius: Provider not initialized", vim.log.levels.ERROR)
+    vim.bo[bufnr].modifiable = true -- Restore modifiable state
     return
   end
 
@@ -891,10 +915,11 @@ function M.send_to_provider(opts)
         provider.state.api_key = input
         log.info("send_to_provider(): API key set via prompt")
         -- Continue with the Claudius request immediately
-        M.send_to_provider()
+        M.send_to_provider() -- This recursive call will handle modifiable state
       else
         log.error("send_to_provider(): API key prompt cancelled by user")
         vim.notify("Claudius: API key required to continue", vim.log.levels.ERROR)
+        vim.bo[bufnr].modifiable = true -- Restore modifiable state
       end
     end)
 
@@ -905,6 +930,7 @@ function M.send_to_provider(opts)
   local messages, frontmatter_code = M.parse_buffer(bufnr)
   if #messages == 0 then
     vim.notify("Claudius: No messages found in buffer", vim.log.levels.WARN)
+    vim.bo[bufnr].modifiable = true -- Restore modifiable state
     return
   end
 
@@ -923,6 +949,7 @@ function M.send_to_provider(opts)
     local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code, chat_file_path)
     if not ok then
       vim.notify("Claudius: Frontmatter error - " .. result, vim.log.levels.ERROR)
+      vim.bo[bufnr].modifiable = true -- Restore modifiable state
       return
     end
     log.debug("send_to_provider(): ... Frontmatter evaluation result: " .. log.inspect(result))
@@ -991,7 +1018,7 @@ function M.send_to_provider(opts)
       .. log.inspect(provider.parameters.model)
   )
 
-  local spinner_timer = start_loading_spinner(bufnr)
+  local spinner_timer = start_loading_spinner(bufnr) -- Handles its own modifiable toggles for writes
   local response_started = false
 
   -- Format usage information for display
@@ -1090,10 +1117,14 @@ function M.send_to_provider(opts)
 
     on_error = function(msg)
       vim.schedule(function()
-        vim.fn.timer_stop(spinner_timer)
-        M.cleanup_spinner(bufnr)
+        if spinner_timer then
+          vim.fn.timer_stop(spinner_timer)
+        end
+        M.cleanup_spinner(bufnr) -- Handles its own modifiable toggles
         state.current_request = nil
         state.api_error_occurred = true -- Set flag indicating API error
+
+        vim.bo[bufnr].modifiable = true -- Restore modifiable state
 
         -- Auto-write on error if enabled
         auto_write_buffer(bufnr)
@@ -1154,9 +1185,15 @@ function M.send_to_provider(opts)
 
     on_content = function(text)
       vim.schedule(function()
+        local original_modifiable_for_on_content = vim.bo[bufnr].modifiable -- Expected to be false
+        vim.bo[bufnr].modifiable = true -- Temporarily allow plugin modifications
+
         -- Stop spinner on first content
         if not response_started then
-          vim.fn.timer_stop(spinner_timer)
+          if spinner_timer then
+            vim.fn.timer_stop(spinner_timer)
+            -- spinner_timer = nil -- Not strictly needed here as it's local to send_to_provider
+          end
         end
 
         -- Split content into lines
@@ -1167,7 +1204,7 @@ function M.send_to_provider(opts)
 
           if not response_started then
             -- Clean up spinner and ensure blank line
-            M.cleanup_spinner(bufnr)
+            M.cleanup_spinner(bufnr) -- Handles its own modifiable toggles
             last_line = vim.api.nvim_buf_line_count(bufnr)
 
             -- Check if response starts with a code fence
@@ -1209,18 +1246,20 @@ function M.send_to_provider(opts)
           -- Force UI update after appending content
           update_ui(bufnr)
         end
+        vim.bo[bufnr].modifiable = original_modifiable_for_on_content -- Restore to likely false
       end)
     end,
 
     on_complete = function(code)
       vim.schedule(function()
-        -- If the request was cancelled, M.cancel_request() handles cleanup.
+        -- If the request was cancelled, M.cancel_request() handles cleanup including modifiable.
         if state.request_cancelled then
-          if spinner_timer then -- Ensure timer is stopped if cancel was very fast
-            vim.fn.timer_stop(spinner_timer)
-            spinner_timer = nil
+          -- M.cancel_request should have already set modifiable = true
+          -- and stopped the spinner.
+          if spinner_timer then
+             vim.fn.timer_stop(spinner_timer)
+             spinner_timer = nil
           end
-          -- state.current_request is set to nil by M.cancel_request()
           return
         end
 
@@ -1233,6 +1272,9 @@ function M.send_to_provider(opts)
         end
         state.current_request = nil -- Mark request as no longer current
 
+        -- Ensure buffer is modifiable for final operations and user interaction
+        vim.bo[bufnr].modifiable = true
+
         if code == 0 then
           -- cURL request completed successfully (exit code 0)
           if state.api_error_occurred then
@@ -1240,9 +1282,8 @@ function M.send_to_provider(opts)
               "send_to_provider(): on_complete: cURL success (code 0), but an API error was previously handled. Skipping new prompt."
             )
             state.api_error_occurred = false -- Reset flag for next request
-            -- Ensure spinner is cleaned if it wasn't by on_error (though it should have been)
             if not response_started then
-              M.cleanup_spinner(bufnr)
+              M.cleanup_spinner(bufnr) -- Handles its own modifiable toggles
             end
             auto_write_buffer(bufnr) -- Still auto-write if configured
             update_ui(bufnr) -- Update UI
@@ -1250,15 +1291,13 @@ function M.send_to_provider(opts)
           end
 
           if not response_started then
-            -- Successful cURL, no API error, but no content was processed by on_content callback.
-            -- This means the "Thinking..." message might still be there.
             log.info(
               "send_to_provider(): on_complete: cURL success (code 0), no API error, but no response content was processed."
             )
-            M.cleanup_spinner(bufnr) -- Clean up "Thinking..." message
+            M.cleanup_spinner(bufnr) -- Handles its own modifiable toggles
           end
 
-          -- Add new "@You:" prompt for the next message
+          -- Add new "@You:" prompt for the next message (buffer is already modifiable)
           local last_line_idx = vim.api.nvim_buf_line_count(bufnr)
           local last_line_content = ""
           if last_line_idx > 0 then
@@ -1299,7 +1338,8 @@ function M.send_to_provider(opts)
           end
         else
           -- cURL request failed (exit code ~= 0)
-          M.cleanup_spinner(bufnr) -- Clean up "Thinking..." message
+          -- Buffer is already set to modifiable = true
+          M.cleanup_spinner(bufnr) -- Handles its own modifiable toggles
 
           local error_msg
           if code == 6 then -- CURLE_COULDNT_RESOLVE_HOST
@@ -1335,6 +1375,21 @@ function M.send_to_provider(opts)
 
   -- Send the request using the provider
   state.current_request = provider:send_request(request_body, callbacks)
+
+  if not state.current_request or state.current_request == 0 or state.current_request == -1 then
+    log.error("send_to_provider(): Failed to start provider job.")
+    if spinner_timer then -- Ensure spinner_timer is valid before trying to stop
+      vim.fn.timer_stop(spinner_timer)
+      -- state.spinner_timer might have been set by start_loading_spinner, clear it if so
+      if state.spinner_timer == spinner_timer then
+        state.spinner_timer = nil
+      end
+    end
+    M.cleanup_spinner(bufnr) -- Clean up any "Thinking..." message, handles its own modifiable toggles
+    vim.bo[bufnr].modifiable = true -- Restore modifiable state
+    return
+  end
+  -- If job started successfully, modifiable remains false (as set at the start of this function).
 end
 
 -- Switch to a different provider or model
