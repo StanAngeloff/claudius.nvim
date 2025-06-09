@@ -1,7 +1,7 @@
 --- Safe environment and execution for Lua code in Claudius, where safe is a loose term.
 local M = {}
 
-local function actual_include_logic(relative_path, env_of_caller, eval_expression_func, create_safe_env_func)
+local function include_delegate(relative_path, env_of_caller, eval_expression_func, create_safe_env_func)
   if not env_of_caller.__filename then
     error("include() called but __filename is not set in the calling environment.")
   end
@@ -61,7 +61,7 @@ local function ensure_include_capability(env, eval_expr_fn, create_env_fn)
     -- The 'include' function captures the 'env' it's defined in.
     env.include = function(relative_path)
       -- It's crucial that eval_expr_fn and create_env_fn are M.eval_expression and M.create_safe_env
-      return actual_include_logic(relative_path, env, eval_expr_fn, create_env_fn)
+      return include_delegate(relative_path, env, eval_expr_fn, create_env_fn)
     end
   end
 end
@@ -168,7 +168,7 @@ end
 function M.eval_expression(expr, env)
   -- Ensure 'env' is not nil, though callers should guarantee this.
   if not env then
-    error("M.eval_expression called with a nil environment.")
+    error("eval.eval_expression called with a nil environment.")
   end
 
   -- Ensure 'include' is available and correctly contextualized for this environment.
