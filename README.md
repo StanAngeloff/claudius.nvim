@@ -45,25 +45,25 @@ For Google Vertex AI, the Google Cloud CLI _(`gcloud`)_ is required if using ser
 
 Your API key can be stored and retrieved from the system keyring:
 
-  For Anthropic:
+For Anthropic:
 
-  ```bash
-  secret-tool store --label="Anthropic API Key" service anthropic key api
-  ```
+```bash
+secret-tool store --label="Anthropic API Key" service anthropic key api
+```
 
-  For OpenAI:
+For OpenAI:
 
-  ```bash
-  secret-tool store --label="OpenAI API Key" service openai key api
-  ```
+```bash
+secret-tool store --label="OpenAI API Key" service openai key api
+```
 
-  For Google Vertex AI _(store service account JSON)_:
+For Google Vertex AI _(store service account JSON)_:
 
-  ```bash
-  secret-tool store --label="Vertex AI Service Account" service vertex key api project_id your_project_id
-  ```
+```bash
+secret-tool store --label="Vertex AI Service Account" service vertex key api project_id your_project_id
+```
 
-  This will securely prompt for your API key and store it in the system keyring.
+This will securely prompt for your API key and store it in the system keyring.
 
 </details>
 
@@ -267,6 +267,7 @@ require('lualine').setup {
   -- ...
 }
 ```
+
 The model display is active only for **.chat** buffers.
 
 ### Templating and Dynamic Content
@@ -309,11 +310,11 @@ Use `{{expression}}` syntax inside any message to evaluate Lua code:
 
 The expression environment is restricted to safe operations focused on string manipulation, basic math, and table operations. Available functions include:
 
-- String operations *(upper, lower, sub, gsub, etc)*
-- Table operations *(concat, insert, remove, sort)*
-- Math functions *(abs, ceil, floor, max, min, etc)*
+- String operations _(upper, lower, sub, gsub, etc)_
+- Table operations _(concat, insert, remove, sort)_
+- Math functions _(abs, ceil, floor, max, min, etc)_
 - UTF-8 support
-- Essential functions *(assert, error, ipairs, pairs, etc)*
+- Essential functions _(assert, error, ipairs, pairs, etc)_
 
 While you can define functions in the frontmatter, the focus is on simple templating rather than complex programming:
 
@@ -334,10 +335,10 @@ You can embed content from local files directly into your messages using the `@.
 
 **Syntax:**
 
--   File paths must start with `./` _(current directory)_ or `../` _(parent directory)_.
--   Example: `@./images/diagram.png` or `@../documents/report.pdf`
--   File paths can be URL-encoded _(e.g., spaces as `%20`)_ and will be automatically decoded.
--   Trailing punctuation in file paths _(e.g., from ending a sentence with `@./file.txt.`)_ is ignored.
+- File paths must start with `./` _(current directory)_ or `../` _(parent directory)_.
+- Example: `@./images/diagram.png` or `@../documents/report.pdf`
+- File paths can be URL-encoded _(e.g., spaces as `%20`)_ and will be automatically decoded.
+- Trailing punctuation in file paths _(e.g., from ending a sentence with `@./file.txt.`)_ is ignored.
 
 If a file is not found, not readable, or its MIME type is unsupported by the provider for direct inclusion, the raw `@./path/to/file` reference will be sent as text, and a notification will be shown.
 
@@ -349,11 +350,11 @@ Example:
 
 **Provider Support:**
 
-| **Claude & OpenAI** | **Vertex AI** |
-| --- | --- |
-| Text: Plain text files <em>(e.g., `.txt`, `.md`, `.lua`)</em> are embedded as text | Text files <em>(MIME type `text/*`)</em> are embedded as text parts |
-| Images: JPEG, PNG, GIF, WebP | Supports generic binary files <em>(sent as `inlineData` with detected MIME type)</em> |
-| Documents: PDF | |
+| **Claude & OpenAI**                                                                | **Vertex AI**                                                                         |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Text: Plain text files <em>(e.g., `.txt`, `.md`, `.lua`)</em> are embedded as text | Text files <em>(MIME type `text/*`)</em> are embedded as text parts                   |
+| Images: JPEG, PNG, GIF, WebP                                                       | Supports generic binary files <em>(sent as `inlineData` with detected MIME type)</em> |
+| Documents: PDF                                                                     |                                                                                       |
 
 ### Importing from Claude Workbench
 
