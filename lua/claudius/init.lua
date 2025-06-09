@@ -947,9 +947,32 @@ function M.send_to_provider(opts)
       )
       local ok, result = pcall(eval.eval_expression, expr, env)
       if not ok then
-        local err_msg = string.format("Template error (message %d) - %s", i, result)
-        log.error("send_to_provider(): " .. err_msg)
-        vim.notify("Claudius: " .. err_msg, vim.log.levels.ERROR)
+        -- result is the detailed error string from eval.lua
+        local current_file_for_error = env.__filename
+        if not current_file_for_error or current_file_for_error == "" then
+          current_file_for_error = vim.api.nvim_buf_get_name(bufnr) -- Fallback if env.__filename is empty
+          if not current_file_for_error or current_file_for_error == "" then
+            current_file_for_error = "current buffer"
+          end
+        end
+
+        local err_msg_for_notify = string.format(
+          "Template error (message %d) processing '{{%s}}' in '%s':\n%s",
+          i,
+          expr,
+          current_file_for_error,
+          result -- This is the detailed error from eval.lua
+        )
+        -- For logging, keep it on one line for easier parsing if needed
+        local err_msg_for_log = string.format(
+          "Template error (message %d) processing '{{%s}}' in '%s': %s",
+          i,
+          expr,
+          current_file_for_error,
+          result
+        )
+        log.error("send_to_provider(): " .. err_msg_for_log)
+        vim.notify("Claudius: " .. err_msg_for_notify, vim.log.levels.ERROR)
         return "{{" .. expr .. "}}" -- Keep original on error
       end
       log.debug(string.format("send_to_provider(): ... Expression result (message %d): %s", i, log.inspect(result)))

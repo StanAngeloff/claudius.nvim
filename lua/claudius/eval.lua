@@ -10,6 +10,10 @@ local function include_delegate(relative_path, env_of_caller, eval_expression_fu
   end
 
   local calling_file_path = env_of_caller.__filename
+  if not calling_file_path or calling_file_path == "" then
+    error("include_delegate: calling environment's __filename is missing or empty.")
+  end
+
   local base_dir
   -- Check if the path is absolute by comparing it with its absolute version
   if vim.fs.abspath(calling_file_path) == calling_file_path then
@@ -27,18 +31,23 @@ local function include_delegate(relative_path, env_of_caller, eval_expression_fu
 
   for _, path_in_stack in ipairs(env_of_caller.__include_stack) do
     if path_in_stack == target_path then
-      error(
-        "Circular include detected: '"
-          .. target_path
-          .. "'. Include stack: "
-          .. table.concat(env_of_caller.__include_stack, " -> ")
-      )
+      error(string.format(
+        "Circular include for '%s' (requested by '%s'). Include stack: %s",
+        target_path,
+        calling_file_path,
+        table.concat(env_of_caller.__include_stack, " -> ")
+      ))
     end
   end
 
   local file, err_msg = io.open(target_path, "r")
   if not file then
-    error("Failed to open include file '" .. target_path .. "': " .. (err_msg or "unknown error"))
+    error(string.format(
+      "Failed to open include file '%s' (requested by '%s'): %s",
+      target_path,
+      calling_file_path,
+      (err_msg or "unknown error")
+    ))
   end
   local content = file:read("*a")
   file:close()
@@ -49,9 +58,14 @@ local function include_delegate(relative_path, env_of_caller, eval_expression_fu
   table.insert(new_include_env.__include_stack, target_path)
 
   -- Expressions in the included file will be evaluated using new_include_env.
-  -- M.eval_expression will ensure new_include_env.include is set up correctly for further nesting.
-  local processed_content = content:gsub("{{(.-)}}", function(expr)
-    return eval_expression_func(expr, new_include_env)
+  -- M.eval_expression (as eval_expression_func) will ensure new_include_env.include is set up.
+  local processed_content = content:gsub("{{(.-)}}", function(inner_expr)
+    local ok, presult = pcall(eval_expression_func, inner_expr, new_include_env)
+    if not ok then
+      -- presult is the error string from eval_expression_func, already contextualized.
+      error(presult)
+    end
+    return presult
   end)
 
   return processed_content
@@ -60,8 +74,8 @@ end
 local function ensure_include_capability(env, eval_expr_fn, create_env_fn)
   if env.include == nil then
     -- The 'include' function captures the 'env' it's defined in.
+    -- Errors from include_delegate will propagate up to M.eval_expression.
     env.include = function(relative_path)
-      -- It's crucial that eval_expr_fn and create_env_fn are M.eval_expression and M.create_safe_env
       return include_delegate(relative_path, env, eval_expr_fn, create_env_fn)
     end
   end
@@ -158,12 +172,20 @@ function M.execute_safe(code, env_param)
 
   local chunk, load_err = load(code, "safe_env", "t", env)
   if not chunk then
-    error("Failed to load code: " .. load_err)
+    error(string.format(
+      "Load error in frontmatter of '%s': %s",
+      (env.__filename or "N/A"),
+      load_err
+    ))
   end
 
   local ok, exec_err = pcall(chunk)
   if not ok then
-    error("Failed to execute code: " .. exec_err)
+    error(string.format(
+      "Execution error in frontmatter of '%s': %s",
+      (env.__filename or "N/A"),
+      exec_err -- This could be an error from include, already contextualized
+    ))
   end
 
   -- Collect only new keys that weren't in initial environment
@@ -194,12 +216,23 @@ function M.eval_expression(expr, env)
 
   local chunk, parse_err = load(expr, "expression", "t", env)
   if not chunk then
-    error("Failed to parse expression: " .. parse_err)
+    error(string.format(
+      "Parse error in '%s' for expression '{{%s}}': %s",
+      (env.__filename or "N/A"),
+      expr,
+      parse_err
+    ))
   end
 
   local ok, eval_result = pcall(chunk)
   if not ok then
-    error("Failed to evaluate expression: " .. eval_result)
+    -- eval_result here could be a simple Lua error or a contextualized error from include_delegate
+    error(string.format(
+      "Evaluation error in '%s' for expression '{{%s}}': %s",
+      (env.__filename or "N/A"),
+      expr,
+      eval_result
+    ))
   end
 
   return eval_result
