@@ -11,7 +11,8 @@ local function include_delegate(relative_path, env_of_caller, eval_expression_fu
 
   local calling_file_path = env_of_caller.__filename
   local base_dir
-  if vim.fn.isabs(calling_file_path) == 1 then
+  -- Check if the path is absolute by comparing it with its absolute version
+  if vim.fs.abspath(calling_file_path) == calling_file_path then
     base_dir = vim.fn.fnamemodify(calling_file_path, ":h")
   else
     local dir_of_calling_file = vim.fn.fnamemodify(calling_file_path, ":h") -- Returns '.' if no path part, or the path part
