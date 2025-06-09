@@ -75,7 +75,7 @@ local function include_delegate(relative_path, env_of_caller, eval_expression_fu
   return processed_content
 end
 
-local function ensure_include_capability(env, eval_expr_fn, create_env_fn)
+local function ensure_env_capabilities(env, eval_expr_fn, create_env_fn)
   if env.include == nil then
     -- The 'include' function captures the 'env' it's defined in.
     -- Errors from include_delegate will propagate up to M.eval_expression.
@@ -88,7 +88,7 @@ end
 -- Create a safe environment for executing Lua code
 function M.create_safe_env()
   -- Note: The 'include' function is not added here directly.
-  -- It will be added by ensure_include_capability, allowing it to capture the correct 'env'.
+  -- It will be added by ensure_env_capabilities, allowing it to capture the correct 'env'.
   return {
     -- String manipulation
     string = {
@@ -167,7 +167,7 @@ function M.execute_safe(code, env_param)
 
   -- Ensure 'include' is available and correctly contextualized for this environment.
   -- M.eval_expression and M.create_safe_env are used for recursive calls from 'include'.
-  ensure_include_capability(env, M.eval_expression, M.create_safe_env)
+  ensure_env_capabilities(env, M.eval_expression, M.create_safe_env)
 
   local initial_keys = {}
   for k in pairs(env) do
@@ -207,7 +207,7 @@ function M.eval_expression(expr, env)
   end
 
   -- Ensure 'include' is available and correctly contextualized for this environment.
-  ensure_include_capability(env, M.eval_expression, M.create_safe_env)
+  ensure_env_capabilities(env, M.eval_expression, M.create_safe_env)
 
   -- Wrap expression in return statement if it's not already a statement
   if not expr:match("^%s*return%s+") then
