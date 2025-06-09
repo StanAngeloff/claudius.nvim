@@ -300,6 +300,7 @@ M.setup = function(user_opts)
     set_highlight("ClaudiusSystem", config.highlights.system)
     set_highlight("ClaudiusUser", config.highlights.user)
     set_highlight("ClaudiusAssistant", config.highlights.assistant)
+    set_highlight("ClaudiusLuaExpression", "PreProc") -- Highlight for {{expression}}
 
     -- Set up role marker highlights (e.g., @You:, @System:)
     -- Use existing highlight groups which are now correctly defined by set_highlight
