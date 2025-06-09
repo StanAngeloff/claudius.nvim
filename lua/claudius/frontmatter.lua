@@ -37,12 +37,25 @@ function M.parse(lines)
 end
 
 -- Execute frontmatter code in a safe environment
-function M.execute(code)
+function M.execute(code, chat_file_path)
   if not code then
     return {}
   end
 
-  return eval.execute_safe(code)
+  -- Create a base environment for frontmatter execution
+  local env_for_frontmatter = eval.create_safe_env()
+
+  -- Set __filename and __include_stack if chat_file_path is provided,
+  -- enabling include() usage within frontmatter.
+  if chat_file_path and chat_file_path ~= "" then
+    env_for_frontmatter.__filename = chat_file_path
+    env_for_frontmatter.__include_stack = { chat_file_path }
+  else
+    -- If chat_file_path is not available, include() will error if called from frontmatter,
+    -- as __filename would be nil. This is acceptable as include() primarily makes sense with a file context.
+  end
+
+  return eval.execute_safe(code, env_for_frontmatter)
 end
 
 return M

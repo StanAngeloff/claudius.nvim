@@ -910,9 +910,17 @@ function M.send_to_provider(opts)
 
   -- Execute frontmatter if present and get variables
   local template_vars = {}
+  local chat_file_path = vim.api.nvim_buf_get_name(bufnr) -- Used for frontmatter and message templating context
+
   if frontmatter_code then
-    log.debug("send_to_provider(): Evaluating frontmatter code: " .. log.inspect(frontmatter_code))
-    local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code)
+    log.debug(
+      "send_to_provider(): Evaluating frontmatter code for file '"
+        .. chat_file_path
+        .. "': "
+        .. log.inspect(frontmatter_code)
+    )
+    -- Pass chat_file_path to set up __filename for include() in frontmatter
+    local ok, result = pcall(require("claudius.frontmatter").execute, frontmatter_code, chat_file_path)
     if not ok then
       vim.notify("Claudius: Frontmatter error - " .. result, vim.log.levels.ERROR)
       return
@@ -925,7 +933,11 @@ function M.send_to_provider(opts)
 
   -- Process template expressions in messages
   local eval = require("claudius.eval")
+  -- Create base env for message templating, extending with frontmatter variables
   local env = vim.tbl_extend("force", eval.create_safe_env(), template_vars)
+  -- Set __filename and __include_stack for include() in message content
+  env.__filename = chat_file_path
+  env.__include_stack = { chat_file_path } -- Initialize stack with the main chat file
 
   for i, msg in ipairs(formatted_messages) do
     -- Look for {{expression}} patterns
