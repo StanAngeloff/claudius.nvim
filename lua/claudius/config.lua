@@ -7,6 +7,7 @@ M.defaults = {
     system = "Special", -- Highlight group or hex color (e.g., "#ffccaa") for system messages
     user = "Normal", -- Highlight group or hex color for user messages
     assistant = "Comment", -- Highlight group or hex color for assistant messages
+    lua_expression = "PreProc", -- Highlight group or hex color for {{expression}}
   },
   role_style = "bold,underline", -- style applied to role markers like @You:
   ruler = {
