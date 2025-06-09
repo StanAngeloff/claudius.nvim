@@ -300,8 +300,8 @@ M.setup = function(user_opts)
     set_highlight("ClaudiusSystem", config.highlights.system)
     set_highlight("ClaudiusUser", config.highlights.user)
     set_highlight("ClaudiusAssistant", config.highlights.assistant)
-    set_highlight("ClaudiusLuaExpression", config.highlights.lua_expression) -- Highlight for {{expression}}
-    set_highlight("ClaudiusFileReference", config.highlights.file_reference) -- Highlight for @./file
+    set_highlight("ClaudiusUserLuaExpression", config.highlights.user_lua_expression) -- Highlight for {{expression}} in user messages
+    set_highlight("ClaudiusUserFileReference", config.highlights.user_file_reference) -- Highlight for @./file in user messages
 
     -- Set up role marker highlights (e.g., @You:, @System:)
     -- Use existing highlight groups which are now correctly defined by set_highlight
