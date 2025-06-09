@@ -114,6 +114,18 @@ function M.create_safe_env()
     -- UTF-8 support for unicode string handling
     utf8 = utf8,
 
+    -- Neovim API functions required by include()
+    vim = {
+      fn = {
+        fnamemodify = vim.fn.fnamemodify,
+        getcwd = vim.fn.getcwd,
+      },
+      fs = {
+        normalize = vim.fs.normalize,
+        abspath = vim.fs.abspath,
+      },
+    },
+
     -- Essential functions for template operation
     assert = assert,
     error = error,
