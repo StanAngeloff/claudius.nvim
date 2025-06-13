@@ -193,13 +193,25 @@ function M.create_request_body(self, formatted_messages, _)
   local request_body = {
     model = self.parameters.model,
     messages = api_messages,
-    max_tokens = self.parameters.max_tokens,
+    -- max_tokens or max_completion_tokens will be set conditionally below
     temperature = self.parameters.temperature,
     stream = true,
     stream_options = {
       include_usage = true, -- Request usage information in the final chunk
     },
   }
+
+  -- Conditionally set max_tokens or max_completion_tokens based on reasoning parameter
+  if self.parameters.reasoning and self.parameters.reasoning ~= "" then
+    request_body.max_completion_tokens = self.parameters.max_tokens
+    log.debug(
+      "openai.create_request_body: Using max_completion_tokens due to 'reasoning' parameter: "
+        .. tostring(self.parameters.max_tokens)
+    )
+  else
+    request_body.max_tokens = self.parameters.max_tokens
+    log.debug("openai.create_request_body: Using max_tokens: " .. tostring(self.parameters.max_tokens))
+  end
 
   return request_body
 end
