@@ -189,9 +189,9 @@ local function fold_last_thinking_block(bufnr)
       -- vim.cmd uses 1-based line numbers
       vim.fn.win_execute(
         winid,
-        string.format("%d,%dfoldclosed", start_think_lnum_0idx + 1, end_think_lnum_0idx + 1)
+        string.format("%d,%d foldclose", start_think_lnum_0idx + 1, end_think_lnum_0idx + 1) -- Corrected to foldclose and added space
       )
-      log.debug("fold_last_thinking_block(): Executed foldclosed command via win_execute.")
+      log.debug("fold_last_thinking_block(): Executed foldclose command via win_execute.")
     else
       log.debug("fold_last_thinking_block(): Buffer " .. bufnr .. " has no window. Cannot close fold.")
     end
