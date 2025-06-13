@@ -186,6 +186,22 @@ local function initialize_provider(provider_name, model_name, parameters)
   -- Set the validated model in the merged parameters
   merged_params.model = validated_model
 
+  -- Check for reasoning parameter with non-o-series OpenAI models
+  if provider_name == "openai" then
+    local reasoning_value = merged_params.reasoning
+    -- Ensure reasoning_value is checked against nil and empty string
+    if reasoning_value ~= nil and reasoning_value ~= "" then
+      if not string.find(validated_model, "-o") then -- Assuming "-o" signifies o-series like "gpt-4o"
+        local warning_msg = string.format(
+          "Claudius: The 'reasoning' parameter is only supported for OpenAI o-series models. Using it with '%s' may lead to undefined behavior.",
+          validated_model
+        )
+        vim.notify(warning_msg, vim.log.levels.WARN, { title = "Claudius Configuration" })
+        log.warn(warning_msg)
+      end
+    end
+  end
+
   -- Log the final configuration being passed to the provider constructor
   log.debug(
     "initialize_provider(): Initializing provider "
