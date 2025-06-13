@@ -116,6 +116,92 @@ local function add_rulers(bufnr)
   end
 end
 
+-- Helper function to fold the last thinking block in a buffer
+local function fold_last_thinking_block(bufnr)
+  log.debug("fold_last_thinking_block(): Attempting to fold last thinking block in buffer " .. bufnr)
+  local num_lines = vim.api.nvim_buf_line_count(bufnr)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false) -- 0-indexed lines
+
+  -- Find the line number of the last @You: prompt to define the search boundary.
+  -- We search upwards from this prompt.
+  local last_you_prompt_lnum_0idx = -1
+  for l = num_lines - 1, 0, -1 do -- Iterate 0-indexed line numbers
+    if lines[l + 1]:match("^@You:%s*") then -- lines table is 1-indexed
+      last_you_prompt_lnum_0idx = l
+      break
+    end
+  end
+
+  if last_you_prompt_lnum_0idx == -1 then
+    log.debug("fold_last_thinking_block(): Could not find the last @You: prompt. Aborting.")
+    return
+  end
+
+  local end_think_lnum_0idx = -1
+  -- Search for </thinking> upwards from just before the last @You: prompt.
+  -- Stop if we hit another message type, ensuring we're in the last message block.
+  for l = last_you_prompt_lnum_0idx - 1, 0, -1 do
+    if lines[l + 1]:match("^</thinking>$") then
+      end_think_lnum_0idx = l
+      break
+    end
+    -- If we encounter another role marker before finding </thinking>,
+    -- it means the last message block didn't have a thinking tag.
+    if lines[l + 1]:match("^@[%w]+:") then
+      log.debug(
+        "fold_last_thinking_block(): Encountered another role marker before </thinking> in the last message segment."
+      )
+      return
+    end
+  end
+
+  if end_think_lnum_0idx == -1 then
+    log.debug("fold_last_thinking_block(): No </thinking> tag found in the last message segment.")
+    return
+  end
+
+  local start_think_lnum_0idx = -1
+  -- Search for <thinking> upwards from just before the found </thinking> tag.
+  -- Stop if we hit another message type.
+  for l = end_think_lnum_0idx - 1, 0, -1 do
+    if lines[l + 1]:match("^<thinking>$") then
+      start_think_lnum_0idx = l
+      break
+    end
+    if lines[l + 1]:match("^@[%w]+:") then
+      log.debug(
+        "fold_last_thinking_block(): Encountered another role marker before finding matching <thinking> tag."
+      )
+      return
+    end
+  end
+
+  if start_think_lnum_0idx ~= -1 and start_think_lnum_0idx < end_think_lnum_0idx then
+    log.debug(
+      string.format(
+        "fold_last_thinking_block(): Found thinking block from line %d to %d (1-indexed). Closing fold.",
+        start_think_lnum_0idx + 1,
+        end_think_lnum_0idx + 1
+      )
+    )
+    local winid = vim.fn.bufwinid(bufnr)
+    if winid ~= -1 then
+      -- vim.cmd uses 1-based line numbers
+      vim.fn.win_execute(
+        winid,
+        string.format("%d,%dfoldclosed", start_think_lnum_0idx + 1, end_think_lnum_0idx + 1)
+      )
+      log.debug("fold_last_thinking_block(): Executed foldclosed command via win_execute.")
+    else
+      log.debug("fold_last_thinking_block(): Buffer " .. bufnr .. " has no window. Cannot close fold.")
+    end
+  else
+    log.debug(
+      "fold_last_thinking_block(): No matching <thinking> tag found for the last </thinking> tag, or order is incorrect."
+    )
+  end
+end
+
 -- Helper function to force UI update (rulers and signs)
 local function update_ui(bufnr)
   -- Ensure buffer is valid before proceeding
@@ -1372,6 +1458,7 @@ function M.send_to_provider(opts)
 
           auto_write_buffer(bufnr)
           update_ui(bufnr)
+          fold_last_thinking_block(bufnr) -- Attempt to fold the last thinking block
 
           if opts.on_complete then -- For ClaudiusSendAndInsert
             opts.on_complete()
