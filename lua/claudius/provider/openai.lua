@@ -12,8 +12,20 @@ function M.new(merged_config)
   provider.endpoint = "https://api.openai.com/v1/chat/completions"
   provider.api_version = "2023-05-15" -- OpenAI API version
 
+  -- Initialize response accumulator
+  provider:reset()
+
   -- Set metatable to use OpenAI methods
   return setmetatable(provider, { __index = setmetatable(M, { __index = base }) })
+end
+
+-- Reset provider state (called by base.new and before new requests)
+function M.reset(self)
+  self.response_accumulator = {
+    lines = {},
+    has_processed_content = false,
+  }
+  log.debug("openai.reset(): Reset OpenAI provider state (response accumulator)")
 end
 
 -- Get API key from environment, keyring, or prompt
@@ -299,28 +311,25 @@ function M.process_response_line(self, line, callbacks)
 
   -- Check for expected format: lines should start with "data: "
   if not line:match("^data: ") then
-    -- This is not a standard SSE data line or potentially a non-SSE JSON error
-    log.debug("openai.process_response_line(): Received non-SSE line: " .. line)
+    log.debug("openai.process_response_line(): Received non-SSE line, adding to accumulator: " .. line)
+    table.insert(self.response_accumulator.lines, line)
 
-    -- Try parsing as a direct JSON error response
+    -- Try parsing as a direct JSON error response (for single-line errors)
     local ok, error_data = pcall(vim.fn.json_decode, line)
-    if ok and error_data.error then
+    if ok and error_data and type(error_data) == "table" and error_data.error then
       local msg = "OpenAI API error"
-      if error_data.error and error_data.error.message then
+      if error_data.error.message then
         msg = error_data.error.message
       end
-
-      -- Log the error
-      log.error("openai.process_response_line(): OpenAI API error (parsed from non-SSE line): " .. log.inspect(msg))
-
+      log.error(
+        "openai.process_response_line(): OpenAI API error (parsed from single non-SSE line): " .. log.inspect(msg)
+      )
       if callbacks.on_error then
-        callbacks.on_error(msg) -- Keep original message for user notification
+        callbacks.on_error(msg)
       end
-      return
+      return -- Error handled
     end
-
-    -- If we can't parse it as an error, log and ignore
-    log.error("openai.process_response_line(): Ignoring unrecognized response line: " .. line)
+    -- If not a single-line parseable error, it will be handled by check_unprocessed_json
     return
   end
 
@@ -406,6 +415,7 @@ function M.process_response_line(self, line, callbacks)
   -- Handle actual content
   if delta.content then
     log.debug("openai.process_response_line(): Content delta: " .. log.inspect(delta.content))
+    self.response_accumulator.has_processed_content = true -- Mark that we've received actual content
 
     if callbacks.on_content then
       callbacks.on_content(delta.content)
@@ -421,6 +431,56 @@ function M.process_response_line(self, line, callbacks)
     log.debug("openai.process_response_line(): Received finish_reason: " .. log.inspect(data.choices[1].finish_reason))
     -- We'll let the final chunk with usage information trigger on_message_complete
   end
+end
+
+-- Check unprocessed JSON responses (called by base provider on_exit)
+function M.check_unprocessed_json(self, callbacks)
+  if not self.response_accumulator.has_processed_content and #self.response_accumulator.lines > 0 then
+    if not self:check_accumulated_response(callbacks) then
+      log.debug("openai.check_unprocessed_json(): No actionable error found in accumulated response.")
+    end
+  end
+end
+
+-- Check accumulated response for multi-line JSON error responses
+function M.check_accumulated_response(self, callbacks)
+  if #self.response_accumulator.lines == 0 then
+    return false
+  end
+
+  log.debug(
+    "openai.check_accumulated_response(): Checking accumulated response with "
+      .. #self.response_accumulator.lines
+      .. " lines."
+  )
+
+  local full_response = table.concat(self.response_accumulator.lines, "\n")
+  local ok, data = pcall(vim.fn.json_decode, full_response)
+
+  if not ok then
+    log.debug(
+      "openai.check_accumulated_response(): Failed to parse accumulated response as JSON. Content: " .. full_response
+    )
+    return false -- Not a JSON error, or malformed
+  end
+
+  if data and type(data) == "table" and data.error then
+    local msg = "OpenAI API error"
+    if data.error.message then
+      msg = data.error.message
+    end
+    log.error("openai.check_accumulated_response(): Parsed error from accumulated response: " .. log.inspect(msg))
+    if callbacks.on_error then
+      callbacks.on_error(msg)
+    end
+    return true -- Error handled
+  end
+
+  log.debug(
+    "openai.check_accumulated_response(): Accumulated response was valid JSON but not an error structure: "
+      .. log.inspect(data)
+  )
+  return false -- Valid JSON, but not the error structure we're looking for
 end
 
 return M
