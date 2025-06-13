@@ -23,7 +23,16 @@ syntax match ClaudiusUserFileReference "@\v(\.\.?\/)\S*[^[:punct:]\s]" contained
 syntax match ClaudiusThinkingTag "^<thinking>$" contained
 syntax match ClaudiusThinkingTag "^</thinking>$" contained
 
+" Define Frontmatter Tags (for highlighting the delimiters themselves)
+syntax match ClaudiusFrontmatterTag "^```lua$" contained
+syntax match ClaudiusFrontmatterTag "^```$" contained
+
 " Define regions
+" Frontmatter Block Region (top-level)
+" This region starts with ```lua and ends with ```.
+" It contains the tags themselves (ClaudiusFrontmatterTag) and Lua syntax for the content.
+syntax region ClaudiusFrontmatterBlock start="^```lua$" end="^```$" keepend contains=ClaudiusFrontmatterTag,@Lua
+
 " System region
 syntax region ClaudiusSystem start='^@System:' end='\(^@\(You\|Assistant\):\)\@=\|\%$' contains=ClaudiusRoleSystem,@Markdown
 " User region
