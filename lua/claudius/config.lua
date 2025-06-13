@@ -47,8 +47,11 @@ M.defaults = {
       location = "global", -- Google Cloud region
       thinking_budget = nil, -- Optional. Budget for model thinking, in tokens. nil or 0 disables thinking. Values >= 1 enable thinking with the specified budget.
     },
+    openai = {
+      reasoning = nil, -- Optional. "low", "medium", "high". Controls reasoning effort.
+    },
     -- Add provider-specific parameter sections here if needed in the future
-    -- e.g., claude = {}, openai = {}
+    -- e.g., claude = {}
   },
   text_object = "m", -- Default text object key, set to false to disable
   editing = {
