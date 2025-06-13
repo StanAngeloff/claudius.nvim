@@ -136,6 +136,14 @@ M.models = {
     input = 150.0, -- $150 per million input tokens
     output = 600.0, -- $600 per million output tokens
   },
+  ["o3"] = {
+    input = 15.0, -- $15 per million input tokens
+    output = 60.0, -- $60 per million output tokens
+  },
+  ["o3-2025-04-16"] = {
+    input = 15.0, -- $15 per million input tokens
+    output = 60.0, -- $60 per million output tokens
+  },
   ["o3-mini"] = {
     input = 1.10, -- $1.10 per million input tokens
     output = 4.40, -- $4.40 per million output tokens
