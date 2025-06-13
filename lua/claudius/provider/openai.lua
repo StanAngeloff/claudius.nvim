@@ -261,9 +261,25 @@ function M.process_response_line(self, line, callbacks)
         end
         if callbacks.on_usage and data.usage.completion_tokens then
           callbacks.on_usage({
-            type = "output",
+            type = "output", -- Represents visible completion tokens
             tokens = data.usage.completion_tokens,
           })
+        end
+        -- Check for reasoning tokens in completion_tokens_details
+        if
+          callbacks.on_usage
+          and data.usage.completion_tokens_details
+          and type(data.usage.completion_tokens_details) == "table"
+          and data.usage.completion_tokens_details.reasoning_tokens
+        then
+          callbacks.on_usage({
+            type = "thoughts",
+            tokens = data.usage.completion_tokens_details.reasoning_tokens,
+          })
+          log.debug(
+            "openai.process_response_line(): Parsed reasoning_tokens: "
+              .. data.usage.completion_tokens_details.reasoning_tokens
+          )
         end
 
         -- Signal message completion (this is the only place we should call it)
