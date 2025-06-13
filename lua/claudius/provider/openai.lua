@@ -201,12 +201,15 @@ function M.create_request_body(self, formatted_messages, _)
     },
   }
 
-  -- Conditionally set max_tokens or max_completion_tokens based on reasoning parameter
+  -- Conditionally set max_tokens or max_completion_tokens and add reasoning_effort
   if self.parameters.reasoning and self.parameters.reasoning ~= "" then
     request_body.max_completion_tokens = self.parameters.max_tokens
+    request_body.reasoning_effort = self.parameters.reasoning -- Add reasoning_effort
     log.debug(
-      "openai.create_request_body: Using max_completion_tokens due to 'reasoning' parameter: "
+      "openai.create_request_body: Using max_completion_tokens: "
         .. tostring(self.parameters.max_tokens)
+        .. " and reasoning_effort: "
+        .. self.parameters.reasoning
     )
   else
     request_body.max_tokens = self.parameters.max_tokens
