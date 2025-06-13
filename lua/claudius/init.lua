@@ -340,8 +340,6 @@ M.setup = function(user_opts)
     set_highlight("ClaudiusAssistant", config.highlights.assistant)
     set_highlight("ClaudiusUserLuaExpression", config.highlights.user_lua_expression) -- Highlight for {{expression}} in user messages
     set_highlight("ClaudiusUserFileReference", config.highlights.user_file_reference) -- Highlight for @./file in user messages
-    set_highlight("ClaudiusThinkingTag", config.highlights.thinking_tag) -- Highlight for <thinking> and </thinking> tags
-    set_highlight("ClaudiusFrontmatterTag", config.highlights.frontmatter_tag) -- Highlight for ```lua and ``` tags
 
     -- Set up role marker highlights (e.g., @You:, @System:)
     -- Use existing highlight groups which are now correctly defined by set_highlight
