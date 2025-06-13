@@ -4,6 +4,45 @@ local M = {}
 -- Store buffer-local state
 local buffer_state = {}
 
+-- Constants for fold text preview
+local MAX_CONTENT_PREVIEW_LINES = 10
+local MAX_CONTENT_PREVIEW_LENGTH = 72
+local CONTENT_PREVIEW_NEWLINE_CHAR = "⤶"
+local CONTENT_PREVIEW_TRUNCATION_MARKER = "..."
+
+-- Helper function to generate content preview for folds
+local function get_fold_content_preview(fold_start_lnum, fold_end_lnum)
+  local content_lines = {}
+  -- Content is between the start and end delimiter lines
+  local num_content_lines_in_fold = fold_end_lnum - fold_start_lnum - 1
+
+  if num_content_lines_in_fold <= 0 then
+    return "" -- No content lines within the fold
+  end
+
+  local lines_to_fetch = math.min(num_content_lines_in_fold, MAX_CONTENT_PREVIEW_LINES)
+
+  for i = 1, lines_to_fetch do
+    local current_content_line_num = fold_start_lnum + i
+    local line_text = vim.fn.getline(current_content_line_num)
+    table.insert(content_lines, vim.fn.trim(line_text)) -- Trim each line
+  end
+
+  local preview_str = table.concat(content_lines, CONTENT_PREVIEW_NEWLINE_CHAR)
+  preview_str = vim.fn.trim(preview_str) -- Trim the whole concatenated string
+
+  if #preview_str > MAX_CONTENT_PREVIEW_LENGTH then
+    -- Ensure we have enough space for the truncation marker
+    local truncated_length = MAX_CONTENT_PREVIEW_LENGTH - #CONTENT_PREVIEW_TRUNCATION_MARKER
+    if truncated_length < 0 then truncated_length = 0 end -- Handle edge case
+
+    preview_str = preview_str:sub(1, truncated_length)
+    preview_str = preview_str .. CONTENT_PREVIEW_TRUNCATION_MARKER
+  end
+
+  return preview_str
+end
+
 -- Initialize state for a buffer
 function M.init_buffer(bufnr)
   buffer_state[bufnr] = {
@@ -96,21 +135,33 @@ function M.get_fold_level(lnum)
 end
 
 function M.get_fold_text()
-  local foldstart = vim.v.foldstart
-  local line_content = vim.fn.getline(foldstart)
-  local lines_count = vim.v.foldend - vim.v.foldstart + 1
+  local foldstart_lnum = vim.v.foldstart
+  local foldend_lnum = vim.v.foldend
+  local first_line_content = vim.fn.getline(foldstart_lnum)
+  local total_fold_lines = foldend_lnum - foldstart_lnum + 1
 
   -- Check for frontmatter fold (level 3) - only if it started on line 1
-  if vim.v.foldstart == 1 and line_content:match("^```lua$") then
-    return string.format("```lua ... ``` (%d lines)", lines_count)
+  if foldstart_lnum == 1 and first_line_content:match("^```lua$") then
+    local preview = get_fold_content_preview(foldstart_lnum, foldend_lnum)
+    if preview ~= "" then
+      return string.format("```lua %s ``` (%d lines)", preview, total_fold_lines)
+    else
+      return string.format("```lua (%d lines)", total_fold_lines)
+    end
   end
 
   -- Check if this is a thinking fold (level 2)
-  if line_content:match("^<thinking>$") then
-    return string.format("<thinking>...</thinking> (%d lines)", lines_count)
+  if first_line_content:match("^<thinking>$") then
+    local preview = get_fold_content_preview(foldstart_lnum, foldend_lnum)
+    if preview ~= "" then
+      return string.format("<thinking> %s </thinking> (%d lines)", preview, total_fold_lines)
+    else
+      return string.format("<thinking> (%d lines)", total_fold_lines)
+    end
   end
 
   -- Existing logic for message folds (level 1)
+  -- Note: Using foldstart_lnum, first_line_content, total_fold_lines defined above
   local role_type = line_content:match("^(@[%w]+:)")
   if not role_type then
     -- This case should ideally not be reached if get_fold_level is correct
