@@ -19,11 +19,22 @@ syntax match ClaudiusUserLuaExpression "{{.\{-}}}" contained
 " [^[:punct:]\s]     - a character that is NOT punctuation and NOT whitespace (ensures end is not punctuation)
 syntax match ClaudiusUserFileReference "@\v(\.\.?\/)\S*[^[:punct:]\s]" contained
 
+" Define Thinking Tags (for highlighting the tags themselves)
+syntax match ClaudiusThinkingTag "^<thinking>$" contained
+syntax match ClaudiusThinkingTag "^</thinking>$" contained
+
 " Define regions
-" System and Assistant regions contain role markers and markdown
+" System region
 syntax region ClaudiusSystem start='^@System:' end='\(^@\(You\|Assistant\):\)\@=\|\%$' contains=ClaudiusRoleSystem,@Markdown
-" User region contains role markers, User Lua expressions, User file references, and markdown
+" User region
 syntax region ClaudiusUser start='^@You:' end='\(^@\(System\|Assistant\):\)\@=\|\%$' contains=ClaudiusRoleUser,ClaudiusUserLuaExpression,ClaudiusUserFileReference,@Markdown
-syntax region ClaudiusAssistant start='^@Assistant:' end='\(^@\(System\|You\):\)\@=\|\%$' contains=ClaudiusRoleAssistant,@Markdown
+
+" Thinking Block Region (nested inside Assistant)
+" This region starts with <thinking> and ends with </thinking>.
+" It contains the tags themselves (ClaudiusThinkingTag) and markdown for the content.
+syntax region ClaudiusThinkingBlock start="^<thinking>$" end="^</thinking>$" keepend contains=ClaudiusThinkingTag,@Markdown
+
+" Assistant region contains role markers, markdown, and thinking blocks
+syntax region ClaudiusAssistant start='^@Assistant:' end='\(^@\(System\|You\):\)\@=\|\%$' contains=ClaudiusRoleAssistant,ClaudiusThinkingBlock,@Markdown
 
 let b:current_syntax = "chat"

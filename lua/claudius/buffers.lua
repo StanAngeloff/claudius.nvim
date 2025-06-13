@@ -52,36 +52,58 @@ end
 -- Folding functions
 function M.get_fold_level(lnum)
   local line = vim.fn.getline(lnum)
-  local last_line = vim.fn.line("$")
+  local next_line_num = lnum + 1
+  local last_buf_line = vim.fn.line("$")
 
-  -- If line starts with @, it's the start of a fold
+  -- Level 2 folds: <thinking>...</thinking>
+  if line:match("^<thinking>$") then
+    return ">2" -- Starts a level 2 fold
+  elseif line:match("^</thinking>$") then
+    return "<2" -- Ends a level 2 fold
+  end
+
+  -- Level 1 folds: @Role:...
   if line:match("^@[%w]+:") then
-    return ">1" -- vim: foldlevel string
+    return ">1" -- Starts a level 1 fold
   end
 
-  -- If next line starts with @ or this is the last line, this is the end of the current fold
-  local next_line = vim.fn.getline(lnum + 1)
-  if next_line:match("^@[%w]+:") or lnum == last_line then
-    return "<1"
+  -- Check for end of level 1 fold:
+  -- This line is the last line of a message if:
+  -- 1. The next line starts a new message (@Role:)
+  -- 2. This is the last line of the file.
+  if next_line_num <= last_buf_line then
+    local next_line_content = vim.fn.getline(next_line_num)
+    if next_line_content:match("^@[%w]+:") then
+      return "<1" -- Ends a level 1 fold
+    end
+  elseif lnum == last_buf_line then -- Current line is the last in buffer
+    return "<1" -- Ends a level 1 fold
   end
 
-  -- Otherwise, we're inside a fold
-  return "1"
+  -- If none of the above, the line continues the current fold level.
+  return "="
 end
 
 function M.get_fold_text()
   local foldstart = vim.v.foldstart
-  local line = vim.fn.getline(foldstart)
+  local line_content = vim.fn.getline(foldstart)
   local lines_count = vim.v.foldend - vim.v.foldstart + 1
 
-  -- Extract the role type (@You:, @Assistant:, etc.)
-  local role_type = line:match("^(@[%w]+:)")
+  -- Check if this is a thinking fold (level 2)
+  if line_content:match("^<thinking>$") then
+    return string.format("<thinking>...</thinking> (%d lines)", lines_count)
+  end
+
+  -- Existing logic for message folds (level 1)
+  local role_type = line_content:match("^(@[%w]+:)")
   if not role_type then
-    return line
+    -- This case should ideally not be reached if get_fold_level is correct
+    -- and we are processing a valid fold start.
+    return line_content
   end
 
   -- Get the first line of content (excluding the role type)
-  local content = line:sub(#role_type + 1):gsub("^%s*", "")
+  local content = line_content:sub(#role_type + 1):gsub("^%s*", "")
 
   -- Create fold text: role type + first line + number of lines
   return string.format("%s %s... (%d lines)", role_type, content:sub(1, 50), lines_count)
