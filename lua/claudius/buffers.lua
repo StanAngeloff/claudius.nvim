@@ -55,11 +55,11 @@ function M.get_fold_level(lnum)
   local next_line_num = lnum + 1
   local last_buf_line = vim.fn.line("$")
 
-  -- Level 3 folds: ```lua ... ```
-  if line:match("^```lua$") then
+  -- Level 3 folds: ```lua ... ``` (only if ```lua is on the first line)
+  if lnum == 1 and line:match("^```lua$") then
     return ">3" -- Starts a level 3 fold
   elseif line:match("^```$") then
-    -- This assumes ``` closes a ```lua block if a level 3 fold is open.
+    -- This assumes ``` closes a ```lua block if a level 3 fold was opened on line 1.
     return "<3" -- Ends a level 3 fold
   end
 
@@ -80,9 +80,11 @@ function M.get_fold_level(lnum)
   -- or a thinking block, or a frontmatter block, or if it's the last line.
   if next_line_num <= last_buf_line then
     local next_line_content = vim.fn.getline(next_line_num)
+    -- A level 1 fold (message) ends if the next line starts a new message (@Role:)
+    -- or a thinking block (<thinking>). A ```lua block only ends a message
+    -- if it's on the first line of the file, which is handled by the >3 rule.
     if next_line_content:match("^@[%w]+:") or -- Next line is a new message
-       next_line_content:match("^<thinking>$") or -- Next line is a thinking block
-       next_line_content:match("^```lua$") then -- Next line is a frontmatter block
+       next_line_content:match("^<thinking>$") then -- Next line is a thinking block
       return "<1" -- Ends a level 1 fold
     end
   elseif lnum == last_buf_line then -- Current line is the last in buffer
@@ -98,8 +100,8 @@ function M.get_fold_text()
   local line_content = vim.fn.getline(foldstart)
   local lines_count = vim.v.foldend - vim.v.foldstart + 1
 
-  -- Check for frontmatter fold (level 3)
-  if line_content:match("^```lua$") then
+  -- Check for frontmatter fold (level 3) - only if it started on line 1
+  if vim.v.foldstart == 1 and line_content:match("^```lua$") then
     return string.format("```lua ... ``` (%d lines)", lines_count)
   end
 

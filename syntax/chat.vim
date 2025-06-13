@@ -29,9 +29,9 @@ syntax match ClaudiusFrontmatterTag "^```$" contained
 
 " Define regions
 " Frontmatter Block Region (top-level)
-" This region starts with ```lua and ends with ```.
+" This region starts with ```lua on the first line of the file and ends with ```.
 " It contains the tags themselves (ClaudiusFrontmatterTag) and Lua syntax for the content.
-syntax region ClaudiusFrontmatterBlock start="^```lua$" end="^```$" keepend contains=ClaudiusFrontmatterTag,@Lua
+syntax region ClaudiusFrontmatterBlock start="\%1l^```lua$" end="^```$" keepend contains=ClaudiusFrontmatterTag,@Lua
 
 " System region
 syntax region ClaudiusSystem start='^@System:' end='\(^@\(You\|Assistant\):\)\@=\|\%$' contains=ClaudiusRoleSystem,@Markdown
