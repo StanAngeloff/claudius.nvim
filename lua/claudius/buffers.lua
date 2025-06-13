@@ -119,11 +119,11 @@ function M.get_fold_level(lnum)
   -- or a thinking block, or a frontmatter block, or if it's the last line.
   if next_line_num <= last_buf_line then
     local next_line_content = vim.fn.getline(next_line_num)
-    -- A level 1 fold (message) ends if the next line starts a new message (@Role:)
-    -- or a thinking block (<thinking>). A ```lua block only ends a message
-    -- if it's on the first line of the file, which is handled by the >3 rule.
-    if next_line_content:match("^@[%w]+:") or -- Next line is a new message
-       next_line_content:match("^<thinking>$") then -- Next line is a thinking block
+    -- A level 1 fold (message) ends if the next line starts a new message (@Role:).
+    -- A <thinking> block is part of the current message and starts a nested fold.
+    -- A ```lua block only starts a fold if it's on the first line of the file,
+    -- so it doesn't terminate a preceding message in other contexts.
+    if next_line_content:match("^@[%w]+:") then -- Next line is a new message
       return "<1" -- Ends a level 1 fold
     end
   elseif lnum == last_buf_line then -- Current line is the last in buffer
