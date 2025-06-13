@@ -1520,4 +1520,29 @@ function M.get_current_model_name()
   return nil -- Or an empty string, depending on desired behavior for uninitialized model
 end
 
+-- Get the current provider name
+function M.get_current_provider_name()
+  if config and config.provider then
+    return config.provider
+  end
+  return nil
+end
+
+-- Get the current reasoning setting if applicable for OpenAI
+function M.get_current_reasoning_setting()
+  if
+    config
+    and config.provider == "openai"
+    and config.parameters
+    and config.parameters.openai
+    and config.parameters.openai.reasoning
+  then
+    local reasoning = config.parameters.openai.reasoning
+    if reasoning == "low" or reasoning == "medium" or reasoning == "high" then
+      return reasoning
+    end
+  end
+  return nil
+end
+
 return M
