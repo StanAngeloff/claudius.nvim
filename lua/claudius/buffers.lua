@@ -34,7 +34,9 @@ local function get_fold_content_preview(fold_start_lnum, fold_end_lnum)
   if #preview_str > MAX_CONTENT_PREVIEW_LENGTH then
     -- Ensure we have enough space for the truncation marker
     local truncated_length = MAX_CONTENT_PREVIEW_LENGTH - #CONTENT_PREVIEW_TRUNCATION_MARKER
-    if truncated_length < 0 then truncated_length = 0 end -- Handle edge case
+    if truncated_length < 0 then
+      truncated_length = 0
+    end -- Handle edge case
 
     preview_str = preview_str:sub(1, truncated_length)
     preview_str = preview_str .. CONTENT_PREVIEW_TRUNCATION_MARKER

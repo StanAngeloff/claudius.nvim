@@ -169,9 +169,7 @@ local function fold_last_thinking_block(bufnr)
       break
     end
     if lines[l + 1]:match("^@[%w]+:") then
-      log.debug(
-        "fold_last_thinking_block(): Encountered another role marker before finding matching <thinking> tag."
-      )
+      log.debug("fold_last_thinking_block(): Encountered another role marker before finding matching <thinking> tag.")
       return
     end
   end
