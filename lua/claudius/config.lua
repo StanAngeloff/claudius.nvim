@@ -7,6 +7,8 @@ M.defaults = {
     system = "Special", -- Highlight group or hex color (e.g., "#ffccaa") for system messages
     user = "Normal", -- Highlight group or hex color for user messages
     assistant = "Comment", -- Highlight group or hex color for assistant messages
+    user_lua_expression = "PreProc", -- Highlight group or hex color for {{expression}} in user messages
+    user_file_reference = "Include", -- Highlight group or hex color for @./file references in user messages
   },
   role_style = "bold,underline", -- style applied to role markers like @You:
   ruler = {
@@ -42,11 +44,14 @@ M.defaults = {
     connect_timeout = 10, -- Default connection timeout for cURL requests
     vertex = {
       project_id = nil, -- Google Cloud project ID
-      location = "us-central1", -- Google Cloud region
+      location = "global", -- Google Cloud region
       thinking_budget = nil, -- Optional. Budget for model thinking, in tokens. nil or 0 disables thinking. Values >= 1 enable thinking with the specified budget.
     },
+    openai = {
+      reasoning = nil, -- Optional. "low", "medium", "high". Controls reasoning effort.
+    },
     -- Add provider-specific parameter sections here if needed in the future
-    -- e.g., claude = {}, openai = {}
+    -- e.g., claude = {}
   },
   text_object = "m", -- Default text object key, set to false to disable
   editing = {

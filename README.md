@@ -45,25 +45,25 @@ For Google Vertex AI, the Google Cloud CLI _(`gcloud`)_ is required if using ser
 
 Your API key can be stored and retrieved from the system keyring:
 
-  For Anthropic:
+For Anthropic:
 
-  ```bash
-  secret-tool store --label="Anthropic API Key" service anthropic key api
-  ```
+```bash
+secret-tool store --label="Anthropic API Key" service anthropic key api
+```
 
-  For OpenAI:
+For OpenAI:
 
-  ```bash
-  secret-tool store --label="OpenAI API Key" service openai key api
-  ```
+```bash
+secret-tool store --label="OpenAI API Key" service openai key api
+```
 
-  For Google Vertex AI _(store service account JSON)_:
+For Google Vertex AI _(store service account JSON)_:
 
-  ```bash
-  secret-tool store --label="Vertex AI Service Account" service vertex key api project_id your_project_id
-  ```
+```bash
+secret-tool store --label="Vertex AI Service Account" service vertex key api project_id your_project_id
+```
 
-  This will securely prompt for your API key and store it in the system keyring.
+This will securely prompt for your API key and store it in the system keyring.
 
 </details>
 
@@ -80,7 +80,7 @@ require("claudius").setup({
     model = nil,  -- Uses provider defaults if nil (see below)
     -- Claude default: "claude-3-7-sonnet-20250219"
     -- OpenAI default: "gpt-4o"
-    -- Vertex default: "gemini-2.5-pro-preview-05-06"
+    -- Vertex default: "gemini-2.5-pro-preview-06-05"
     parameters = {
         max_tokens = nil,  -- Set to nil to use default (4000)
         temperature = nil,  -- Set to nil to use default (0.7)
@@ -95,7 +95,9 @@ require("claudius").setup({
     highlights = {
         system = "Special",    -- highlight group or hex color (e.g., "#80a0ff") for system messages
         user = "Normal",       -- highlight group or hex color for user messages
-        assistant = "Comment"  -- highlight group or hex color for assistant messages
+        assistant = "Comment",  -- highlight group or hex color for assistant messages
+        user_lua_expression = "PreProc", -- highlight group or hex color for {{expression}} in user messages
+        user_file_reference = "Include"  -- highlight group or hex color for @./file references in user messages
     },
     role_style = "bold,underline",  -- style applied to role markers like @You:
     ruler = {
@@ -241,9 +243,9 @@ You can switch between AI providers at any time using the `:ClaudiusSwitch` comm
 :ClaudiusSwitch # Interactive provider/model selection
 :ClaudiusSwitch claude # Switch to Claude with default model
 :ClaudiusSwitch openai gpt-4o # Switch to OpenAI with specific model
-:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project # Switch to Vertex AI with project ID
+:ClaudiusSwitch vertex gemini-2.5-pro-preview-06-05 project_id=my-project # Switch to Vertex AI with project ID
 :ClaudiusSwitch claude claude-3-7-sonnet-20250219 temperature=0.2 max_tokens=1000 connect_timeout=5 timeout=60 # Multiple parameters, including general ones
-:ClaudiusSwitch vertex gemini-2.5-pro-preview-05-06 project_id=my-project thinking_budget=1000 # Vertex AI with thinking budget
+:ClaudiusSwitch vertex gemini-2.5-pro-preview-06-05 project_id=my-project thinking_budget=1000 # Vertex AI with thinking budget
 ```
 
 This allows you to compare responses from different AI models without restarting Neovim.
@@ -267,6 +269,7 @@ require('lualine').setup {
   -- ...
 }
 ```
+
 The model display is active only for **.chat** buffers.
 
 ### Templating and Dynamic Content
@@ -309,11 +312,11 @@ Use `{{expression}}` syntax inside any message to evaluate Lua code:
 
 The expression environment is restricted to safe operations focused on string manipulation, basic math, and table operations. Available functions include:
 
-- String operations *(upper, lower, sub, gsub, etc)*
-- Table operations *(concat, insert, remove, sort)*
-- Math functions *(abs, ceil, floor, max, min, etc)*
+- String operations _(upper, lower, sub, gsub, etc)_
+- Table operations _(concat, insert, remove, sort)_
+- Math functions _(abs, ceil, floor, max, min, etc)_
 - UTF-8 support
-- Essential functions *(assert, error, ipairs, pairs, etc)*
+- Essential functions _(assert, error, ipairs, pairs, etc)_
 
 While you can define functions in the frontmatter, the focus is on simple templating rather than complex programming:
 
@@ -334,10 +337,10 @@ You can embed content from local files directly into your messages using the `@.
 
 **Syntax:**
 
--   File paths must start with `./` _(current directory)_ or `../` _(parent directory)_.
--   Example: `@./images/diagram.png` or `@../documents/report.pdf`
--   File paths can be URL-encoded _(e.g., spaces as `%20`)_ and will be automatically decoded.
--   Trailing punctuation in file paths _(e.g., from ending a sentence with `@./file.txt.`)_ is ignored.
+- File paths must start with `./` _(current directory)_ or `../` _(parent directory)_.
+- Example: `@./images/diagram.png` or `@../documents/report.pdf`
+- File paths can be URL-encoded _(e.g., spaces as `%20`)_ and will be automatically decoded.
+- Trailing punctuation in file paths _(e.g., from ending a sentence with `@./file.txt.`)_ is ignored.
 
 If a file is not found, not readable, or its MIME type is unsupported by the provider for direct inclusion, the raw `@./path/to/file` reference will be sent as text, and a notification will be shown.
 
@@ -349,11 +352,11 @@ Example:
 
 **Provider Support:**
 
-| **Claude & OpenAI** | **Vertex AI** |
-| --- | --- |
-| Text: Plain text files <em>(e.g., `.txt`, `.md`, `.lua`)</em> are embedded as text | Text files <em>(MIME type `text/*`)</em> are embedded as text parts |
-| Images: JPEG, PNG, GIF, WebP | Supports generic binary files <em>(sent as `inlineData` with detected MIME type)</em> |
-| Documents: PDF | |
+| **Claude & OpenAI**                                                                | **Vertex AI**                                                                         |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Text: Plain text files <em>(e.g., `.txt`, `.md`, `.lua`)</em> are embedded as text | Text files <em>(MIME type `text/*`)</em> are embedded as text parts                   |
+| Images: JPEG, PNG, GIF, WebP                                                       | Supports generic binary files <em>(sent as `inlineData` with detected MIME type)</em> |
+| Documents: PDF                                                                     |                                                                                       |
 
 ### Importing from Claude Workbench
 

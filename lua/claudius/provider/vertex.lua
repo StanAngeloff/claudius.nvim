@@ -328,15 +328,11 @@ function M.create_request_body(self, formatted_messages, system_message)
     )
   elseif configured_budget == 0 then
     -- Thinking is explicitly disabled by setting budget to 0
-    log.debug(
-      "create_request_body: Vertex AI thinking_budget is 0. Thinking is disabled. Not sending thinkingConfig."
-    )
+    log.debug("create_request_body: Vertex AI thinking_budget is 0. Thinking is disabled. Not sending thinkingConfig.")
     -- add_thinking_config remains false
   elseif configured_budget == nil then
     -- Thinking budget is not set (nil), so default behavior (no thinkingConfig)
-    log.debug(
-      "create_request_body: Vertex AI thinking_budget is nil. Not sending thinkingConfig."
-    )
+    log.debug("create_request_body: Vertex AI thinking_budget is nil. Not sending thinkingConfig.")
     -- add_thinking_config remains false
   else
     -- Handles negative numbers or other invalid types if they somehow get here.
@@ -410,9 +406,16 @@ function M.get_endpoint(self)
   end
 
   -- Ensure we're using the streamGenerateContent endpoint with SSE format
+  local hostname
+  if location == "global" then
+    hostname = "aiplatform.googleapis.com"
+  else
+    hostname = location .. "-aiplatform.googleapis.com"
+  end
+
   local endpoint = string.format(
-    "https://%s-aiplatform.googleapis.com/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
-    location,
+    "https://%s/%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
+    hostname,
     self.api_version,
     project_id,
     location,

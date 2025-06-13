@@ -1,8 +1,94 @@
 --- Safe environment and execution for Lua code in Claudius, where safe is a loose term.
 local M = {}
 
+local function include_delegate(relative_path, env_of_caller, eval_expression_func, create_safe_env_func)
+  if not env_of_caller.__filename then
+    error("include() called but __filename is not set in the calling environment.")
+  end
+  if not env_of_caller.__include_stack then
+    error("include() called but __include_stack is not set in the calling environment.")
+  end
+
+  local calling_file_path = env_of_caller.__filename
+  if not calling_file_path or calling_file_path == "" then
+    error("include_delegate: calling environment's __filename is missing or empty.")
+  end
+
+  local base_dir
+  -- Check if the path is absolute by comparing it with its absolute version
+  if vim.fs.abspath(calling_file_path) == calling_file_path then
+    base_dir = vim.fn.fnamemodify(calling_file_path, ":h")
+  else
+    local dir_of_calling_file = vim.fn.fnamemodify(calling_file_path, ":h") -- Returns '.' if no path part, or the path part
+    if dir_of_calling_file == "" or dir_of_calling_file == "." then
+      base_dir = vim.fn.getcwd()
+    else
+      base_dir = vim.fs.normalize(vim.fn.getcwd() .. "/" .. dir_of_calling_file)
+    end
+  end
+
+  local target_path = vim.fs.normalize(base_dir .. "/" .. relative_path)
+
+  for _, path_in_stack in ipairs(env_of_caller.__include_stack) do
+    if path_in_stack == target_path then
+      error(
+        string.format(
+          "Circular include for '%s' (requested by '%s'). Include stack: %s",
+          target_path,
+          calling_file_path,
+          table.concat(env_of_caller.__include_stack, " -> ")
+        )
+      )
+    end
+  end
+
+  local file, err_msg = io.open(target_path, "r")
+  if not file then
+    error(
+      string.format(
+        "Failed to open include file '%s' (requested by '%s'): %s",
+        target_path,
+        calling_file_path,
+        (err_msg or "unknown error")
+      )
+    )
+  end
+  local content = file:read("*a")
+  file:close()
+
+  local new_include_env = create_safe_env_func() -- Create a fresh base environment
+  new_include_env.__filename = target_path
+  new_include_env.__include_stack = vim.deepcopy(env_of_caller.__include_stack)
+  table.insert(new_include_env.__include_stack, target_path)
+
+  -- Expressions in the included file will be evaluated using new_include_env.
+  -- M.eval_expression (as eval_expression_func) will ensure new_include_env.include is set up.
+  local processed_content = content:gsub("{{(.-)}}", function(inner_expr)
+    local ok, presult = pcall(eval_expression_func, inner_expr, new_include_env)
+    if not ok then
+      -- presult is the error string from eval_expression_func, already contextualized.
+      error(presult)
+    end
+    return presult
+  end)
+
+  return processed_content
+end
+
+local function ensure_env_capabilities(env, eval_expr_fn, create_env_fn)
+  if env.include == nil then
+    -- The 'include' function captures the 'env' it's defined in.
+    -- Errors from include_delegate will propagate up to M.eval_expression.
+    env.include = function(relative_path)
+      return include_delegate(relative_path, env, eval_expr_fn, create_env_fn)
+    end
+  end
+end
+
 -- Create a safe environment for executing Lua code
 function M.create_safe_env()
+  -- Note: The 'include' function is not added here directly.
+  -- It will be added by ensure_env_capabilities, allowing it to capture the correct 'env'.
   return {
     -- String manipulation
     string = {
@@ -46,6 +132,18 @@ function M.create_safe_env()
     -- UTF-8 support for unicode string handling
     utf8 = utf8,
 
+    -- Neovim API functions required by include()
+    vim = {
+      fn = {
+        fnamemodify = vim.fn.fnamemodify,
+        getcwd = vim.fn.getcwd,
+      },
+      fs = {
+        normalize = vim.fs.normalize,
+        abspath = vim.fs.abspath,
+      },
+    },
+
     -- Essential functions for template operation
     assert = assert,
     error = error,
@@ -63,9 +161,14 @@ function M.create_safe_env()
 end
 
 -- Execute code in a safe environment
-function M.execute_safe(code, env)
+function M.execute_safe(code, env_param)
   -- Create environment and store initial keys
-  env = env or M.create_safe_env()
+  local env = env_param or M.create_safe_env() -- Use provided env or create a new one
+
+  -- Ensure 'include' is available and correctly contextualized for this environment.
+  -- M.eval_expression and M.create_safe_env are used for recursive calls from 'include'.
+  ensure_env_capabilities(env, M.eval_expression, M.create_safe_env)
+
   local initial_keys = {}
   for k in pairs(env) do
     initial_keys[k] = true
@@ -73,12 +176,16 @@ function M.execute_safe(code, env)
 
   local chunk, load_err = load(code, "safe_env", "t", env)
   if not chunk then
-    error("Failed to load code: " .. load_err)
+    error(string.format("Load error in frontmatter of '%s': %s", (env.__filename or "N/A"), load_err))
   end
 
   local ok, exec_err = pcall(chunk)
   if not ok then
-    error("Failed to execute code: " .. exec_err)
+    error(string.format(
+      "Execution error in frontmatter of '%s': %s",
+      (env.__filename or "N/A"),
+      exec_err -- This could be an error from include, already contextualized
+    ))
   end
 
   -- Collect only new keys that weren't in initial environment
@@ -94,6 +201,14 @@ end
 
 -- Evaluate an expression in a given environment
 function M.eval_expression(expr, env)
+  -- Ensure 'env' is not nil, though callers should guarantee this.
+  if not env then
+    error("eval.eval_expression called with a nil environment.")
+  end
+
+  -- Ensure 'include' is available and correctly contextualized for this environment.
+  ensure_env_capabilities(env, M.eval_expression, M.create_safe_env)
+
   -- Wrap expression in return statement if it's not already a statement
   if not expr:match("^%s*return%s+") then
     expr = "return " .. expr
@@ -101,12 +216,20 @@ function M.eval_expression(expr, env)
 
   local chunk, parse_err = load(expr, "expression", "t", env)
   if not chunk then
-    error("Failed to parse expression: " .. parse_err)
+    error(string.format("Parse error in '%s' for expression '{{%s}}': %s", (env.__filename or "N/A"), expr, parse_err))
   end
 
   local ok, eval_result = pcall(chunk)
   if not ok then
-    error("Failed to evaluate expression: " .. eval_result)
+    -- eval_result here could be a simple Lua error or a contextualized error from include_delegate
+    error(
+      string.format(
+        "Evaluation error in '%s' for expression '{{%s}}': %s",
+        (env.__filename or "N/A"),
+        expr,
+        eval_result
+      )
+    )
   end
 
   return eval_result
