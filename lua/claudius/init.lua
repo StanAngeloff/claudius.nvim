@@ -203,6 +203,27 @@ local function initialize_provider(provider_name, model_name, parameters)
     end
   end
 
+  -- Check for temperature <> 1.0 with o-series OpenAI models when reasoning is active
+  if provider_name == "openai" then
+    local reasoning_value = merged_params.reasoning
+    local temp_value = merged_params.temperature
+    if
+      reasoning_value ~= nil
+      and reasoning_value ~= ""
+      and string.sub(validated_model, 1, 1) == "o"
+      and temp_value ~= nil
+      and temp_value ~= 1
+      and temp_value ~= 1.0
+    then
+      local temp_warning_msg = string.format(
+        "Claudius: For OpenAI o-series models with 'reasoning' active, 'temperature' must be 1 or omitted. Current value is '%s'. The API will likely reject this.",
+        tostring(temp_value)
+      )
+      vim.notify(temp_warning_msg, vim.log.levels.WARN, { title = "Claudius Configuration" })
+      log.warn(temp_warning_msg)
+    end
+  end
+
   -- Log the final configuration being passed to the provider constructor
   log.debug(
     "initialize_provider(): Initializing provider "

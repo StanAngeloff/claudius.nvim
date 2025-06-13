@@ -194,7 +194,7 @@ function M.create_request_body(self, formatted_messages, _)
     model = self.parameters.model,
     messages = api_messages,
     -- max_tokens or max_completion_tokens will be set conditionally below
-    temperature = self.parameters.temperature,
+    -- temperature will be set conditionally below
     stream = true,
     stream_options = {
       include_usage = true, -- Request usage information in the final chunk
@@ -213,7 +213,13 @@ function M.create_request_body(self, formatted_messages, _)
     )
   else
     request_body.max_tokens = self.parameters.max_tokens
-    log.debug("openai.create_request_body: Using max_tokens: " .. tostring(self.parameters.max_tokens))
+    request_body.temperature = self.parameters.temperature -- Set temperature if not using reasoning
+    log.debug(
+      "openai.create_request_body: Using max_tokens: "
+        .. tostring(self.parameters.max_tokens)
+        .. " and temperature: "
+        .. tostring(self.parameters.temperature)
+    )
   end
 
   return request_body
