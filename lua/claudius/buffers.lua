@@ -162,18 +162,18 @@ function M.get_fold_text()
 
   -- Existing logic for message folds (level 1)
   -- Note: Using foldstart_lnum, first_line_content, total_fold_lines defined above
-  local role_type = line_content:match("^(@[%w]+:)")
+  local role_type = first_line_content:match("^(@[%w]+:)")
   if not role_type then
     -- This case should ideally not be reached if get_fold_level is correct
     -- and we are processing a valid fold start.
-    return line_content
+    return first_line_content -- Return the original line content if no role_type match
   end
 
   -- Get the first line of content (excluding the role type)
-  local content = line_content:sub(#role_type + 1):gsub("^%s*", "")
+  local content_preview_for_message = first_line_content:sub(#role_type + 1):gsub("^%s*", "")
 
   -- Create fold text: role type + first line + number of lines
-  return string.format("%s %s... (%d lines)", role_type, content:sub(1, 50), lines_count)
+  return string.format("%s %s... (%d lines)", role_type, content_preview_for_message:sub(1, 50), total_fold_lines)
 end
 
 return M
